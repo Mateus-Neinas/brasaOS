@@ -1,0 +1,266 @@
+#!/bin/sh
+# Graphical Brasa installer front end for the future FreeBSD live image.
+# Destructive disk operations are delegated to bsdinstall after confirmation.
+set -eu
+
+title='Instalar Brasa'
+minimum_bytes=42949672960
+
+fail() {
+  zenity --error --title="$title" --width=560 --text="$1"
+  exit 1
+}
+
+cancelled() {
+  zenity --info --title="$title" --width=520 --text='Instalação cancelada. Nenhum disco foi alterado.'
+  exit 0
+}
+
+command -v zenity >/dev/null 2>&1 || {
+  printf '%s\n' 'O instalador gráfico precisa do Zenity no ambiente live Brasa.' >&2
+  exit 1
+}
+[ "$(id -u)" -eq 0 ] || fail 'Abra o instalador pelo ícone Instalar Brasa no ambiente live.'
+[ "$(uname -s)" = FreeBSD ] && [ "$(uname -m)" = amd64 ] || \
+  fail 'Esta mídia de instalação funciona em computadores x86 de 64 bits.'
+[ -f /var/run/brasa-live-environment ] || \
+  fail 'O ambiente live Brasa ainda não está integrado nesta ISO. Nenhum disco foi alterado.'
+command -v bsdinstall >/dev/null 2>&1 || fail 'O instalador FreeBSD não foi encontrado nesta mídia.'
+command -v geom >/dev/null 2>&1 || fail 'Não foi possível consultar os discos deste computador.'
+brasa_payload=${BRASA_PAYLOAD:-/brasa/BRASA_PROJECT_TAR_GZ}
+[ -r "$brasa_payload" ] || fail 'Não encontrei os arquivos Brasa na mídia. Reinicie pelo pendrive de instalação correto.'
+
+zenity --question --title="$title" --width=560 \
+  --text='Bem-vindo ao Brasa. O assistente prepara o computador para você. Se continuar, o conteúdo do disco escolhido será apagado. Você poderá cancelar antes da confirmação final.' \
+  --ok-label='Continuar' --cancel-label='Sair' || exit 0
+
+full_name=$(zenity --entry --title="$title" --width=560 --text='Como você quer ser chamado?') || exit 0
+[ -n "$full_name" ] || fail 'Informe seu nome para continuar.'
+case "$full_name" in *'|'*) fail 'Remova o caractere | do nome e tente novamente.' ;; esac
+
+username=$(zenity --entry --title="$title" --width=560 \
+  --text='Escolha o nome curto para entrar. Use letras minúsculas, números, _ ou -.' \
+  --entry-text='') || exit 0
+case "$username" in ''|*[!a-z0-9_-]*) fail 'O nome de usuário deve usar letras minúsculas, números, _ ou -.' ;; esac
+case "$username" in [a-z]*) ;; *) fail 'O nome de usuário deve começar com uma letra minúscula.' ;; esac
+[ "${#username}" -le 32 ] || fail 'O nome de usuário pode ter até 32 caracteres.'
+case "$username" in root|toor|operator|daemon|nobody) fail 'Escolha outro nome de usuário.' ;; esac
+
+password=$(zenity --entry --hide-text --title="$title" --width=560 \
+  --text='Escolha uma senha. A mesma senha será usada para entrar e para administrar o Brasa.') || exit 0
+[ -n "$password" ] || { unset password; fail 'A senha não pode ficar vazia.'; }
+password_again=$(zenity --entry --hide-text --title="$title" --width=560 --text='Digite a senha novamente.') || {
+  unset password
+  exit 0
+}
+[ "$password" = "$password_again" ] || {
+  unset password password_again
+  fail 'As senhas não coincidem. Reabra o assistente para tentar novamente.'
+}
+unset password_again
+
+# Resolve mounted providers, including ISO and UFS labels, to their physical
+# disks. If a device-backed mount cannot be resolved, refuse to offer a disk.
+protected_disks() {
+  mount -p 2>/dev/null | awk '{print $1}' | while IFS= read -r source; do
+    case "$source" in /dev/*) ;; *) continue ;; esac
+    provider=$(realpath "$source" 2>/dev/null || printf '%s\n' "$source")
+    case "$provider" in
+      /dev/iso9660/*|/dev/ufs/*|/dev/label/*|/dev/gpt/*|/dev/ufsid/*)
+        label=${provider#/dev/}
+        provider=$(glabel status 2>/dev/null | awk -v label="$label" '$1 == label { print $3; exit }')
+        [ -n "$provider" ] || { printf 'UNRESOLVED\n'; continue; }
+        ;;
+    esac
+    provider=${provider#/dev/}
+    provider=$(printf '%s\n' "$provider" | sed -E 's/p[0-9]+$//; s/s[0-9]+[a-z]?$//')
+    case "$provider" in
+      ada[0-9]*|da[0-9]*|nda[0-9]*|nvd[0-9]*|vtbd[0-9]*|mmcsd[0-9]*|cd[0-9]*|md[0-9]*) printf '%s\n' "$provider" ;;
+      *) printf 'UNRESOLVED\n' ;;
+    esac
+  done
+}
+boot_disks=$(protected_disks)
+if printf '%s\n' "$boot_disks" | grep -qx UNRESOLVED; then
+  unset password
+  fail 'Não foi possível identificar com segurança a mídia de inicialização. Nenhum disco foi alterado.'
+fi
+
+disk_rows=$(geom disk list 2>/dev/null | awk -v minimum="$minimum_bytes" -v boot="$boot_disks" '
+  function emit(   n, boot_list, count) {
+    if (name == "" || bytes < minimum || model == "") return
+    if (name !~ /^(ada|da|nda|nvd|vtbd|mmcsd)[0-9]+$/) return
+    count = split(boot, boot_list, /[[:space:]]+/)
+    for (n = 1; n <= count; n++) if (boot_list[n] == name) return
+    gsub(/[\t\r\n]/, " ", model)
+    gsub(/[\t\r\n]/, " ", ident)
+    if (ident == "") ident = "Não informado"
+    if (size == "") size = sprintf("%.0f GiB", bytes / 1073741824)
+    printf "%s\t%s\t%s\t%s\t%.0f\n", name, model, size, ident, bytes
+  }
+  /^Geom name:/ {
+    emit()
+    name = $3; model = ""; ident = ""; bytes = 0; size = ""
+    next
+  }
+  /^[[:space:]]*descr:/ { sub(/^[[:space:]]*descr:[[:space:]]*/, ""); model = $0; next }
+  /^[[:space:]]*ident:/ { sub(/^[[:space:]]*ident:[[:space:]]*/, ""); ident = $0; next }
+  /^[[:space:]]*Mediasize:/ {
+    copy = $0
+    if (match(copy, /[0-9]+/)) bytes = substr(copy, RSTART, RLENGTH) + 0
+    if (match(copy, /\([^)]*\)/)) { size = substr(copy, RSTART + 1, RLENGTH - 2); gsub(/ /, "", size) }
+  }
+  END { emit() }
+')
+[ -n "$disk_rows" ] || { unset password; fail 'Não encontrei um disco de pelo menos 40 GB. Conecte um disco adequado e tente novamente.'; }
+
+selected_disk=$(printf '%s\n' "$disk_rows" | zenity --list --title="$title" --width=760 --height=420 \
+  --text='Selecione o disco onde o Brasa será instalado. O conteúdo desse disco será apagado.' \
+  --column='Disco' --column='Modelo' --column='Capacidade' --column='Identificação' --column='Bytes' \
+  --print-column=1 --separator='' --hide-column=5) || { unset password; cancelled; }
+case "$selected_disk" in ''|*[!a-zA-Z0-9_]*) unset password; fail 'A seleção do disco não é válida.' ;; esac
+
+selected_row=$(printf '%s\n' "$disk_rows" | awk -F '\t' -v target="$selected_disk" '$1 == target { print; exit }')
+[ -n "$selected_row" ] || { unset password; fail 'O disco escolhido não está mais disponível.'; }
+selected_model=$(printf '%s\n' "$selected_row" | awk -F '\t' '{print $2}')
+selected_size=$(printf '%s\n' "$selected_row" | awk -F '\t' '{print $3}')
+selected_ident=$(printf '%s\n' "$selected_row" | awk -F '\t' '{print $4}')
+selected_bytes=$(printf '%s\n' "$selected_row" | awk -F '\t' '{print $5}')
+
+zenity --question --title='Confirme o apagamento do disco' --width=600 \
+  --default-cancel --ok-label='Apagar e instalar' --cancel-label='Voltar' \
+  --text="O disco abaixo será apagado por completo. Seus arquivos e sistemas atuais serão removidos.\n\nDisco: $selected_disk\nModelo: $selected_model\nCapacidade: $selected_size\n\nO Brasa criará automaticamente as partições de inicialização e do sistema. A mesma senha será usada para sua conta e para administração. Continue somente se este for o disco correto." || { unset password; cancelled; }
+
+validate_selected_disk() {
+current_protected=$(protected_disks)
+if printf '%s\n' "$current_protected" | grep -qx UNRESOLVED || printf '%s\n' "$current_protected" | grep -Fxq "$selected_disk"; then
+  unset password
+  fail 'O disco selecionado está em uso ou a mídia de inicialização não pôde ser identificada. Nenhuma instalação foi iniciada.'
+fi
+current_details=$(geom disk list "$selected_disk" 2>/dev/null | awk -v target="$selected_disk" '
+  /^Geom name:/ { if ($3 != target) exit 1 }
+  /^[[:space:]]*Mediasize:/ { if (match($0, /[0-9]+/)) bytes = substr($0, RSTART, RLENGTH) + 0 }
+  /^[[:space:]]*descr:/ { sub(/^[[:space:]]*descr:[[:space:]]*/, ""); model = $0 }
+  /^[[:space:]]*ident:/ { sub(/^[[:space:]]*ident:[[:space:]]*/, ""); ident = $0 }
+  END { if (ident == "") ident = "Não informado"; printf "%.0f\t%s\t%s\n", bytes, model, ident }
+') || { unset password; fail 'Não foi possível confirmar o disco. Nenhuma instalação foi iniciada.'; }
+current_bytes=$(printf '%s\n' "$current_details" | awk -F '\t' '{print $1}')
+current_model=$(printf '%s\n' "$current_details" | awk -F '\t' '{print $2}')
+current_ident=$(printf '%s\n' "$current_details" | awk -F '\t' '{print $3}')
+case "$current_bytes" in ''|*[!0-9]*) unset password; fail 'Não foi possível confirmar o tamanho do disco.' ;; esac
+[ "$current_bytes" = "$selected_bytes" ] && [ "$current_model" = "$selected_model" ] && [ "$current_ident" = "$selected_ident" ] || \
+  { unset password; fail 'O disco mudou desde a seleção. Nenhuma instalação foi iniciada.'; }
+}
+
+# Establish connectivity before touching the selected disk. Prefer already
+# configured networking; otherwise try DHCP on wired interfaces only.
+if ! route -n get default >/dev/null 2>&1; then
+  printf 'timeout 20;\nretry 10;\n' > /tmp/brasa-dhclient.conf
+  for interface in $(ifconfig -l); do
+    case "$interface" in lo*|wlan*|bridge*|lagg*|vlan*|tun*|tap*|pflog*|pfsync*) continue ;; esac
+    ifconfig "$interface" up 2>/dev/null || continue
+    ifconfig "$interface" | grep -q 'inet ' && continue
+    dhclient -c /tmp/brasa-dhclient.conf "$interface" >/dev/null 2>&1 || true
+    route -n get default >/dev/null 2>&1 && break
+  done
+fi
+route -n get default >/dev/null 2>&1 || {
+  unset password
+  fail 'Conecte o computador à internet por cabo de rede e abra o instalador novamente. O disco ainda não foi alterado.'
+}
+validate_selected_disk
+
+password_file=$(mktemp /tmp/brasa-password.XXXXXX)
+name_file=$(mktemp /tmp/brasa-name.XXXXXX)
+install_script=$(mktemp /tmp/brasa-install.XXXXXX)
+install_log=$(mktemp /tmp/brasa-install-log.XXXXXX)
+progress_dir=$(mktemp -d /tmp/brasa-progress.XXXXXX)
+progress_pipe=$progress_dir/progress
+dist_dir=$(mktemp -d /tmp/brasa-distributions.XXXXXX)
+dist_site='https://download.freebsd.org/releases/amd64/amd64/15.1-RELEASE'
+mkfifo "$progress_pipe"
+chmod 600 "$password_file" "$name_file" "$install_script" "$install_log"
+cleanup() {
+  unset password
+  rm -f "$password_file" "$name_file" "$install_script" "$progress_pipe"
+  rmdir "$progress_dir" 2>/dev/null || true
+  rm -f "$dist_dir/MANIFEST" "$dist_dir/base.txz" "$dist_dir/kernel.txz"
+  rmdir "$dist_dir" 2>/dev/null || true
+}
+trap cleanup EXIT HUP INT TERM
+printf '%s\n' "$password" > "$password_file"
+printf '%s\n' "$full_name" > "$name_file"
+unset password
+
+cat > "$install_script" <<EOF
+PARTITIONS="$selected_disk"
+DISTRIBUTIONS="base.txz kernel.txz"
+export BSDINSTALL_DISTSITE="$dist_site"
+
+#!/bin/sh
+set -eu
+username="$username"
+EOF
+cat >> "$install_script" <<'EOF'
+IFS= read -r full_name <&6
+mkdir -p /tmp/brasa-source
+tar -xzf - -C /tmp/brasa-source <&7
+pw useradd -n "$username" -m -d "/home/$username" -s /bin/sh -G wheel,video,operator -c "$full_name"
+pw usermod root -h 8
+pw usermod "$username" -h 9
+printf '%s|%s\n' "$username" "$full_name" > /var/db/brasa-live-user
+: > /var/db/brasa-password-ready
+sysrc ifconfig_DEFAULT="DHCP"
+cd /tmp/brasa-source
+sh scripts/bootstrap-freebsd.sh --installing-from-live
+cd /
+rm -rf /tmp/brasa-source
+EOF
+
+zenity --progress --pulsate --no-cancel --auto-close --title="$title" --width=560 \
+  --text='Instalando o sistema-base. O computador pode levar alguns minutos; não o desligue.' \
+  < "$progress_pipe" &
+progress_pid=$!
+exec 3> "$progress_pipe"
+(
+  set -e
+  export BSDINSTALL_DISTDIR="$dist_dir"
+  for distribution in MANIFEST base.txz kernel.txz; do
+    printf 'Obtendo %s...\n' "$distribution"
+    fetch -q -o "$dist_dir/$distribution" "$dist_site/$distribution"
+  done
+  for distribution in base.txz kernel.txz; do
+    expected=$(awk -v name="$distribution" '$1 == name { print $2; exit }' "$dist_dir/MANIFEST")
+    [ -n "$expected" ] || { printf 'O manifesto não contém %s.\n' "$distribution"; exit 1; }
+    actual=$(sha256 -q "$dist_dir/$distribution")
+    [ "$actual" = "$expected" ] || { printf 'Falha na integridade de %s.\n' "$distribution"; exit 1; }
+  done
+  printf 'Arquivos verificados. Preparando o disco selecionado.\n'
+  validate_selected_disk
+  bsdinstall script "$install_script" 6< "$name_file" 7< "$brasa_payload" \
+    8< "$password_file" 9< "$password_file"
+) > "$install_log" 2>&1 &
+installer_pid=$!
+while kill -0 "$installer_pid" 2>/dev/null; do
+  progress_message=$(tail -n 1 "$install_log" 2>/dev/null || true)
+  [ -z "$progress_message" ] || printf '# %s\n' "$progress_message" >&3
+  sleep 2
+done
+if wait "$installer_pid"; then
+  install_status=0
+else
+  install_status=$?
+fi
+printf '# Preparando o desktop Brasa...\n100\n' >&3
+exec 3>&-
+wait "$progress_pid" || true
+rm -f "$progress_pipe"
+if [ "$install_status" -ne 0 ]; then
+  zenity --error --title="$title" --width=560 \
+    --text='A instalação não terminou. O disco escolhido pode ter sido alterado. Consulte os detalhes e reinicie antes de tentar novamente.'
+  zenity --text-info --title='Detalhes da instalação' --width=760 --height=460 --filename="$install_log" || true
+  exit 1
+fi
+
+zenity --info --title='Brasa instalado' --width=560 \
+  --text="A instalação terminou.\n\nConta: $username\nSenha: a que você escolheu\n\nReinicie e remova a mídia de instalação."

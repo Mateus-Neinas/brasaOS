@@ -1,0 +1,13 @@
+#!/bin/sh
+# Apply the installed Brasa KDE color scheme for the current user session.
+set -eu
+if command -v plasma-apply-colorscheme >/dev/null 2>&1; then
+  exec plasma-apply-colorscheme Brasa
+fi
+if command -v kwriteconfig6 >/dev/null 2>&1; then
+  kwriteconfig6 --file kdeglobals --group General --key ColorScheme Brasa
+  echo "Brasa colorscheme is saved. Restart Plasma to apply it."
+  exit 0
+fi
+echo "KDE color scheme tools are not available." >&2
+exit 1

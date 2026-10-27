@@ -1,0 +1,5 @@
+[Desktop Entry]
+Type=Application
+Name=Apply Brasa appearance
+Exec=/usr/local/bin/brasa-apply-theme
+X-KDE-autostart-after=panel

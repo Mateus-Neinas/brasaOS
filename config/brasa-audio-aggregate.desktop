@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Agregar dispositivos de áudio
+Comment=Crie entradas e saídas virtuais com relógio de referência
+Exec=/usr/local/bin/brasa-audio-aggregate
+Icon=audio-card
+Terminal=false
+Categories=AudioVideo;Settings;

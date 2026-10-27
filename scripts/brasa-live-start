@@ -1,0 +1,74 @@
+#!/bin/sh
+# Experimental live desktop bootstrap. Run only from the installer medium.
+set -eu
+
+log=/tmp/brasa-live-start.log
+say() {
+  printf '\nBrasa: %s\n' "$*" > /dev/console
+  if [ -c /dev/ttyu0 ]; then printf '\nBrasa: %s\n' "$*" > /dev/ttyu0 || true; fi
+}
+failed() {
+  say "Não foi possível iniciar o ambiente gráfico. O instalador de texto será aberto."
+  if [ -f "$log" ]; then
+    tail -n 20 "$log" > /dev/console || true
+    if [ -c /dev/ttyu0 ]; then tail -n 20 "$log" > /dev/ttyu0 || true; fi
+  fi
+  exit 1
+}
+
+[ "$(uname -s)" = FreeBSD ] || exit 1
+[ "$(id -u)" -eq 0 ] || exit 1
+[ -r /brasa/BRASA_PROJECT_TAR_GZ ] || exit 1
+mkdir -p /tmp/brasa-live-etc /tmp/brasa-home /tmp/brasa-source
+chmod 700 /tmp/brasa-home
+kldload unionfs >> "$log" 2>&1 || true
+mount -t unionfs /tmp/brasa-live-etc /etc >> "$log" 2>&1 || failed
+# A tmpfs supports package directory renames, which unionfs does not reliably
+# provide. Keep the pkg binary and configuration already present on the ISO.
+tar -cf /tmp/brasa-local-seed.tar -C /usr/local . >> "$log" 2>&1 || failed
+kldload tmpfs >> "$log" 2>&1 || true
+mount -t tmpfs -o size=2g tmpfs /usr/local >> "$log" 2>&1 || failed
+tar -xf /tmp/brasa-local-seed.tar -C /usr/local >> "$log" 2>&1 || failed
+rm -f /tmp/brasa-local-seed.tar
+
+say 'Preparando a conexão de rede para carregar a interface gráfica.'
+printf 'timeout 20;\nretry 10;\n' > /tmp/brasa-dhclient.conf
+if ! route -n get default >/dev/null 2>&1; then
+  for interface in $(ifconfig -l); do
+    case "$interface" in lo*|wlan*|bridge*|lagg*|vlan*|tun*|tap*|pflog*|pfsync*) continue ;; esac
+    ifconfig "$interface" up >> "$log" 2>&1 || continue
+    dhclient -c /tmp/brasa-dhclient.conf "$interface" >> "$log" 2>&1 || true
+    route -n get default >/dev/null 2>&1 && break
+  done
+fi
+route -n get default >/dev/null 2>&1 || failed
+
+say 'Baixando os componentes gráficos. Isso pode levar vários minutos.'
+export ASSUME_ALWAYS_YES=yes
+pkg bootstrap -f >> "$log" 2>&1 || failed
+if [ -r /brasa/BRASA_PKG_CACHE_TAR ]; then
+  say 'Preparando os componentes gráficos incluídos na mídia.'
+  tar -xf /brasa/BRASA_PKG_CACHE_TAR -C /var >> "$log" 2>&1 || failed
+  pkg install -U -y xorg-minimal xinit openbox zenity xf86-video-vesa >> "$log" 2>&1 || failed
+else
+  pkg install -y xorg-minimal xinit openbox zenity xf86-video-vesa >> "$log" 2>&1 || failed
+fi
+tar -xzf /brasa/BRASA_PROJECT_TAR_GZ -C /tmp/brasa-source >> "$log" 2>&1 || failed
+
+export HOME=/tmp/brasa-home
+export XAUTHORITY=/tmp/brasa-home/.Xauthority
+export PATH=/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin
+touch /var/run/brasa-live-environment
+cat > /tmp/brasa-xinitrc <<'EOF'
+#!/bin/sh
+openbox >/tmp/brasa-openbox.log 2>&1 &
+/bin/sh /tmp/brasa-source/scripts/brasa-install-assistant
+EOF
+chmod 700 /tmp/brasa-xinitrc
+say 'Abrindo o instalador gráfico Brasa.'
+if xinit /bin/sh /tmp/brasa-xinitrc -- /usr/local/bin/Xorg :0 -nolisten tcp >> "$log" 2>&1; then
+  rm -f /var/run/brasa-live-environment
+  exit 0
+fi
+rm -f /var/run/brasa-live-environment
+failed

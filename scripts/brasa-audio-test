@@ -1,0 +1,20 @@
+#!/bin/sh
+# Play a short tone through the Brasa aggregate when available, otherwise
+# through the active PipeWire default or FreeBSD OSS fallback.
+set -eu
+if command -v pw-play >/dev/null 2>&1 && command -v sox >/dev/null 2>&1; then
+  tmpdir=$(mktemp -d "${TMPDIR:-/tmp}/brasa-tone.XXXXXX")
+  trap 'rm -rf "$tmpdir"' EXIT HUP INT TERM
+  tone=$tmpdir/tone.wav
+  sox -n -r 48000 -c 2 "$tone" synth 0.6 sine 660
+  target=auto
+  if command -v wpctl >/dev/null 2>&1 && wpctl status -n 2>/dev/null | grep -q 'brasa.aggregate.output'; then
+    target=brasa.aggregate.output
+  fi
+  pw-play --target "$target" "$tone"
+elif command -v play >/dev/null 2>&1; then
+  play -n synth 0.6 sine 660
+else
+  echo "Instale SoX para testar o áudio." >&2
+  exit 127
+fi

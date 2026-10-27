@@ -1,0 +1,164 @@
+#!/bin/sh
+# Observe PipeWire xrun/error counters continuously during an audio workload.
+set -eu
+fail() { zenity --error --title="Monitor de áudio Brasa" --text="$*"; exit 1; }
+command -v pw-top >/dev/null 2>&1 || { if command -v zenity >/dev/null 2>&1; then fail "pw-top não está instalado. Instale o PipeWire para monitorar XRuns."; else echo "brasa: pw-top nao esta instalado." >&2; exit 1; fi; }
+command -v zenity >/dev/null 2>&1 || { echo "brasa: zenity e necessario." >&2; exit 1; }
+duration=${BRASA_MONITOR_SECONDS:-}
+if [ -z "$duration" ]; then
+  duration=$(printf '10\t10 segundos\n60\t1 minuto\n300\t5 minutos\n900\t15 minutos\n3600\t1 hora\n' | zenity --list --title="Monitor de áudio Brasa" --text="Inicie reprodução ou gravação no dispositivo que deseja avaliar e escolha por quanto tempo observar XRuns." --column="Amostras" --column="Duração aproximada" --print-column=1 --separator='' --height=340 --width=500) || exit 0
+fi
+case "$duration" in 10|60|300|900|3600) ;; *) fail "Escolha uma duração entre as opções disponíveis (10 s, 1, 5 ou 15 min, ou 1 h)." ;; esac
+tmpdir=$(mktemp -d "${TMPDIR:-/tmp}/brasa-audio-monitor.XXXXXX") || fail "Não foi possível criar a área temporária do monitor."
+trap 'rm -rf "$tmpdir"' EXIT HUP INT TERM
+raw=$tmpdir/pw-top.log
+master_id=''
+master_name=''
+master_rule=${XDG_CONFIG_HOME:-"$HOME/.config"}/wireplumber/wireplumber.conf.d/90-brasa-clock-master.conf
+if [ -r "$master_rule" ] && command -v wpctl >/dev/null 2>&1; then
+  master_match=$(awk '/priority.driver = 1000000/ { line=$0; sub(/^.*matches = \[ \{ /, "", line); sub(/ \}.*$/, "", line); print line; exit }' "$master_rule")
+  expected_name=$(printf '%s\n' "$master_match" | sed -n 's/.*node.name = "\([^"]*\)".*/\1/p')
+  expected_description=$(printf '%s\n' "$master_match" | sed -n 's/.*node.description = "\([^"]*\)".*/\1/p')
+  expected_class=$(printf '%s\n' "$master_match" | sed -n 's/.*media.class = "\([^"]*\)".*/\1/p')
+  graph=$(wpctl status -n 2>/dev/null || true)
+  node_ids=$(printf '%s\n' "$graph" | awk '/pcm[0-9]+\.(play|rec)/ && match($0, /[0-9]+[.]/) { id=substr($0, RSTART, RLENGTH); sub(/[.]$/, "", id); print id }')
+  for node_id in $node_ids; do
+    props=$(wpctl inspect "$node_id" 2>/dev/null || true)
+    actual_name=$(printf '%s\n' "$props" | awk -F ' = "' '$1 ~ /node.name$/ { sub(/".*/, "", $2); print $2; exit }')
+    actual_description=$(printf '%s\n' "$props" | awk -F ' = "' '$1 ~ /node.description$/ { sub(/".*/, "", $2); print $2; exit }')
+    actual_class=$(printf '%s\n' "$props" | awk -F ' = "' '$1 ~ /media.class$/ { sub(/".*/, "", $2); print $2; exit }')
+    [ "$actual_class" = "$expected_class" ] || continue
+    if { [ -n "$expected_name" ] && [ "$actual_name" = "$expected_name" ]; } || { [ -n "$expected_description" ] && [ "$actual_description" = "$expected_description" ]; }; then
+      master_id=$node_id
+      master_name=$actual_name
+      break
+    fi
+  done
+fi
+if ! pw-top --batch-mode --iterations="$duration" >"$raw" 2>&1; then
+  report=$(cat "$raw")
+  zenity --error --title="Monitor de áudio Brasa" --text="Não foi possível ler as estatísticas do PipeWire. $report"
+  exit 1
+fi
+summary=$(awk -v duration="$duration" -v master_id="$master_id" -v master_name="$master_name" '
+  # pw-top prints this header once per batch refresh. Do not infer frames from
+  # row order: drivers and followers can move or disappear between refreshes.
+  $1 == "S" && $2 == "ID" && $3 == "QUANT" && $4 == "RATE" { frames++; next }
+  $2 ~ /^[0-9]+$/ {
+    raw_name=$NF; name=raw_name; sub(/^[+*=]+/, "", name)
+    if (name ~ /^pcm[0-9]+\.(play|rec)$/) {
+      # Current pw-top separates the follower marker from NAME with spaces;
+      # accept prefixed markers too, without interpreting one as part of FORMAT.
+      is_follower=(raw_name ~ /^[+*=]/ || $(NF-1) ~ /^[+*=]$/)
+      format_end=NF-1
+      if ($(NF-1) ~ /^[+*=]$/) format_end--
+      valid_counter=($9 ~ /^[0-9]+$/)
+      errors=$9+0
+      if (!(name in seen)) {
+        seen[name]=1; device_count++
+      } else {
+        same_id=($2 == previous_id[name])
+        if (!same_id) id_changes[name]++
+        if (valid_counter && previous_valid[name] && same_id && errors < previous[name]) resets[name]++
+        if (frames > 0 && last_frame[name] == frames) duplicate_frames[name]++
+        # A cumulative counter is comparable only within one node instance,
+        # without a reset, invalid sample, or missing refresh in between.
+        if (valid_counter && previous_valid[name] && same_id && errors >= previous[name] &&
+            (frames == 0 || last_frame[name] == frames-1)) {
+          increments[name]+=errors-previous[name]
+          comparisons[name]++
+        }
+      }
+      if (!valid_counter) invalid_counters[name]++
+      if (!(name in last_frame) || last_frame[name] != frames) sample_frames[name]++
+      previous[name]=errors; previous_valid[name]=valid_counter
+      previous_id[name]=$2; last_frame[name]=frames
+      samples[name]++
+      quantum=$3+0; graph_rate=$4+0
+      if (!(name in min_quantum) || quantum < min_quantum[name]) min_quantum[name]=quantum
+      if (!(name in max_quantum) || quantum > max_quantum[name]) max_quantum[name]=quantum
+      if (!(name in min_graph_rate) || graph_rate < min_graph_rate[name]) min_graph_rate[name]=graph_rate
+      if (!(name in max_graph_rate) || graph_rate > max_graph_rate[name]) max_graph_rate[name]=graph_rate
+      if (format_end >= 12 && $(format_end) ~ /^[0-9]+$/) {
+        format_rate=$(format_end)+0
+        if (!(name in min_format_rate) || format_rate < min_format_rate[name]) min_format_rate[name]=format_rate
+        if (!(name in max_format_rate) || format_rate > max_format_rate[name]) max_format_rate[name]=format_rate
+        format[name]=$(format_end-2) " " $(format_end-1)
+      }
+      if ($1 == "E") error_states[name]++
+      if ($1 == "R" || $1 == "t" || $1 == "T") {
+        active_samples++; active[name]++
+        if (is_follower) follower[name]++; else driver[name]++
+      }
+      if (master_id != "" && $2 == master_id && name == master_name) {
+        master_seen=1
+        master_samples++
+        if ($1 == "R" || $1 == "t" || $1 == "T") {
+          master_active_samples++
+          if (is_follower) master_follower_samples++
+          else master_driver_samples++
+        }
+      }
+    }
+  }
+  END {
+    printf "Observação solicitada: %s segundos, com uma amostra por segundo.\n", duration
+    if (device_count == 0) {
+      print "Inconclusivo: pw-top não apresentou linhas PCM físicas."
+      exit
+    }
+    total=0; measurable=0; incomplete=(frames != duration)
+    printf "Amostras delimitadas pelo pw-top: %d de %d solicitada(s).\n", frames, duration
+    for (name in seen) {
+      missing=frames-sample_frames[name]
+      if (missing > 0) {
+        printf "%s: ausente em %d de %d amostra(s); observação interrompida.\n", name, missing, frames
+        incomplete=1
+      }
+      if (resets[name]) {
+        printf "%s: contador reiniciou durante a observação (%d vez(es)); total completo inconclusivo.\n", name, resets[name]
+        incomplete=1
+      }
+      if (id_changes[name]) {
+        printf "%s: ID do nó mudou durante a observação (%d vez(es)); total completo inconclusivo.\n", name, id_changes[name]
+        incomplete=1
+      }
+      if (duplicate_frames[name] || invalid_counters[name]) {
+        printf "%s: amostras duplicadas ou contador indisponível; continuidade inconclusiva.\n", name
+        incomplete=1
+      }
+      if (error_states[name]) {
+        printf "%s: estado de erro em %d amostra(s).\n", name, error_states[name]
+        incomplete=1
+      }
+      if (samples[name] < 2) {
+        printf "%s: apareceu em apenas uma amostra; sem comparação.\n", name
+        incomplete=1
+      } else if (comparisons[name] == 0) {
+        printf "%s: nenhum intervalo de contador comparável.\n", name
+        incomplete=1
+      } else {
+        delta=increments[name]+0
+        printf "%s: %d xrun/erro novo(s) nos intervalos comparáveis, ativa em %d de %d amostra(s); driver/seguidora %d/%d; quantum %d-%d; RATE grafo/solicitada %d-%d Hz", name, delta, active[name]+0, samples[name], driver[name]+0, follower[name]+0, min_quantum[name], max_quantum[name], min_graph_rate[name], max_graph_rate[name]
+        if (name in format) printf "; formato reportado %s @ %d-%d Hz.\n", format[name], min_format_rate[name], max_format_rate[name]
+        else print "; formato reportado indisponível."
+        total+=delta; measurable++
+      }
+    }
+    if (active_samples == 0) print "Inconclusivo: nenhum PCM esteve em execução. Repita durante reprodução ou gravação ativa."
+    else if (measurable == 0) print "Inconclusivo: nenhum dispositivo teve duas amostras comparáveis."
+    else if (total > 0) print "Foram observados novos xruns/erros; aumente a tolerância de buffer ou investigue a carga e o dispositivo."
+    else if (!incomplete) print "Nenhum aumento de xrun/erro foi observado nesta janela."
+    if (incomplete) print "Observação incompleta/interrompida: não é possível concluir ausência de xruns/erros na janela inteira."
+    if (master_id == "") print "Clock de referência inconclusivo: mestre configurado ausente do grafo atual ou regra não encontrada."
+    else if (active_samples == 0) print "Clock de referência inconclusivo: nenhum PCM esteve em execução."
+    else if (master_active_samples == 0) print "Atenção: o mestre configurado foi encontrado, mas não esteve ativo durante as amostras; não foi possível validar sua função como driver."
+    else if (master_driver_samples > 0) printf "Mestre configurado ativo em %d amostra(s); foi driver do grafo em %d amostra(s) e seguidor em %d.\n", master_active_samples, master_driver_samples, master_follower_samples
+    else if (master_seen) print "Atenção: o mestre configurado apareceu como seguidor, não como driver do grafo, quando esteve ativo."
+    else print "Atenção: o mestre configurado não apareceu como driver do grafo durante a observação."
+    if (master_id != "" && frames > 0 && master_samples != frames) print "Clock de referência interrompido: o ID inicial do mestre não esteve presente em todas as amostras; repita a observação após reconectar."
+    print "Este resultado vale apenas para o período observado e para a carga que estava ativa."
+  }
+' "$raw")
+printf '%s\n' "$summary"
+zenity --info --title="Resultado do monitor de áudio" --text="$summary"
