@@ -67,4 +67,15 @@ Para publicar manualmente pelo GitHub, crie uma release em `https://github.com/M
 
 ## Reteste de instalação na release JWM (27/10/2026)
 
-O teste com a ISO publicada chegou à confirmação explícita e iniciou no disco QCOW2 descartável `vtbd0` de 40 GB. Após baixar a base, o instalador deixou a tela preta durante a extração. O disco acumulou ~568,7 MB de gravações, mas ficou sem novas gravações por pelo menos 30 segundos; a CPU também quase não avançou. QEMU foi encerrado com segurança. O arquivo de teste foi preservado em `%TEMP%` para eventual inspeção; não é um disco do Windows nem uma instalação utilizável. A falha foi documentada em `docs/PROTOTYPE.md`. Nenhum novo artefato ISO foi gerado nesta rodada.
+O teste com a ISO publicada chegou à confirmação explícita e iniciou no disco QCOW2 descartável `vtbd0` de 40 GB. Após baixar a base, o instalador deixou a tela preta durante a extração. O disco acumulou ~568,7 MB de gravações, mas ficou sem novas gravações por pelo menos 30 segundos; a CPU também quase não avançou. QEMU foi encerrado com segurança e o QCOW2 temporário foi removido; nenhum disco do Windows foi conectado. A falha foi documentada em `docs/PROTOTYPE.md`.
+
+
+## ISO noninteractive-extract (27/10/2026)
+
+- Tag da release: [`brasa-noninteractive-extract-2026-10-27`](https://github.com/Mateus-Neinas/brasaOS/releases/tag/brasa-noninteractive-extract-2026-10-27)
+- Arquivo: `Brasa-live-noninteractive-extract.iso`
+- Tamanho: 1.072.138.240 bytes
+- SHA-256: `D58BA3B63A75302AFCEAB78713FE5E70771BBD022844CA00D09F45E7C5FD05B8`
+- Mudança: força a entrada padrão não interativa para `bsdinstall script`, mantendo a extração e a saída em log sob a janela gráfica de progresso.
+- Validada em QEMU/TCG com 8 GB de RAM, 2 vCPUs e VGA de 128 MB: boot live, campos de conta, lista/seleção de `vtbd0` de 40 GB e confirmação destrutiva. A etapa “Extracting distributions” apareceu. O teste foi encerrado por lentidão após ~1,27 GB de gravações, antes de começar a configuração do Brasa. O Windows reportou VT-x desativado; WHPX não foi utilizável neste host. O QCOW2 descartável foi removido ao fechar QEMU.
+- Continua sem validação: instalação completa, boot do sistema instalado, KDE, primeiro login, Wine, áudio USB class-compliant e hardware real. A ISO é experimental e não deve ser usada em um disco com dados importantes.

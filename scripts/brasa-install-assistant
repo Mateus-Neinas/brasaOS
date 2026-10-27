@@ -297,8 +297,12 @@ process_is_running() {
     awk -F '\t' '$1 == "file" { total += $5 } END { printf "%.0f", total }')
   case "$extract_total" in ''|*[!0-9]*) extract_total=0 ;; esac
   report_progress 68 'Preparando as partições e iniciando a instalação do FreeBSD...'
+  # bsdinstall script selects an interactive distextract path when stdin is a
+  # TTY. This process runs behind the graphical progress window and sends its
+  # output to a log, so a TTY would make the extraction UI invisible. Keep its
+  # input non-interactive; bsdinstall then extracts distributions with tar.
   bsdinstall script "$install_script" 6< "$name_file" 7< "$brasa_payload" \
-    8< "$password_file" 9< "$password_file" >> "$install_log" 2>&1 &
+    8< "$password_file" 9< "$password_file" < /dev/null >> "$install_log" 2>&1 &
   bsdinstall_pid=$!
   last_percentage=68
   last_reported_percentage=-1
