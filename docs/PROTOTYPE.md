@@ -81,7 +81,7 @@ A lista anterior não fornecia ao Zenity os dados no formato de uma tabela com u
 
 Foi construída `.build/Brasa-live-disk-picker.iso` (1.305.522.176 bytes, SHA-256 `74AB22BF646DA22D1FDCA272D1F73BBF09EC224402B79ECA53D6A7FE84F97E8A`) usando o cache de pacotes de `.build/Brasa-live-cached-boot.iso`. O catálogo El Torito e o payload foram verificados. Esta nova ISO ainda não foi iniciada em QEMU; a alteração da lista não tem confirmação em execução. A ISO anterior `.build/Brasa-live-progress-fix.iso` parou na lista antes de iniciar qualquer gravação e o disco virtual de teste permaneceu com 197.632 bytes. A VM foi desligada ao detectar que a execução TCG de 8 GB deixava cerca de 1 GB livre no Windows.
 
-O inventário de tags, hashes, estado, links e assets publicados está em `docs/RELEASES.md`. As quatro ISOs produzidas neste ciclo têm releases experimentais próprias, inclusive as imagens com defeitos observados durante os testes.
+O inventário de tags, hashes, estado, links e assets publicados está em `docs/RELEASES.md`. As cinco ISOs produzidas neste ciclo têm releases experimentais próprias, inclusive as imagens com defeitos observados durante os testes.
 
 
 ### Retorno do Zenity e terceira ISO experimental (27/10/2026)
@@ -101,3 +101,12 @@ O segundo boot da ISO `Brasa-live-picker-output-fix.iso` confirmou que a interfa
 A quarta variante `Brasa-live-zenity-argv-fix.iso` foi inicializada em QEMU com 6 GB de RAM, 128 MB de VGA, TCG e disco QCOW2 de 40 GB. O assistente mostrou `vtbd0` como primeira opção selecionada; após Tab/Tab/Enter, a confirmação final exibiu o disco correto. Isso confirma o fluxo gráfico de seleção e a passagem do nome do disco ao assistente.
 
 Após a confirmação, o instalador baixou e verificou os arquivos e começou a extração da base. A janela então ficou preta. O QMP mostrou QEMU ainda em execução, mas as estatísticas de escrita do dispositivo ficaram em 782.883.840 bytes sem alteração em dois intervalos de 30 segundos, e a CPU quase não avançou; o Windows tinha aproximadamente 1,2 GB livres. A VM foi encerrada e o QCOW2 descartável foi removido. Portanto, o particionamento/instalação completa, o boot instalado, a conta, o KDE e o áudio continuam sem validação. Investigar o desaparecimento da janela e a memória durante a extração é o próximo passo.
+
+
+### Redução das dependências do ambiente gráfico (27/10/2026)
+
+Openbox puxava dependências pesadas para decorar a única interface do live: a instalação cacheada tinha 191 pacotes, entre eles FFmpeg, codecs e ferramentas de compilação. O construtor agora resolve o catálogo SQLite e inclui na ISO somente os arquivos de pacote da árvore usada pelo Xorg mínimo, Zenity, fontes e drivers de vídeo. O live usa TWM; os componentes que faltam no cache são obtidos pelo repositório FreeBSD. O conjunto cacheado passou de 191 para 131 dependências, e o espaço instalado calculado pela base do repositório caiu de aproximadamente 4,21 GB para 2,83 GB. O KDE continua previsto para o sistema instalado e não foi trocado.
+
+A ISO `.build/Brasa-live-twm.iso` foi gerada a partir da mídia Brasa existente. Seu hash e os metadados de publicação ficam registrados em `docs/RELEASES.md`. Em QEMU/TCG com 4 GB de RAM, iniciou, baixou a atualização do catálogo, extraiu os 132 pacotes e executou o X. O processo chegou a aproximadamente 4,7 GB de memória residente no Windows durante a extração; após terminar, o desktop/assistente continuou preto e sem conteúdo legível. Comandos enviados exclusivamente pelo teclado não tornaram a tela utilizável. O QCOW2 descartável ficou em 197.632 bytes e foi removido após desligar a VM pelo monitor QMP. Não houve particionamento, instalação da base, login, teste de KDE, Wine ou áudio.
+
+A imagem, inclusive com essa falha, está registrada como release experimental própria em `docs/RELEASES.md`. A próxima investigação é corrigir a renderização/gerenciamento das janelas no X antes de avançar a etapa de instalação.

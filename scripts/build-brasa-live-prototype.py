@@ -2,6 +2,8 @@
 """Make a separate experimental live ISO from the existing Brasa image."""
 from pathlib import Path
 import io
+import os
+import sqlite3
 import sys
 import tarfile
 import tempfile
@@ -35,11 +37,81 @@ def parse_args():
     return output, cache_iso
 
 OUTPUT, PACKAGE_CACHE_ISO = parse_args()
+LIVE_PACKAGE_ROOTS = (
+    'xorg-minimal', 'xinit', 'zenity', 'dejavu',
+    'xf86-video-vesa', 'xf86-video-scfb',
+)
 
 def read_rr(image, path):
     data = io.BytesIO()
     image.get_file_from_iso_fp(data, rr_path=path)
     return data.getvalue()
+
+def prune_package_cache(source, destination, temporary_directory):
+    """Keep cached packages needed by the live GUI dependency closure."""
+    with tarfile.open(source, 'r:*') as archive:
+        catalog_member = next((member for member in archive.getmembers()
+                               if member.name.endswith('db/pkg/repos/FreeBSD-ports/db')), None)
+        if catalog_member is None:
+            raise RuntimeError('O cache não contém o catálogo FreeBSD-ports necessário para reduzir os pacotes.')
+        catalog_path = temporary_directory / 'freebsd-ports.sqlite'
+        with catalog_path.open('wb') as catalog_file:
+            catalog_file.write(archive.extractfile(catalog_member).read())
+
+        database = sqlite3.connect(catalog_path)
+        try:
+            rows = database.execute(
+                'SELECT id, name, version, path FROM packages'
+            ).fetchall()
+            by_name_version = {(row[1], row[2]): row for row in rows}
+            by_name = {}
+            for row in rows:
+                by_name.setdefault(row[1], []).append(row)
+            selected = set()
+            pending = []
+            for name in LIVE_PACKAGE_ROOTS:
+                candidates = by_name.get(name, [])
+                if candidates:
+                    pending.append(candidates[0])
+            if len(pending) != len(LIVE_PACKAGE_ROOTS):
+                missing = sorted(set(LIVE_PACKAGE_ROOTS) - set(by_name))
+                raise RuntimeError(f'Pacotes gráficos ausentes do catálogo local: {", ".join(missing)}')
+            while pending:
+                package = pending.pop()
+                package_id = package[0]
+                if package_id in selected:
+                    continue
+                selected.add(package_id)
+                for name, version in database.execute(
+                        'SELECT name, version FROM deps WHERE package_id = ?', (package_id,)):
+                    dependency = by_name_version.get((name, version))
+                    if dependency is None:
+                        raise RuntimeError(f'Dependência sem pacote no catálogo: {name}-{version}')
+                    pending.append(dependency)
+
+            keep_paths = set()
+            for package_id, name, version, path in rows:
+                if package_id not in selected:
+                    continue
+                keep_paths.add(f'cache/pkg/{name}-{version}.pkg')
+                keep_paths.add(f'cache/pkg/{os.path.basename(path)}')
+
+            all_members = archive.getmembers()
+            original_packages = sum(1 for member in all_members
+                                    if member.name.startswith('cache/pkg/') and member.name.endswith('.pkg'))
+            included_packages = 0
+            with tarfile.open(destination, 'w') as output:
+                for member in all_members:
+                    if member.name.startswith('cache/pkg/') and member.name.endswith('.pkg'):
+                        if member.name not in keep_paths:
+                            continue
+                        included_packages += 1
+                    file_data = archive.extractfile(member) if member.isreg() else None
+                    output.addfile(member, file_data)
+            print(f'Cache gráfico reduzido: {len(selected)} dependências; '
+                  f'{included_packages}/{original_packages} arquivos de pacote preservados.')
+        finally:
+            database.close()
 
 def main():
     if not SOURCE.is_file():
@@ -79,7 +151,9 @@ def main():
                     raise RuntimeError('A ISO de referência não contém o cache Brasa de pacotes.') from error
                 finally:
                     cache_image.close()
-                image.add_file(str(cache_archive), iso_path='/BRASA/BRASA_PKG_CACHE_TAR;1', rr_name='BRASA_PKG_CACHE_TAR')
+                pruned_cache = temp / 'brasa-pkg-cache-pruned.tar'
+                prune_package_cache(cache_archive, pruned_cache, temp)
+                image.add_file(str(pruned_cache), iso_path='/BRASA/BRASA_PKG_CACHE_TAR;1', rr_name='BRASA_PKG_CACHE_TAR')
             image.add_file(str(temp / 'rc.local'), iso_path='/ETC/RC.LOCAL;1', rr_name='rc.local')
             image.add_file(str(temp / 'rc.conf'), iso_path='/ETC/RC.CONF;1', rr_name='rc.conf')
             image.add_file(str(package), iso_path='/BRASA/BRASA_PROJECT_TAR_GZ;1', rr_name='BRASA_PROJECT_TAR_GZ')
