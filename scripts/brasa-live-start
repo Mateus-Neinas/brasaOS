@@ -15,6 +15,25 @@ failed() {
   fi
   exit 1
 }
+run_logged() {
+  stage=$1
+  shift
+  say "$stage"
+  "$@" >> "$log" 2>&1 &
+  task_pid=$!
+  previous_line=''
+  while :; do
+    task_state=$(ps -o stat= -p "$task_pid" 2>/dev/null || true)
+    case "$task_state" in ''|Z*) break ;; esac
+    current_line=$(tail -n 1 "$log" 2>/dev/null || true)
+    if [ -n "$current_line" ] && [ "$current_line" != "$previous_line" ]; then
+      say "$current_line"
+      previous_line=$current_line
+    fi
+    sleep 2
+  done
+  if wait "$task_pid"; then return 0; else return $?; fi
+}
 
 [ "$(uname -s)" = FreeBSD ] || exit 1
 [ "$(id -u)" -eq 0 ] || exit 1
@@ -23,10 +42,14 @@ mkdir -p /tmp/brasa-live-etc /tmp/brasa-home /tmp/brasa-source
 chmod 700 /tmp/brasa-home
 kldload unionfs >> "$log" 2>&1 || true
 mount -t unionfs /tmp/brasa-live-etc /etc >> "$log" 2>&1 || failed
-# A tmpfs supports package directory renames, which unionfs does not reliably
-# provide. Keep the pkg binary and configuration already present on the ISO.
+# A small tmpfs supports package directory renames, which unionfs does not
+# reliably provide. The GUI packages are fetched on demand instead of
+# unpacking the full development package cache into RAM during every boot.
+say 'Preparando o espaço temporário para os componentes gráficos.'
 tar -cf /tmp/brasa-local-seed.tar -C /usr/local . >> "$log" 2>&1 || failed
 kldload tmpfs >> "$log" 2>&1 || true
+# The minimal Xorg dependency set can exceed 2 GB once unpacked. Keep enough
+# headroom for pkg while allowing tmpfs to consume RAM only as files are written.
 mount -t tmpfs -o size=5g tmpfs /usr/local >> "$log" 2>&1 || failed
 tar -xf /tmp/brasa-local-seed.tar -C /usr/local >> "$log" 2>&1 || failed
 rm -f /tmp/brasa-local-seed.tar
@@ -43,17 +66,12 @@ if ! route -n get default >/dev/null 2>&1; then
 fi
 route -n get default >/dev/null 2>&1 || failed
 
-say 'Baixando os componentes gráficos. Isso pode levar vários minutos.'
+say 'Baixando os componentes gráficos mínimos. A tela mostrará o pacote atual.'
 export ASSUME_ALWAYS_YES=yes
 export PATH=/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin
-pkg bootstrap -f >> "$log" 2>&1 || failed
-if [ -r /brasa/BRASA_PKG_CACHE_TAR ]; then
-  say 'Preparando os componentes gráficos incluídos na mídia.'
-  tar -xf /brasa/BRASA_PKG_CACHE_TAR -C /var >> "$log" 2>&1 || failed
-  pkg install -U -y xorg-minimal xinit openbox zenity dejavu xf86-video-vesa xf86-video-scfb >> "$log" 2>&1 || failed
-else
-  pkg install -y xorg-minimal xinit openbox zenity dejavu xf86-video-vesa xf86-video-scfb >> "$log" 2>&1 || failed
-fi
+run_logged 'Preparando o gerenciador de pacotes...' pkg bootstrap -f || failed
+run_logged 'Instalando a interface gráfica mínima...' pkg install -y \
+  xorg-minimal xinit openbox zenity dejavu xf86-video-vesa xf86-video-scfb || failed
 tar -xzf /brasa/BRASA_PROJECT_TAR_GZ -C /tmp/brasa-source >> "$log" 2>&1 || failed
 
 export HOME=/tmp/brasa-home

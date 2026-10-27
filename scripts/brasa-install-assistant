@@ -179,6 +179,7 @@ install_log=$(mktemp /tmp/brasa-install-log.XXXXXX)
 progress_dir=$(mktemp -d /tmp/brasa-progress.XXXXXX)
 progress_pipe=$progress_dir/progress
 dist_dir=$(mktemp -d /tmp/brasa-distributions.XXXXXX)
+bsdinstall_log=$dist_dir/bsdinstall.log
 dist_site='https://download.freebsd.org/releases/amd64/amd64/15.1-RELEASE'
 mkfifo "$progress_pipe"
 chmod 600 "$password_file" "$name_file" "$install_script" "$install_log"
@@ -186,7 +187,7 @@ cleanup() {
   unset password
   rm -f "$password_file" "$name_file" "$install_script" "$progress_pipe"
   rmdir "$progress_dir" 2>/dev/null || true
-  rm -f "$dist_dir/MANIFEST" "$dist_dir/base.txz" "$dist_dir/kernel.txz"
+  rm -f "$dist_dir/MANIFEST" "$dist_dir/base.txz" "$dist_dir/kernel.txz" "$bsdinstall_log"
   rmdir "$dist_dir" 2>/dev/null || true
 }
 trap cleanup EXIT HUP INT TERM
@@ -219,41 +220,118 @@ cd /
 rm -rf /tmp/brasa-source
 EOF
 
-zenity --progress --pulsate --no-cancel --auto-close --title="$title" --width=560 \
-  --text='Instalando o sistema-base. O computador pode levar alguns minutos; não o desligue.' \
+zenity --progress --no-cancel --auto-close --title="$title" --width=680 \
+  --text='Preparando a instalação. Não desligue o computador.' \
   < "$progress_pipe" &
 progress_pid=$!
 exec 3> "$progress_pipe"
+report_progress() {
+  percentage=$1
+  shift
+  printf '# %s\n%s\n' "$*" "$percentage" >&3
+}
 (
   set -e
   export BSDINSTALL_DISTDIR="$dist_dir"
-  for distribution in MANIFEST base.txz kernel.txz; do
-    printf 'Obtendo %s...\n' "$distribution"
-    fetch -q -o "$dist_dir/$distribution" "$dist_site/$distribution"
-  done
+  export BSDINSTALL_LOG="$bsdinstall_log"
+  fetch_with_progress() {
+    distribution=$1
+    start=$2
+    finish=$3
+    url=$dist_site/$distribution
+    expected=$(fetch -s "$url" 2>> "$install_log" | tail -n 1 || true)
+    case "$expected" in ''|*[!0-9]*) expected=0 ;; esac
+    report_progress "$start" "Baixando $distribution..."
+    fetch -q -o "$dist_dir/$distribution" "$url" >> "$install_log" 2>&1 &
+    fetch_pid=$!
+    while kill -0 "$fetch_pid" 2>/dev/null; do
+      downloaded=$(stat -f %z "$dist_dir/$distribution" 2>/dev/null || printf '0')
+      case "$downloaded" in ''|*[!0-9]*) downloaded=0 ;; esac
+      if [ "$expected" -gt 0 ]; then
+        percentage=$((start + downloaded * (finish - start) / expected))
+        [ "$percentage" -lt "$finish" ] || percentage=$((finish - 1))
+        received_mb=$((downloaded / 1048576))
+        expected_mb=$((expected / 1048576))
+        report_progress "$percentage" "Baixando $distribution — ${received_mb} de ${expected_mb} MB."
+      else
+        received_mb=$((downloaded / 1048576))
+        report_progress "$start" "Baixando $distribution — ${received_mb} MB recebidos."
+      fi
+      sleep 2
+    done
+    wait "$fetch_pid"
+    report_progress "$finish" "$distribution baixado."
+  }
+  fetch_with_progress MANIFEST 0 2
+  fetch_with_progress base.txz 2 46
+  fetch_with_progress kernel.txz 46 62
+  report_progress 64 'Conferindo a integridade dos arquivos do sistema...'
   for distribution in base.txz kernel.txz; do
     expected=$(awk -v name="$distribution" '$1 == name { print $2; exit }' "$dist_dir/MANIFEST")
     [ -n "$expected" ] || { printf 'O manifesto não contém %s.\n' "$distribution"; exit 1; }
     actual=$(sha256 -q "$dist_dir/$distribution")
     [ "$actual" = "$expected" ] || { printf 'Falha na integridade de %s.\n' "$distribution"; exit 1; }
   done
-  printf 'Arquivos verificados. Preparando o disco selecionado.\n'
+  report_progress 66 'Arquivos conferidos. Confirmando novamente o disco escolhido...'
   validate_selected_disk
+  extract_total=$(xz --robot --list "$dist_dir/base.txz" "$dist_dir/kernel.txz" 2>/dev/null | \
+    awk -F '\t' '$1 == "file" { total += $5 } END { printf "%.0f", total }')
+  case "$extract_total" in ''|*[!0-9]*) extract_total=0 ;; esac
+  report_progress 68 'Preparando as partições e iniciando a instalação do FreeBSD...'
   bsdinstall script "$install_script" 6< "$name_file" 7< "$brasa_payload" \
-    8< "$password_file" 9< "$password_file"
+    8< "$password_file" 9< "$password_file" >> "$install_log" 2>&1 &
+  bsdinstall_pid=$!
+  last_percentage=68
+  while kill -0 "$bsdinstall_pid" 2>/dev/null; do
+    bsd_line=$(tail -n 1 "$bsdinstall_log" 2>/dev/null || true)
+    output_line=$(tail -n 1 "$install_log" 2>/dev/null || true)
+    progress_source="$bsd_line $output_line"
+    progress_message=${output_line:-$bsd_line}
+    case "$progress_source" in
+      *distextract*|*extract*)
+        if [ "$extract_total" -gt 0 ]; then
+          extracted_kb=$(df -k /mnt 2>/dev/null | awk 'END { print $3 }')
+          case "$extracted_kb" in ''|*[!0-9]*) extracted_kb=0 ;; esac
+          extracted_bytes=$((extracted_kb * 1024))
+          last_percentage=$((68 + extracted_bytes * 25 / extract_total))
+          [ "$last_percentage" -le 93 ] || last_percentage=93
+          extracted_mb=$((extracted_bytes / 1048576))
+          total_mb=$((extract_total / 1048576))
+          progress_message="Instalando a base do sistema — ${extracted_mb} de ${total_mb} MB."
+        else
+          progress_message='Instalando a base do sistema. Os arquivos estão sendo gravados no disco...'
+        fi
+        ;;
+      *bootconfig*|*rootpass*|*config*) last_percentage=95 ;;
+      *Installing*|*Fetching*|*pkg*)
+        package_counts=$(printf '%s\n' "$output_line" | sed -nE 's/.*\[([0-9]+)\/([0-9]+)\].*/\1 \2/p' | tail -n 1)
+        if [ -n "$package_counts" ]; then
+          installed=$(printf '%s\n' "$package_counts" | awk '{print $1}')
+          package_total=$(printf '%s\n' "$package_counts" | awk '{print $2}')
+          if [ "$package_total" -gt 0 ]; then
+            last_percentage=$((95 + installed * 4 / package_total))
+            [ "$last_percentage" -le 99 ] || last_percentage=99
+          fi
+        else
+          [ "$last_percentage" -ge 94 ] || last_percentage=94
+        fi
+        ;;
+    esac
+    progress_message=$(printf '%s' "$progress_message" | tr '\t\r\n' '   ' | cut -c 1-180)
+    [ -z "$progress_message" ] || report_progress "$last_percentage" "$progress_message"
+    sleep 2
+  done
+  if wait "$bsdinstall_pid"; then
+    printf '%s\n' 'Instalação da base e configuração do desktop concluídas.' >> "$install_log"
+    report_progress 100 'Instalação concluída. Preparando a mensagem final...'
+  else
+    bsdinstall_status=$?
+    cat "$bsdinstall_log" >> "$install_log" 2>/dev/null || true
+    exit "$bsdinstall_status"
+  fi
 ) > "$install_log" 2>&1 &
 installer_pid=$!
-while kill -0 "$installer_pid" 2>/dev/null; do
-  progress_message=$(tail -n 1 "$install_log" 2>/dev/null || true)
-  [ -z "$progress_message" ] || printf '# %s\n' "$progress_message" >&3
-  sleep 2
-done
-if wait "$installer_pid"; then
-  install_status=0
-else
-  install_status=$?
-fi
-printf '# Preparando o desktop Brasa...\n100\n' >&3
+if wait "$installer_pid"; then install_status=0; else install_status=$?; fi
 exec 3>&-
 wait "$progress_pid" || true
 rm -f "$progress_pipe"
