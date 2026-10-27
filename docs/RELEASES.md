@@ -30,4 +30,14 @@ Para publicar manualmente pelo GitHub, crie uma release em `https://github.com/M
 - Tamanho: 1.305.524.224 bytes
 - SHA-256: `5728AF6539F5FA2E2E5AA84934BA2635033945F5C409149DCC78E5680369B025`
 - Estado: experimental. O assistente agora lê todas as colunas devolvidas pelo Zenity e encontra nelas o nome exato do disco elegível, em vez de depender da posição da coluna impressa.
-- Verificado: estrutura ISO El Torito e payload presentes; sintaxe dos scripts. Ainda não testada em QEMU após esta alteração. Não validado: instalação completa, primeiro login, KDE, áudio USB, Wine e hardware real.
+- Validada em QEMU: o live iniciou, mas o Zenity ainda não devolveu o dispositivo ao assistente; a caixa informou que não reconheceu a seleção. Nenhuma gravação ocorreu. A causa provável é a forma de alimentar linhas de múltiplas colunas por entrada padrão; a próxima variante passa as células como argumentos separados. Não validado: instalação completa, primeiro login, KDE, áudio USB, Wine e hardware real.
+
+
+## ISO zenity-argv-fix (27/10/2026)
+
+- Tag: `brasa-zenity-argv-fix-2026-10-27`
+- Arquivo: `Brasa-live-zenity-argv-fix.iso`
+- Tamanho:1.305.524.224bytes
+-SHA-256:`560B3AE1E5BDEFCA26CAC390A30725CE4F1341E90E850B0A734474BFE2DCBC0C`.
+- Estado: experimental. A lista de discos passa as linhas como argumentos individuais do Zenity e marca somente o primeiro disco elegível. A seleção resultante continua sendo comparada com os nomes de disco obtidos pelo sistema antes de qualquer operação destrutiva.
+- Testes pendentes: integridade da ISO, boot em QEMU, retorno real da seleção e instalação.
