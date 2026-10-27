@@ -95,21 +95,25 @@ def read_rr(image, path):
     image.get_file_from_iso_fp(data, rr_path=path)
     return data.getvalue()
 
-def prune_package_cache(source, destination, temporary_directory):
+def prune_package_cache(source, destination, temporary_directory, catalog_fallback=None):
     """Keep cached packages needed by the live GUI dependency closure."""
     with tarfile.open(source, 'r:*') as archive:
         catalog_member = next((member for member in archive.getmembers()
                                if member.name.endswith('db/pkg/repos/FreeBSD-ports/db')), None)
         catalog_meta_member = next((member for member in archive.getmembers()
                                     if member.name.endswith('db/pkg/repos/FreeBSD-ports/meta')), None)
-        if catalog_member is None or catalog_meta_member is None:
-            raise RuntimeError('O cache não contém o catálogo FreeBSD-ports necessário para reduzir os pacotes.')
         catalog_path = temporary_directory / 'freebsd-ports.sqlite'
-        with catalog_path.open('wb') as catalog_file:
-            catalog_file.write(archive.extractfile(catalog_member).read())
         catalog_meta_path = temporary_directory / 'freebsd-ports.meta'
-        with catalog_meta_path.open('wb') as catalog_meta_file:
-            catalog_meta_file.write(archive.extractfile(catalog_meta_member).read())
+        if catalog_member is not None and catalog_meta_member is not None:
+            with catalog_path.open('wb') as catalog_file:
+                shutil.copyfileobj(archive.extractfile(catalog_member), catalog_file)
+            with catalog_meta_path.open('wb') as catalog_meta_file:
+                shutil.copyfileobj(archive.extractfile(catalog_meta_member), catalog_meta_file)
+        elif catalog_fallback and all(path.is_file() for path in catalog_fallback):
+            shutil.copyfile(catalog_fallback[0], catalog_path)
+            shutil.copyfile(catalog_fallback[1], catalog_meta_path)
+        else:
+            raise RuntimeError('O cache e a ISO de referência não contêm o catálogo FreeBSD-ports necessário.')
 
         database = sqlite3.connect(catalog_path)
         try:
@@ -222,17 +226,32 @@ def main():
             pkg_repo_catalog = None
             if PACKAGE_CACHE_ISO:
                 cache_archive = temp / 'brasa-pkg-cache.tar'
+                catalog_files = (temp / 'freebsd-ports-from-iso.sqlite',
+                                 temp / 'freebsd-ports-from-iso.meta')
                 cache_image = pycdlib.PyCdlib()
                 cache_image.open(str(PACKAGE_CACHE_ISO))
                 try:
                     with cache_archive.open('wb') as cache_file:
                         cache_image.get_file_from_iso_fp(cache_file, rr_path='/brasa/BRASA_PKG_CACHE_TAR')
+                    external_catalog_available = True
+                    for image_path, output_path in zip(
+                            ('/brasa/BRASA_PKG_REPOSITORY_DB', '/brasa/BRASA_PKG_REPOSITORY_META'),
+                            catalog_files):
+                        try:
+                            with output_path.open('wb') as output_file:
+                                cache_image.get_file_from_iso_fp(output_file, rr_path=image_path)
+                        except Exception:
+                            output_path.unlink(missing_ok=True)
+                            external_catalog_available = False
+                            break
                 except Exception as error:
-                    raise RuntimeError('A ISO de referência não contém o cache Brasa de pacotes.') from error
+                    raise RuntimeError('A ISO de referência não contém o cache/catálogo de pacotes Brasa.') from error
                 finally:
                     cache_image.close()
                 pruned_cache = temp / 'brasa-pkg-cache-pruned.tar'
-                pkg_repo_catalog = prune_package_cache(cache_archive, pruned_cache, temp)
+                pkg_repo_catalog = prune_package_cache(
+                    cache_archive, pruned_cache, temp,
+                    catalog_fallback=catalog_files if external_catalog_available else None)
                 image.add_file(str(pruned_cache), iso_path='/BRASA/BRASA_PKG_CACHE_TAR;1', rr_name='BRASA_PKG_CACHE_TAR')
             if VIRTIO_GPU_QEMU:
                 image.add_file(str(temp / 'loader.conf'), iso_path='/BOOT/LOADER.CONF;1', rr_name='loader.conf')

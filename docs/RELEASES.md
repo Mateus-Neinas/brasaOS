@@ -111,3 +111,14 @@ O teste com a ISO publicada chegou à confirmação explícita e iniciou no disc
 - Mudanças: exporta o catálogo FreeBSD-ports embutido separadamente do cache para o sistema live e preserva o fallback para pacotes pela internet. A mensagem de progresso agora usa rótulos compreensíveis quando `bsdinstall` não informa a etapa.
 - Testada em QEMU 11.1/WHPX com 8 GB de RAM, 4 vCPUs, VirtIO GPU e QCOW2 descartável de 40 GB. O ambiente gráfico, cadastro, seleção/confirmação de `vtbd0` e início da instalação passaram. `pkg install -l` não usou os pacotes locais, então houve atualização do catálogo online e extração dos 133 componentes gráficos. O assistente iniciou o download de `base.txz` com progresso visível. QEMU foi encerrado antes da conclusão para liberar memória do Windows, com uso de memória perto de 6 GB. A instalação completa, primeiro boot, KDE, Wine, áudio USB e hardware real não foram validados.
 - O QCOW2 deste teste fica em `%TEMP%` até outra ISO ser versionada. `dist/Brasa-15.1-amd64.iso` e `.build/freebsd-bootonly.iso` são imagens base e permanecem preservadas. A ISO experimental não deve ser usada em disco com dados importantes.
+
+
+## ISO WHPX pkgbase extract-test (27/10/2026)
+
+- Tag da release: [`brasa-whpx-pkgbase-extract-test-2026-10-27`](https://github.com/Mateus-Neinas/brasaOS/releases/tag/brasa-whpx-pkgbase-extract-test-2026-10-27)
+- Arquivo: `Brasa-live-whpx-pkgbase-extract-test.iso`
+- Tamanho: 1.072.185.344 bytes
+- SHA-256: `DCDEAD1F597C598386940EDF0FDAA5348C278D622CA20AF51FD007BF9D4657A5`
+- Mudança: experimenta `bsdinstall script` com `COMPONENTS=base` e sem distribuições `.txz`, para evitar a extração monolítica. O construtor também lê o catálogo FreeBSD-ports separado da ISO de referência, sem duplicá-lo no cache.
+- QEMU 11.1/WHPX, 8 GB RAM, 4 vCPUs, VirtIO GPU e QCOW descartável de 40 GB: boot live, fallback de pacotes gráficos e assistente passaram. A etapa pkgbase falhou ao atualizar o repositório com `Transient resolver failure`; não baixou os pacotes da base e não mediu extração. O QCOW foi particionado, mas nenhum sistema inicializável foi instalado. KDE, Wine, áudio USB e hardware real não foram validados.
+- O QCOW deste teste fica em `%TEMP%` até outra ISO ser versionada. As imagens base foram preservadas. A ISO experimental não deve ser usada em computador com dados importantes.

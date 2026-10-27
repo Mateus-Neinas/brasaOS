@@ -4,7 +4,7 @@ Brasa é um protótipo x86-64 baseado em FreeBSD. O objetivo é oferecer uma ins
 
 ## Estado da imagem experimental mais recente
 
-A ISO [WHPX offline-catalog-progress](https://github.com/Mateus-Neinas/brasaOS/releases/tag/brasa-whpx-offline-catalog-progress-2026-10-27) inicia o ambiente live e abre o assistente gráfico. Em QEMU/WHPX com 8 GB de RAM, o teste chegou à seleção e confirmação do QCOW2 descartável, baixou a base FreeBSD e iniciou a instalação com progresso visível. O teste foi encerrado antes de concluir para liberar memória do Windows. A tentativa de instalar os componentes live pelo catálogo local falhou e usou a atualização pela internet como alternativa. O sistema instalado, KDE, áudio USB e Wine não foram validados. Não use esta imagem num computador com dados importantes. JWM é somente o ambiente temporário do instalador; KDE continua sendo o desktop pretendido no sistema instalado. Consulte `docs/RELEASES.md` e `docs/PROTOTYPE.md` antes de testar.
+A ISO [WHPX pkgbase extract-test](https://github.com/Mateus-Neinas/brasaOS/releases/tag/brasa-whpx-pkgbase-extract-test-2026-10-27) testa a instalação da base FreeBSD 15.1 por pacotes, sem baixar e descompactar `base.txz`/`kernel.txz`. Em QEMU/WHPX com 8 GB, o live e o assistente gráfico abriram e o QCOW descartável foi particionado. A instalação da base parou antes de baixar pacotes por falha de resolução DNS no repositório FreeBSD-base; portanto não houve medição de velocidade nem instalação concluída. A variante anterior por distribuições continua disponível na release anterior. Não use nenhuma dessas ISOs num computador com dados importantes. JWM é somente o ambiente temporário do instalador; KDE continua sendo o desktop pretendido no sistema instalado. Consulte `docs/RELEASES.md` e `docs/PROTOTYPE.md` antes de testar.
 ## O que funciona nesta mídia
 
 - Inicia o instalador padrão do FreeBSD pelo menu **Boot Brasa**; também tenta abrir o assistente gráfico experimental.
@@ -14,7 +14,7 @@ A ISO [WHPX offline-catalog-progress](https://github.com/Mateus-Neinas/brasaOS/r
 
 ## Limitações conhecidas
 
-- A instalação da base FreeBSD ainda não foi concluída pelo assistente gráfico; o último teste iniciou o download e foi encerrado para liberar memória do Windows.
+- A instalação da base FreeBSD ainda não foi concluída pelo assistente gráfico; o teste pkgbase parou ao atualizar o repositório por falha de resolução DNS.
 - `scripts/brasa-install-assistant` tem etapas visuais para conta, senha, seleção de disco e confirmação destrutiva. O instalador processou os componentes live e baixou a base, mas ainda não foi validado até o primeiro boot.
 - A instalação e o primeiro login ainda precisam ser validados num ambiente live real antes de usar em um computador com dados importantes.
 - O driver FreeBSD `uaudio` fornece suporte a parte dos dispositivos USB Audio Class; a compatibilidade depende do dispositivo e não foi validada contra toda a classe ou contra o macOS.

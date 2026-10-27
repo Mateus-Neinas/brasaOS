@@ -195,7 +195,6 @@ progress_dir=$(mktemp -d /tmp/brasa-progress.XXXXXX)
 progress_pipe=$progress_dir/progress
 dist_dir=$(mktemp -d /tmp/brasa-distributions.XXXXXX)
 bsdinstall_log=$dist_dir/bsdinstall.log
-dist_site='https://download.freebsd.org/releases/amd64/amd64/15.1-RELEASE'
 brasa_repo_db=/dev/null
 brasa_repo_meta=/dev/null
 brasa_repo_catalog_available=no
@@ -210,7 +209,7 @@ cleanup() {
   unset password
   rm -f "$password_file" "$name_file" "$install_script" "$progress_pipe"
   rmdir "$progress_dir" 2>/dev/null || true
-  rm -f "$dist_dir/MANIFEST" "$dist_dir/base.txz" "$dist_dir/kernel.txz" "$bsdinstall_log"
+  rm -f "$bsdinstall_log"
   rmdir "$dist_dir" 2>/dev/null || true
 }
 trap cleanup EXIT HUP INT TERM
@@ -220,8 +219,9 @@ unset password
 
 cat > "$install_script" <<EOF
 PARTITIONS="$selected_disk"
-DISTRIBUTIONS="base.txz kernel.txz"
-export BSDINSTALL_DISTSITE="$dist_site"
+unset DISTRIBUTIONS
+COMPONENTS="base"
+export COMPONENTS
 BRASA_REPO_CATALOG_AVAILABLE="$brasa_repo_catalog_available"
 export BRASA_REPO_CATALOG_AVAILABLE
 
@@ -269,62 +269,22 @@ process_is_running() {
   set -e
   export BSDINSTALL_DISTDIR="$dist_dir"
   export BSDINSTALL_LOG="$bsdinstall_log"
-  fetch_with_progress() {
-    distribution=$1
-    start=$2
-    finish=$3
-    url=$dist_site/$distribution
-    expected=$(fetch -s "$url" 2>> "$install_log" | tail -n 1 || true)
-    case "$expected" in ''|*[!0-9]*) expected=0 ;; esac
-    report_progress "$start" "Baixando $distribution..."
-    fetch -q -o "$dist_dir/$distribution" "$url" >> "$install_log" 2>&1 &
-    fetch_pid=$!
-    while process_is_running "$fetch_pid"; do
-      downloaded=$(stat -f %z "$dist_dir/$distribution" 2>/dev/null || printf '0')
-      case "$downloaded" in ''|*[!0-9]*) downloaded=0 ;; esac
-      if [ "$expected" -gt 0 ]; then
-        percentage=$((start + downloaded * (finish - start) / expected))
-        [ "$percentage" -lt "$finish" ] || percentage=$((finish - 1))
-        received_mb=$((downloaded / 1048576))
-        expected_mb=$((expected / 1048576))
-        report_progress "$percentage" "Baixando $distribution — ${received_mb} de ${expected_mb} MB."
-      else
-        received_mb=$((downloaded / 1048576))
-        report_progress "$start" "Baixando $distribution — ${received_mb} MB recebidos."
-      fi
-      sleep 2
-    done
-    wait "$fetch_pid"
-    report_progress "$finish" "$distribution baixado."
-  }
-  fetch_with_progress MANIFEST 0 2
-  fetch_with_progress base.txz 2 46
-  fetch_with_progress kernel.txz 46 62
-  report_progress 64 'Conferindo a integridade dos arquivos do sistema...'
-  for distribution in base.txz kernel.txz; do
-    expected=$(awk -v name="$distribution" '$1 == name { print $2; exit }' "$dist_dir/MANIFEST")
-    [ -n "$expected" ] || { printf 'O manifesto não contém %s.\n' "$distribution"; exit 1; }
-    actual=$(sha256 -q "$dist_dir/$distribution")
-    [ "$actual" = "$expected" ] || { printf 'Falha na integridade de %s.\n' "$distribution"; exit 1; }
-  done
-  report_progress 66 'Arquivos conferidos. Confirmando novamente o disco escolhido...'
+  report_progress 2 'Preparando os componentes oficiais do FreeBSD...'
+  printf '%s\n' 'Brasa: Instalando o sistema base pelo pkgbase do FreeBSD 15.1.' >> "$install_log"
+  report_progress 5 'Baixando e instalando o sistema base do FreeBSD...'
   validate_selected_disk
-  extract_total=$(xz --robot --list "$dist_dir/base.txz" "$dist_dir/kernel.txz" 2>/dev/null | \
-    awk -F '\t' '$1 == "file" { total += $5 } END { printf "%.0f", total }')
-  case "$extract_total" in ''|*[!0-9]*) extract_total=0 ;; esac
-  report_progress 68 'Preparando as partições e iniciando a instalação do FreeBSD...'
-  # bsdinstall script selects an interactive distextract path when stdin is a
-  # TTY. This process runs behind the graphical progress window and sends its
-  # output to a log, so a TTY would make the extraction UI invisible. Keep its
-  # input non-interactive; bsdinstall then extracts distributions with tar.
+  report_progress 8 'Preparando as partições e iniciando a instalação do FreeBSD...'
+  # With DISTRIBUTIONS unset, FreeBSD 15.1 bsdinstall script uses its pkgbase
+  # installer instead of unpacking the large base.txz and kernel.txz archives.
   bsdinstall script "$install_script" 6< "$name_file" 7< "$brasa_payload" \
     8< "$password_file" 9< "$password_file" 10< "$brasa_repo_db" 11< "$brasa_repo_meta" \
     < /dev/null >> "$install_log" 2>&1 &
   bsdinstall_pid=$!
-  last_percentage=68
+  last_percentage=8
   last_reported_percentage=-1
   last_reported_message=''
   elapsed_seconds=0
+  base_install_done=no
   while process_is_running "$bsdinstall_pid"; do
     bsd_line=$(tail -n 1 "$bsdinstall_log" 2>/dev/null || true)
     output_line=$(tail -n 1 "$install_log" 2>/dev/null || true)
@@ -338,21 +298,13 @@ process_is_running() {
       DEBUG:*) progress_message=$output_line ;;
     esac
     case "$progress_source" in
-      *distextract*|*extract*)
-        if [ "$extract_total" -gt 0 ]; then
-          extracted_kb=$(df -k /mnt 2>/dev/null | awk 'END { print $3 }')
-          case "$extracted_kb" in ''|*[!0-9]*) extracted_kb=0 ;; esac
-          extracted_bytes=$((extracted_kb * 1024))
-          last_percentage=$((68 + extracted_bytes * 25 / extract_total))
-          [ "$last_percentage" -le 93 ] || last_percentage=93
-          extracted_mb=$((extracted_bytes / 1048576))
-          total_mb=$((extract_total / 1048576))
-          progress_message="Instalando a base do sistema — ${extracted_mb} de ${total_mb} MB."
-        else
-          progress_message='Instalando a base do sistema. Os arquivos estão sendo gravados no disco...'
-        fi
+      *bootconfig*|*rootpass*|*config*)
+        base_install_done=yes
+        [ "$last_percentage" -lt 82 ] && last_percentage=82
         ;;
-      *bootconfig*|*rootpass*|*config*) last_percentage=95 ;;
+      *pkgbase*|*FreeBSD-base*|*FreeBSD-set*|*Extracting*|*Fetching*)
+        if [ "$base_install_done" = no ] && [ "$last_percentage" -lt 7 ]; then last_percentage=7; fi
+        ;;
     esac
     # pkg prefixes both Installing and Extracting lines with [current/total].
     # Count either form so a large archive extraction visibly advances too.
@@ -361,7 +313,11 @@ process_is_running() {
       installed=$(printf '%s\n' "$package_counts" | awk '{print $1}')
       package_total=$(printf '%s\n' "$package_counts" | awk '{print $2}')
       if [ "$package_total" -gt 0 ]; then
-        package_percentage=$((95 + installed * 4 / package_total))
+        if [ "$base_install_done" = yes ]; then
+          package_percentage=$((90 + installed * 9 / package_total))
+        else
+          package_percentage=$((8 + installed * 72 / package_total))
+        fi
         [ "$package_percentage" -le 99 ] || package_percentage=99
         [ "$package_percentage" -gt "$last_percentage" ] && last_percentage=$package_percentage
       fi
@@ -376,7 +332,7 @@ process_is_running() {
         *bootconfig*) progress_message='Preparando a inicialização do sistema instalado...' ;;
         *rootpass*) progress_message='Configurando a conta de administração...' ;;
         *config*) progress_message='Configurando o sistema instalado...' ;;
-        *) progress_message='Instalando o Brasa no disco escolhido. Esta etapa pode levar alguns minutos.' ;;
+        *) progress_message='Instalando o sistema base do FreeBSD no disco escolhido...' ;;
       esac
     fi
     elapsed_seconds=$((elapsed_seconds + 2))
