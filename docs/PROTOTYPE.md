@@ -6,6 +6,14 @@ Iniciar por uma mídia x86-64, escolher idioma, informar o nome e a senha da con
 
 ## Estado atual
 
+### Experimento de repetição do instalador (27/10/2026)
+
+O assistente agora oferece **Tentar novamente** ou **Sair para o instalador FreeBSD** depois de mostrar os detalhes de uma falha. Isso evita encerrar o fluxo sem uma escolha clara e permite repetir sem reiniciar a mídia. O construtor também aceita um caminho de saída para produzir uma ISO de teste separada, sem sobrescrever a imagem usada pela VM.
+
+Validação feita: a ISO de teste foi construída e sua estrutura/payload foram conferidos; o texto das duas opções foi localizado no pacote da ISO e `git diff --check` passou. A ISO ainda não foi validada em QEMU. Uma tentativa anterior em QEMU com a imagem antiga retornou ao instalador de texto depois que processos do sistema live foram encerrados por falta de memória com 4 GB. Com 6 GB o desktop live iniciou; a instalação sob TCG está muito lenta. No último acompanhamento, o processo QEMU ainda respondia e o disco descartável recebia gravações periódicas, então não foi classificado como travado nem removido.
+
+ISO de teste atual: `.build/Brasa-live-retry-test.iso` (SHA-256 `9D46B916826248CE1F1CD045D2ACDEC12E00C13915041F034FE22E94870D0464`). Ela contém o ajuste de repetição, mas continua sendo uma imagem experimental: a instalação completa, primeiro login, instalação do KDE e suporte a áudio USB ainda não foram verificados.
+
 A ISO `dist/Brasa-15.1-amd64.iso` é uma mídia `bootonly` FreeBSD 15.1 com os fontes e utilitários Brasa anexados. Ela não inclui desktop live, KDE, Wine, servidor de pacotes local ou instalador gráfico integrado. O instalador que inicia nesta mídia é operado por menus de texto.
 
 `scripts/brasa-install-assistant` define etapas visuais de boas-vindas, conta, senha, seleção de disco e confirmação destrutiva. O backend em desenvolvimento revalida o disco, delega o particionamento ao `bsdinstall` e passa a configuração de conta para o script executado dentro do sistema instalado, antes de o disco ser desmontado. Ele ainda exige `/var/run/brasa-live-environment`, Zenity e o pacote Brasa em `/brasa/BRASA_PROJECT_TAR_GZ`. Esses componentes não estão integrados ao ambiente live desta ISO; o código não pode ser iniciado por um usuário desta mídia. O script de build só substitui o README e o pacote no ISO; ele não modifica o ambiente raiz embutido.
