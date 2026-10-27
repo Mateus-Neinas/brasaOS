@@ -88,7 +88,7 @@ O teste com a ISO publicada chegou à confirmação explícita e iniciou no disc
 - SHA-256: `22EE9AEBA637385982D8427A3F4C21969B0765782833CBAA3DE00B04F8C20C20`
 - Mudança: inclui o módulo oficial FreeBSD 15.1 `virtio-gpu-qemu-kmod`, configura o framebuffer para Xorg e mantém JWM apenas no ambiente temporário do instalador. A correção do progresso oculta linhas internas `DEBUG:` do `bsdinstall`, mostra a saída corrente do instalador e reinicia o contador de tempo quando a mensagem muda. KDE permanece o desktop pretendido do sistema instalado.
 - Testada em QEMU 11.1/WHPX com 6 GB de RAM, 4 vCPUs, VGA VirtIO e QCOW2 descartável de 40 GB: live gráfico, cadastro de usuário, seleção de `vtbd0` e confirmação do disco funcionaram. A instalação chegou a 97%, mas a tela permaneceu nessa etapa por quase sete minutos e o QCOW2 não teve novas gravações por mais de quatro minutos. O teste foi encerrado por QMP. O sistema instalado não foi validado; o novo texto de progresso desta compilação foi verificado estruturalmente na ISO, mas ainda precisa de reteste em QEMU.
-- O QCOW2 do teste foi mantido em `%TEMP%` aguardando esta release. A imagem base `dist/Brasa-15.1-amd64.iso` não foi alterada.
+- O QCOW2 descartável foi removido depois de releases posteriores. A imagem base `dist/Brasa-15.1-amd64.iso` não foi alterada.
 - Continua sem validação: instalação completa e inicializável, login, KDE, Wine, áudio USB class-compliant e hardware real. Não use num disco com dados importantes.
 
 ## ISO WHPX VirtIO package-progress (27/10/2026)
@@ -99,7 +99,7 @@ O teste com a ISO publicada chegou à confirmação explícita e iniciou no disc
 - SHA-256: `65A3658D6F91FC560ADF59BD79AA8A78E844D2F8DC282DAD26FEFCDE09671229`
 - Mudanças: o progresso interpreta os contadores `[atual/total]` das linhas de instalação e extração do `pkg`; o bootstrap usa Plasma KDE com Konsole, Dolphin e Ark em vez do metapacote completo `kde`. KDE permanece o desktop instalado pretendido.
 - Testada em QEMU 11.1/WHPX com 8 GB de RAM, 4 vCPUs, VirtIO GPU e QCOW2 descartável de 40 GB. O boot gráfico, o cadastro, a seleção de `vtbd0`, a confirmação destrutiva e a extração dos pacotes live passaram. O instalador baixou `base.txz` (156 MB), mas a escrita no QCOW2 parou em 1.270.431.744 bytes por mais de quatro minutos, com CPU do QEMU ainda ocupada; a janela só mostrava o tempo da etapa, sem explicar a atividade. A VM foi encerrada. Instalação concluída, primeiro boot, KDE, áudio USB, Wine e hardware real não foram validados.
-- O QCOW2 deste reteste fica em `%TEMP%` até uma próxima release. A ISO base `dist/Brasa-15.1-amd64.iso` permanece preservada. A imagem é experimental e não deve ser usada em disco com dados importantes.
+- O QCOW2 descartável deste reteste foi removido depois de releases posteriores. A ISO base `dist/Brasa-15.1-amd64.iso` permanece preservada. A imagem é experimental e não deve ser usada em disco com dados importantes.
 
 
 ## ISO WHPX offline-catalog-progress (27/10/2026)
@@ -110,7 +110,7 @@ O teste com a ISO publicada chegou à confirmação explícita e iniciou no disc
 - SHA-256: `46128E44AE12515E2386B6E406198E8FC7420E71C921C27978964627FAC3EED8`
 - Mudanças: exporta o catálogo FreeBSD-ports embutido separadamente do cache para o sistema live e preserva o fallback para pacotes pela internet. A mensagem de progresso agora usa rótulos compreensíveis quando `bsdinstall` não informa a etapa.
 - Testada em QEMU 11.1/WHPX com 8 GB de RAM, 4 vCPUs, VirtIO GPU e QCOW2 descartável de 40 GB. O ambiente gráfico, cadastro, seleção/confirmação de `vtbd0` e início da instalação passaram. `pkg install -l` não usou os pacotes locais, então houve atualização do catálogo online e extração dos 133 componentes gráficos. O assistente iniciou o download de `base.txz` com progresso visível. QEMU foi encerrado antes da conclusão para liberar memória do Windows, com uso de memória perto de 6 GB. A instalação completa, primeiro boot, KDE, Wine, áudio USB e hardware real não foram validados.
-- O QCOW2 deste teste fica em `%TEMP%` até outra ISO ser versionada. `dist/Brasa-15.1-amd64.iso` e `.build/freebsd-bootonly.iso` são imagens base e permanecem preservadas. A ISO experimental não deve ser usada em disco com dados importantes.
+- O QCOW2 descartável deste teste foi removido depois de uma release posterior. `dist/Brasa-15.1-amd64.iso` e `.build/freebsd-bootonly.iso` são imagens base e permanecem preservadas. A ISO experimental não deve ser usada em disco com dados importantes.
 
 
 ## ISO WHPX pkgbase extract-test (27/10/2026)
@@ -121,7 +121,7 @@ O teste com a ISO publicada chegou à confirmação explícita e iniciou no disc
 - SHA-256: `DCDEAD1F597C598386940EDF0FDAA5348C278D622CA20AF51FD007BF9D4657A5`
 - Mudança: experimenta `bsdinstall script` com `COMPONENTS=base` e sem distribuições `.txz`, para evitar a extração monolítica. O construtor também lê o catálogo FreeBSD-ports separado da ISO de referência, sem duplicá-lo no cache.
 - QEMU 11.1/WHPX, 8 GB RAM, 4 vCPUs, VirtIO GPU e QCOW descartável de 40 GB: boot live, fallback de pacotes gráficos e assistente passaram. A etapa pkgbase falhou ao atualizar o repositório com `Transient resolver failure`; não baixou os pacotes da base e não mediu extração. O QCOW foi particionado, mas nenhum sistema inicializável foi instalado. KDE, Wine, áudio USB e hardware real não foram validados.
-- O QCOW deste teste fica em `%TEMP%` até outra ISO ser versionada. As imagens base foram preservadas. A ISO experimental não deve ser usada em computador com dados importantes.
+- O QCOW descartável deste teste foi removido após a publicação da release pkgbase resolver-fix. As imagens base foram preservadas. A ISO experimental não deve ser usada em computador com dados importantes.
 
 
 ## ISO WHPX pkgbase resolver-fix (27/10/2026)
@@ -133,3 +133,4 @@ O teste com a ISO publicada chegou à confirmação explícita e iniciou no disc
 - Mudança: semeia `/mnt/etc/resolv.conf` no script pkgbase modificado, para que o `pkg --rootdir /mnt` tenha DNS antes de buscar a base.
 - QEMU 11.1/WHPX, 8 GB RAM, 4 vCPUs, VirtIO GPU e QCOW descartável de 40 GB: boot live, instalação local dos componentes gráficos e fallback de rede passaram; cadastro, senha, seleção/confirmação de `vtbd0` e particionamento passaram. A etapa `FreeBSD Installer` permaneceu em 94% por mais de dois minutos, sem crescimento adicional do QCOW ou mensagem de erro visível; a instalação base não concluiu. O ajuste de resolver ainda não está confirmado como eficaz para pkgbase, não houve medição de velocidade e não há sistema inicializável. KDE, Wine, áudio USB e hardware real não foram validados.
 - A ISO é experimental. Não use num computador com dados importantes. `dist/Brasa-15.1-amd64.iso` e `.build/freebsd-bootonly.iso` são imagens base e permanecem preservadas.
+- Após publicar esta release, foram removidos os dois QCOWs de teste pkgbase anteriores, as duas ISOs experimentais antigas e os logs/capturas temporários. A ISO desta release foi mantida localmente; as imagens base foram conferidas por SHA-256.

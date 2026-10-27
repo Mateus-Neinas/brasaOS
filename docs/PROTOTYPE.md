@@ -155,7 +155,7 @@ O host Windows informou `VirtualizationFirmwareEnabled=False` para o Intel i5-12
 
 A imagem exporta o catálogo FreeBSD-ports embutido separadamente do cache dos pacotes e tenta fornecê-lo ao instalador, além de apresentar uma mensagem compreensível quando o texto interno do `bsdinstall` está vazio. Em QEMU 11.1/WHPX com 8 GB de RAM, 4 vCPUs e VirtIO GPU, o ambiente live iniciou, o cadastro e a seleção/confirmação do QCOW2 de 40 GB funcionaram e o assistente iniciou a instalação com barra de progresso. O caminho `pkg install -l` não aceitou os pacotes locais; o script atualizou o catálogo online, extraiu os 133 componentes gráficos e abriu o instalador. A base `base.txz` começou a ser baixada. Encerramos QEMU antes de concluir para liberar memória do Windows (uso do processo aproximou-se de 6 GB). A instalação final e o primeiro boot não foram validados.
 
-O QCOW2 `Brasa-offline-catalog-3b07855cda984206be73ff68da3a5cd7.qcow2` foi mantido em `%TEMP%` até a publicação desta release. A ISO base `dist/Brasa-15.1-amd64.iso` e `.build/freebsd-bootonly.iso` permanecem preservadas. A próxima melhoria deve corrigir a instalação offline dos pacotes e gerar outra ISO antes de remover temporários.
+O QCOW2 `Brasa-offline-catalog-3b07855cda984206be73ff68da3a5cd7.qcow2` foi removido após releases posteriores. A ISO base `dist/Brasa-15.1-amd64.iso` e `.build/freebsd-bootonly.iso` permanecem preservadas.
 
 
 ### ISO WHPX pkgbase para medir a instalação base (27/10/2026)
