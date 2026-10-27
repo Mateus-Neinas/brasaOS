@@ -81,7 +81,7 @@ A lista anterior não fornecia ao Zenity os dados no formato de uma tabela com u
 
 Foi construída `.build/Brasa-live-disk-picker.iso` (1.305.522.176 bytes, SHA-256 `74AB22BF646DA22D1FDCA272D1F73BBF09EC224402B79ECA53D6A7FE84F97E8A`) usando o cache de pacotes de `.build/Brasa-live-cached-boot.iso`. O catálogo El Torito e o payload foram verificados. Esta nova ISO ainda não foi iniciada em QEMU; a alteração da lista não tem confirmação em execução. A ISO anterior `.build/Brasa-live-progress-fix.iso` parou na lista antes de iniciar qualquer gravação e o disco virtual de teste permaneceu com 197.632 bytes. A VM foi desligada ao detectar que a execução TCG de 8 GB deixava cerca de 1 GB livre no Windows.
 
-O inventário de tags, hashes, estado, links e assets publicados está em `docs/RELEASES.md`. As três ISOs produzidas neste ciclo têm releases experimentais próprias, inclusive a imagem com seleção de disco defeituosa.
+O inventário de tags, hashes, estado, links e assets publicados está em `docs/RELEASES.md`. As quatro ISOs produzidas neste ciclo têm releases experimentais próprias, inclusive as imagens com defeitos observados durante os testes.
 
 
 ### Retorno do Zenity e terceira ISO experimental (27/10/2026)
