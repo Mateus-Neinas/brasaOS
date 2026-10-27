@@ -82,3 +82,10 @@ A lista anterior não fornecia ao Zenity os dados no formato de uma tabela com u
 Foi construída `.build/Brasa-live-disk-picker.iso` (1.305.522.176 bytes, SHA-256 `74AB22BF646DA22D1FDCA272D1F73BBF09EC224402B79ECA53D6A7FE84F97E8A`) usando o cache de pacotes de `.build/Brasa-live-cached-boot.iso`. O catálogo El Torito e o payload foram verificados. Esta nova ISO ainda não foi iniciada em QEMU; a alteração da lista não tem confirmação em execução. A ISO anterior `.build/Brasa-live-progress-fix.iso` parou na lista antes de iniciar qualquer gravação e o disco virtual de teste permaneceu com 197.632 bytes. A VM foi desligada ao detectar que a execução TCG de 8 GB deixava cerca de 1 GB livre no Windows.
 
 O inventário de tags, hashes, estado e requisitos de publicação de cada imagem está em `docs/RELEASES.md`. Cada ISO precisa ter uma release separada, inclusive imagens defeituosas. A criação e o upload da release ainda dependem de credencial com permissão de publicação; a conexão GitHub disponível nesta sessão só permite consultas.
+
+
+### Retorno do Zenity e terceira ISO experimental (27/10/2026)
+
+O boot em QEMU da ISO `Brasa-live-disk-picker.iso` funcionou com 6 GB de RAM e 128 MB de vídeo, mas, ao avançar da lista que mostrava o disco virtual `vtbd0`, o instalador rejeitou a seleção. Nenhuma gravação começou. A VM foi encerrada e o QCOW2 temporário de 197.632 bytes foi removido. O defeito estava na interpretação do valor impresso pelo Zenity: a seleção de coluna única não localizava corretamente o dispositivo na saída da lista.
+
+O código foi alterado para pedir todas as colunas da linha selecionada e localizar nelas o nome exato de um dispositivo elegível; se não encontrar, mostra um erro seguro sem tocar no disco. A terceira imagem `.build/Brasa-live-picker-output-fix.iso` foi construída com o cache da mídia Brasa, preservando as imagens anteriores. Tamanho: 1.305.524.224 bytes; SHA-256: `5728AF6539F5FA2E2E5AA84934BA2635033945F5C409149DCC78E5680369B025`. A estrutura El Torito e o payload foram conferidos. O boot e a nova leitura da seleção ainda precisam ser testados antes de qualquer instalação.

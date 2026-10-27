@@ -115,10 +115,15 @@ disk_rows=$(geom disk list 2>/dev/null | awk -v minimum="$minimum_bytes" -v boot
 ')
 [ -n "$disk_rows" ] || { unset password; fail 'Não encontrei um disco de pelo menos 40 GB. Conecte um disco adequado e tente novamente.'; }
 
-selected_disk=$(printf '%s\n' "$disk_rows" | awk -F '\t' '{ printf "TRUE\t%s\t%s\t%s\t%s\t%s\n", $1, $2, $3, $4, $5 }' | zenity --list --title="$title" --width=760 --height=420 \
+selected_result=$(printf '%s\n' "$disk_rows" | awk -F '\t' '{ printf "TRUE\t%s\t%s\t%s\t%s\t%s\n", $1, $2, $3, $4, $5 }' | zenity --list --title="$title" --width=760 --height=420 \
   --text='Selecione o disco onde o Brasa será instalado. O conteúdo desse disco será apagado.' \
   --radiolist --column='Selecionar' --column='Disco' --column='Modelo' --column='Capacidade' --column='Identificação' --column='Bytes' \
-  --print-column=2 --separator='' --hide-column=6) || { unset password; cancelled; }
+  --print-column=ALL --separator='|' --hide-column=6) || { unset password; cancelled; }
+selected_disk=$(printf '%s\n' "$disk_rows" | awk -F '\t' -v selection="$selected_result" '
+  BEGIN { fields_count = split(selection, fields, "|"); for (i = 1; i <= fields_count; i++) selected[fields[i]] = 1 }
+  $1 in selected { print $1; found = 1; exit }
+  END { if (!found) exit 1 }
+') || { unset password; fail 'A seleção do disco não foi reconhecida. Nenhum disco foi alterado.'; }
 case "$selected_disk" in ''|*[!a-zA-Z0-9_]*) unset password; fail 'A seleção do disco não é válida.' ;; esac
 
 selected_row=$(printf '%s\n' "$disk_rows" | awk -F '\t' -v target="$selected_disk" '$1 == target { print; exit }')
