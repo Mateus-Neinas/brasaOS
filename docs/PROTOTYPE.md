@@ -18,6 +18,14 @@ O instalador gráfico seleciona o disco em uma janela e apresenta modelo, capaci
 
 A ISO permanece experimental: KDE, instalação no disco, primeiro login, Wine e interfaces USB de áudio ainda não foram validados. Não instale em um disco real.
 
+### Progresso de extração de pacotes e reteste da base (27/10/2026)
+
+O bootstrap do sistema instalado foi reduzido para o conjunto essencial do KDE Plasma (`plasma6-plasma`, Konsole, Dolphin e Ark), mantendo o KDE, SDDM, Xorg, `drm-kmod` e Zenity. O leitor de progresso também interpreta os contadores `[atual/total]` emitidos por `pkg` durante instalação e extração; a saída de serial mostrou esses contadores nos 133 componentes gráficos do ambiente live.
+
+Na ISO `.build/Brasa-live-whpx-virtio-package-progress.iso`, QEMU 11.1/WHPX (8 GB, 4 vCPUs, VirtIO GPU) abriu o ambiente live e o assistente. Por teclado foram preenchidos os dados da conta, selecionado `vtbd0` de 40 GB e confirmada a instalação no QCOW2 descartável. O catálogo local foi atualizado, os pacotes live foram extraídos e a base `base.txz` (156 MB) foi baixada. Depois, a tela ficou sem nome de etapa e apenas atualizou o tempo decorrido; o QCOW2 chegou a 1.261.633.536 bytes alocados (1.270.431.744 bytes escritos), mas os contadores de I/O ficaram parados por mais de quatro minutos, enquanto a CPU do QEMU continuava aumentando. Encerramos a VM. Não foi possível determinar se a demora era descompressão, configuração ou bloqueio; a instalação, o primeiro boot e a sessão KDE não foram validados.
+
+O QCOW2 deste teste permanece em `%TEMP%` até a próxima ISO ser versionada. A imagem base `dist/Brasa-15.1-amd64.iso` foi preservada. O ajuste da etapa de pacotes é experimental e a ausência de uma descrição útil durante a etapa da base continua aberta.
+
 ### WHPX com driver VirtIO GPU e extração (27/10/2026)
 
 A variante `Brasa-live-whpx-virtio-test.iso` adiciona à mídia o módulo oficial `virtio-gpu-qemu-kmod` compatível com FreeBSD 15.1, configura o carregamento no início do boot e usa `xf86-video-scfb` para expor o framebuffer ao X. Isso resolveu o fechamento do QEMU que acontecia com VGA padrão. O pacote foi baixado de `pkg.freebsd.org` e validado por SHA-256 fixado no construtor.

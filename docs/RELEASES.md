@@ -90,3 +90,13 @@ O teste com a ISO publicada chegou à confirmação explícita e iniciou no disc
 - Testada em QEMU 11.1/WHPX com 6 GB de RAM, 4 vCPUs, VGA VirtIO e QCOW2 descartável de 40 GB: live gráfico, cadastro de usuário, seleção de `vtbd0` e confirmação do disco funcionaram. A instalação chegou a 97%, mas a tela permaneceu nessa etapa por quase sete minutos e o QCOW2 não teve novas gravações por mais de quatro minutos. O teste foi encerrado por QMP. O sistema instalado não foi validado; o novo texto de progresso desta compilação foi verificado estruturalmente na ISO, mas ainda precisa de reteste em QEMU.
 - O QCOW2 do teste foi mantido em `%TEMP%` aguardando esta release. A imagem base `dist/Brasa-15.1-amd64.iso` não foi alterada.
 - Continua sem validação: instalação completa e inicializável, login, KDE, Wine, áudio USB class-compliant e hardware real. Não use num disco com dados importantes.
+
+## ISO WHPX VirtIO package-progress (27/10/2026)
+
+- Tag prevista: `brasa-whpx-virtio-package-progress-2026-10-27`
+- Arquivo: `Brasa-live-whpx-virtio-package-progress.iso`
+- Tamanho: 1.072.175.104 bytes
+- SHA-256: `65A3658D6F91FC560ADF59BD79AA8A78E844D2F8DC282DAD26FEFCDE09671229`
+- Mudanças: o progresso interpreta os contadores `[atual/total]` das linhas de instalação e extração do `pkg`; o bootstrap usa Plasma KDE com Konsole, Dolphin e Ark em vez do metapacote completo `kde`. KDE permanece o desktop instalado pretendido.
+- Testada em QEMU 11.1/WHPX com 8 GB de RAM, 4 vCPUs, VirtIO GPU e QCOW2 descartável de 40 GB. O boot gráfico, o cadastro, a seleção de `vtbd0`, a confirmação destrutiva e a extração dos pacotes live passaram. O instalador baixou `base.txz` (156 MB), mas a escrita no QCOW2 parou em 1.270.431.744 bytes por mais de quatro minutos, com CPU do QEMU ainda ocupada; a janela só mostrava o tempo da etapa, sem explicar a atividade. A VM foi encerrada. Instalação concluída, primeiro boot, KDE, áudio USB, Wine e hardware real não foram validados.
+- O QCOW2 deste reteste fica em `%TEMP%` até uma próxima release. A ISO base `dist/Brasa-15.1-amd64.iso` permanece preservada. A imagem é experimental e não deve ser usada em disco com dados importantes.

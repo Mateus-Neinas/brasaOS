@@ -78,10 +78,12 @@ fi
 sysrc dbus_enable="YES"
 sysrc sddm_enable="YES"
 sysrc kld_list+="snd_uaudio"
-pkg install -y kde sddm xorg drm-kmod zenity
+msg "Instalando o desktop KDE Plasma e os aplicativos essenciais."
+pkg install -y plasma6-plasma konsole dolphin ark sddm xorg drm-kmod zenity
 
 install_optional() {
   if pkg rquery '%n' "$1" 2>/dev/null | grep -qx "$1"; then
+    msg "Instalando o componente opcional $1."
     pkg install -y "$1"
   else
     echo "brasa: optional package '$1' is unavailable; skipped."

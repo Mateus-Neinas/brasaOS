@@ -340,20 +340,21 @@ process_is_running() {
         fi
         ;;
       *bootconfig*|*rootpass*|*config*) last_percentage=95 ;;
-      *Installing*|*Fetching*|*pkg*)
-        package_counts=$(printf '%s\n' "$output_line" | sed -nE 's/.*\[([0-9]+)\/([0-9]+)\].*/\1 \2/p' | tail -n 1)
-        if [ -n "$package_counts" ]; then
-          installed=$(printf '%s\n' "$package_counts" | awk '{print $1}')
-          package_total=$(printf '%s\n' "$package_counts" | awk '{print $2}')
-          if [ "$package_total" -gt 0 ]; then
-            last_percentage=$((95 + installed * 4 / package_total))
-            [ "$last_percentage" -le 99 ] || last_percentage=99
-          fi
-        else
-          [ "$last_percentage" -ge 94 ] || last_percentage=94
-        fi
-        ;;
     esac
+    # pkg prefixes both Installing and Extracting lines with [current/total].
+    # Count either form so a large archive extraction visibly advances too.
+    package_counts=$(printf '%s\n' "$output_line" | sed -nE 's/.*\[([0-9]+)\/([0-9]+)\].*/\1 \2/p' | tail -n 1)
+    if [ -n "$package_counts" ]; then
+      installed=$(printf '%s\n' "$package_counts" | awk '{print $1}')
+      package_total=$(printf '%s\n' "$package_counts" | awk '{print $2}')
+      if [ "$package_total" -gt 0 ]; then
+        package_percentage=$((95 + installed * 4 / package_total))
+        [ "$package_percentage" -le 99 ] || package_percentage=99
+        [ "$package_percentage" -gt "$last_percentage" ] && last_percentage=$package_percentage
+      fi
+    elif [ "$last_percentage" -lt 94 ] && [ -n "$output_line" ]; then
+      case "$output_line" in *Installing*|*Fetching*|*pkg*) last_percentage=94 ;; esac
+    fi
     progress_message=$(printf '%s' "$progress_message" | tr '\t\r\n' '   ' | cut -c 1-180)
     elapsed_seconds=$((elapsed_seconds + 2))
     if [ "$last_percentage" -eq "$last_reported_percentage" ] && [ "$progress_message" = "$last_reported_message" ]; then
