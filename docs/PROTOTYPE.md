@@ -12,6 +12,10 @@ O teste com cache confirmou que a criação de um TAR de `/usr/local` no boot ac
 
 A imagem `.build/Brasa-live-optimized-experimental.iso` preserva o boot da ISO Brasa existente, inclui a atualização e os pacotes cacheados, mede 1.305.520.128 bytes e tem SHA-256 `6D7DA61286CA0887F23576DDB25F87107176F97CFAE2398DE416D9D57192FCC3`. O QEMU usado para a inspeção foi iniciado com 8 GB de RAM e VGA de 128 MB; WHPX não funciona neste host, então o emulador usou TCG. O boot chegou à instalação de componentes e começou a extrair o pacote 57/191, mas ainda levou minutos em emulação por software. A tela de boas-vindas não apareceu nesta execução, o QCOW2 ficou em 197.632 bytes e foi removido após encerrar a VM. Nenhuma instalação de sistema ou alteração de disco foi feita.
 
+Atualização do teste: no Windows 11 deste host (Intel i5-12400F), WHPX funciona durante o boot se usado com `kernel-irqchip=off`, mas o QEMU 11.1 encerra com `failed to decode instruction f 10` quando o ambiente tenta abrir o X. O teste também mostrou avisos `failed to get xsave state`. WHPX, portanto, não é uma aceleração utilizável para este desktop neste pacote do QEMU. O perfil TCG continua sendo o modo de referência para validar a interface; a build da ISO não depende do acelerador escolhido pelo hipervisor.
+
+O instalador gráfico seleciona o disco em uma janela e apresenta modelo, capacidade, identificador e confirmação explícita; depois usa `bsdinstall scriptedpart` para criar automaticamente o esquema de boot e as partições. Essa instalação real ainda não foi concluída. O acompanhamento do processo foi ajustado para reconhecer subprocessos encerrados, inclusive zumbis, em vez de deixar a barra aguardando um PID que já terminou. Essa correção está no código-fonte e exige uma nova ISO para validação em QEMU.
+
 A ISO permanece experimental: KDE, instalação no disco, primeiro login, Wine e interfaces USB de áudio ainda não foram validados. Não instale em um disco real.
 
 
@@ -70,3 +74,11 @@ O assistente tenta obter uma conexão Ethernet via DHCP antes de particionar, po
 - Não usar senha padrão, nem assumir que dois campos foram preenchidos apenas porque o usuário local os preencheu.
 - Exibir progresso e uma instrução recuperável se rede ou instalação falhar.
 - A ISO de desenvolvimento atual não atende a esses requisitos; não a instalar em hardware com dados importantes.
+
+### ISO com correção da seleção de disco (27/10/2026)
+
+A lista anterior não fornecia ao Zenity os dados no formato de uma tabela com uma coluna de seleção; por isso, a confirmação não retornava um dispositivo ao assistente. O código agora prepara a coluna de rádio seguida pelo nome do disco, modelo, capacidade, identificador e bytes, deixa pré-selecionado o primeiro disco elegível e lê a segunda coluna para obter o dispositivo selecionado. O acompanhamento dos processos também trata estados de processo encerrado/zumbi como finalizados, evitando manter o progresso preso após a conclusão.
+
+Foi construída `.build/Brasa-live-disk-picker.iso` (1.305.522.176 bytes, SHA-256 `74AB22BF646DA22D1FDCA272D1F73BBF09EC224402B79ECA53D6A7FE84F97E8A`) usando o cache de pacotes de `.build/Brasa-live-cached-boot.iso`. O catálogo El Torito e o payload foram verificados. Esta nova ISO ainda não foi iniciada em QEMU; a alteração da lista não tem confirmação em execução. A ISO anterior `.build/Brasa-live-progress-fix.iso` parou na lista antes de iniciar qualquer gravação e o disco virtual de teste permaneceu com 197.632 bytes. A VM foi desligada ao detectar que a execução TCG de 8 GB deixava cerca de 1 GB livre no Windows.
+
+O inventário de tags, hashes, estado e requisitos de publicação de cada imagem está em `docs/RELEASES.md`. Cada ISO precisa ter uma release separada, inclusive imagens defeituosas. A criação e o upload da release ainda dependem de credencial com permissão de publicação; a conexão GitHub disponível nesta sessão só permite consultas.

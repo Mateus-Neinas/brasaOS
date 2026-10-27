@@ -115,10 +115,10 @@ disk_rows=$(geom disk list 2>/dev/null | awk -v minimum="$minimum_bytes" -v boot
 ')
 [ -n "$disk_rows" ] || { unset password; fail 'Não encontrei um disco de pelo menos 40 GB. Conecte um disco adequado e tente novamente.'; }
 
-selected_disk=$(printf '%s\n' "$disk_rows" | awk -F '\t' '{ for (i = 1; i <= 5; i++) print $i }' | zenity --list --title="$title" --width=760 --height=420 \
+selected_disk=$(printf '%s\n' "$disk_rows" | awk -F '\t' '{ printf "TRUE\t%s\t%s\t%s\t%s\t%s\n", $1, $2, $3, $4, $5 }' | zenity --list --title="$title" --width=760 --height=420 \
   --text='Selecione o disco onde o Brasa será instalado. O conteúdo desse disco será apagado.' \
-  --column='Disco' --column='Modelo' --column='Capacidade' --column='Identificação' --column='Bytes' \
-  --print-column=1 --separator='' --hide-column=5) || { unset password; cancelled; }
+  --radiolist --column='Selecionar' --column='Disco' --column='Modelo' --column='Capacidade' --column='Identificação' --column='Bytes' \
+  --print-column=2 --separator='' --hide-column=6) || { unset password; cancelled; }
 case "$selected_disk" in ''|*[!a-zA-Z0-9_]*) unset password; fail 'A seleção do disco não é válida.' ;; esac
 
 selected_row=$(printf '%s\n' "$disk_rows" | awk -F '\t' -v target="$selected_disk" '$1 == target { print; exit }')
@@ -230,6 +230,10 @@ report_progress() {
   shift
   printf '# %s\n%s\n' "$*" "$percentage" >&3
 }
+process_is_running() {
+  process_state=$(ps -o stat= -p "$1" 2>/dev/null || true)
+  case "$process_state" in ''|Z*) return 1 ;; *) return 0 ;; esac
+}
 (
   set -e
   export BSDINSTALL_DISTDIR="$dist_dir"
@@ -244,7 +248,7 @@ report_progress() {
     report_progress "$start" "Baixando $distribution..."
     fetch -q -o "$dist_dir/$distribution" "$url" >> "$install_log" 2>&1 &
     fetch_pid=$!
-    while kill -0 "$fetch_pid" 2>/dev/null; do
+    while process_is_running "$fetch_pid"; do
       downloaded=$(stat -f %z "$dist_dir/$distribution" 2>/dev/null || printf '0')
       case "$downloaded" in ''|*[!0-9]*) downloaded=0 ;; esac
       if [ "$expected" -gt 0 ]; then
@@ -285,7 +289,7 @@ report_progress() {
   last_reported_percentage=-1
   last_reported_message=''
   elapsed_seconds=0
-  while kill -0 "$bsdinstall_pid" 2>/dev/null; do
+  while process_is_running "$bsdinstall_pid"; do
     bsd_line=$(tail -n 1 "$bsdinstall_log" 2>/dev/null || true)
     output_line=$(tail -n 1 "$install_log" 2>/dev/null || true)
     progress_source="$bsd_line $output_line"
