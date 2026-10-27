@@ -25,7 +25,7 @@ Para publicar manualmente pelo GitHub, crie uma release em `https://github.com/M
 
 ## ISO picker-output-fix (27/10/2026)
 
-- Tag: `brasa-picker-output-fix-2026-10-27`
+- Tag publicada: [`brasa-picker-output-fix-2026-10-27`](https://github.com/Mateus-Neinas/brasaOS/releases/tag/brasa-picker-output-fix-2026-10-27)
 - Arquivo: `Brasa-live-picker-output-fix.iso`
 - Tamanho: 1.305.524.224 bytes
 - SHA-256: `5728AF6539F5FA2E2E5AA84934BA2635033945F5C409149DCC78E5680369B025`
