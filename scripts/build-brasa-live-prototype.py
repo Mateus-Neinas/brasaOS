@@ -195,6 +195,42 @@ def main():
             b'\t\tassert(os.execute("cp /etc/resolv.conf " .. chroot .. "/etc/resolv.conf"))\n'
             b'\tend\n')
         pkgbase_script = pkgbase_script.replace(pkgbase_anchor, pkgbase_resolver_fix)
+        retry_update = (
+            b'\twhile not os.execute(pkg .. "update") do\n'
+            b'\t\tif not prompt_yn("Updating repositories failed, try again?") then\n'
+            b'\t\t\tos.exit(1)\n'
+            b'\t\tend\n'
+            b'\tend\n')
+        retry_update_brasa = (
+            b'\twhile not os.execute(pkg .. "update") do\n'
+            b'\t\tif options.non_interactive then\n'
+            b'\t\t\tio.stderr:write("Brasa: nao foi possivel atualizar o catalogo FreeBSD-base.\\n")\n'
+            b'\t\t\tos.exit(1)\n'
+            b'\t\tend\n'
+            b'\t\tif not prompt_yn("Updating repositories failed, try again?") then\n'
+            b'\t\t\tos.exit(1)\n'
+            b'\t\tend\n'
+            b'\tend\n')
+        retry_fetch = (
+            b'\twhile not os.execute(pkg .. "install -U -F -y -r FreeBSD-base " .. packages) do\n'
+            b'\t\tif not prompt_yn("Fetching packages failed, try again?") then\n'
+            b'\t\t\tos.exit(1)\n'
+            b'\t\tend\n'
+            b'\tend\n')
+        retry_fetch_brasa = (
+            b'\twhile not os.execute(pkg .. "install -U -F -y -r FreeBSD-base " .. packages) do\n'
+            b'\t\tif options.non_interactive then\n'
+            b'\t\t\tio.stderr:write("Brasa: nao foi possivel baixar os pacotes FreeBSD-base.\\n")\n'
+            b'\t\t\tos.exit(1)\n'
+            b'\t\tend\n'
+            b'\t\tif not prompt_yn("Fetching packages failed, try again?") then\n'
+            b'\t\t\tos.exit(1)\n'
+            b'\t\tend\n'
+            b'\tend\n')
+        if pkgbase_script.count(retry_update) != 1 or pkgbase_script.count(retry_fetch) != 1:
+            raise RuntimeError('Os ciclos de repetição pkgbase do FreeBSD não correspondem à versão esperada.')
+        pkgbase_script = pkgbase_script.replace(retry_update, retry_update_brasa)
+        pkgbase_script = pkgbase_script.replace(retry_fetch, retry_fetch_brasa)
         anchor = b'mkdir /tmp/bsdinstall_etc\n'
         if old_rc.count(anchor) != 1:
             raise RuntimeError('O arquivo de inicialização da mídia não é o esperado.')

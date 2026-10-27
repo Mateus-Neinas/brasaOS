@@ -295,7 +295,7 @@ process_is_running() {
     # not useful progress text. Prefer the package/bootstrap output, then a
     # plain-language fallback if neither log has a user-facing line.
     case "$progress_message" in
-      DEBUG:*) progress_message=$output_line ;;
+      DEBUG:*|'FreeBSD Installer') progress_message=$output_line ;;
     esac
     case "$progress_source" in
       *bootconfig*|*rootpass*|*config*)

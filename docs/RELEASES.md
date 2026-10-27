@@ -134,3 +134,14 @@ O teste com a ISO publicada chegou à confirmação explícita e iniciou no disc
 - QEMU 11.1/WHPX, 8 GB RAM, 4 vCPUs, VirtIO GPU e QCOW descartável de 40 GB: boot live, instalação local dos componentes gráficos e fallback de rede passaram; cadastro, senha, seleção/confirmação de `vtbd0` e particionamento passaram. A etapa `FreeBSD Installer` permaneceu em 94% por mais de dois minutos, sem crescimento adicional do QCOW ou mensagem de erro visível; a instalação base não concluiu. O ajuste de resolver ainda não está confirmado como eficaz para pkgbase, não houve medição de velocidade e não há sistema inicializável. KDE, Wine, áudio USB e hardware real não foram validados.
 - A ISO é experimental. Não use num computador com dados importantes. `dist/Brasa-15.1-amd64.iso` e `.build/freebsd-bootonly.iso` são imagens base e permanecem preservadas.
 - Após publicar esta release, foram removidos os dois QCOWs de teste pkgbase anteriores, as duas ISOs experimentais antigas e os logs/capturas temporários. A ISO desta release foi mantida localmente; as imagens base foram conferidas por SHA-256.
+
+
+## ISO WHPX pkgbase no-hidden-retry (27/10/2026)
+
+- Tag da release: [`brasa-whpx-pkgbase-no-hidden-retry-2026-10-27`](https://github.com/Mateus-Neinas/brasaOS/releases/tag/brasa-whpx-pkgbase-no-hidden-retry-2026-10-27)
+- Arquivo: `Brasa-live-whpx-pkgbase-no-hidden-retry.iso`
+- Tamanho: 1.072.187.392 bytes
+- SHA-256: `CF0C89903D7D6BAE843DAD22C1EFA4C6350B4E043A08C1C18D9E825EA64BE1A0`
+- Mudança: se a atualização do catálogo ou o download dos pacotes FreeBSD-base falhar no modo não interativo, a mídia sai com erro claro em vez de tentar abrir a pergunta de repetição do `bsddialog`. Também substitui um título genérico específico no texto da barra.
+- Testada em QEMU 11.1/WHPX com 8 GB RAM, 4 vCPUs, VirtIO GPU e QCOW descartável de 40 GB: boot live, componentes gráficos locais/rede, assistente, conta e particionamento passaram. A instalação da base permaneceu sem gravações adicionais no QCOW após criar as partições por mais de dois minutos; nenhum erro foi capturado antes de encerrar, então a correção de saída em erro ainda não foi exercitada. Não houve instalação concluída nem medição de velocidade. KDE, Wine, áudio USB e hardware real não foram validados.
+- Release experimental; não use num disco com dados importantes. As ISOs base permanecem preservadas.
