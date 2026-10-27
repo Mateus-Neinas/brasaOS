@@ -38,7 +38,7 @@ def parse_args():
 
 OUTPUT, PACKAGE_CACHE_ISO = parse_args()
 LIVE_PACKAGE_ROOTS = (
-    'xorg-minimal', 'xinit', 'zenity', 'dejavu',
+    'xorg-minimal', 'xinit', 'jwm', 'zenity', 'dejavu',
     'xf86-video-vesa', 'xf86-video-scfb',
 )
 

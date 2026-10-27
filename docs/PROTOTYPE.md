@@ -81,7 +81,7 @@ A lista anterior não fornecia ao Zenity os dados no formato de uma tabela com u
 
 Foi construída `.build/Brasa-live-disk-picker.iso` (1.305.522.176 bytes, SHA-256 `74AB22BF646DA22D1FDCA272D1F73BBF09EC224402B79ECA53D6A7FE84F97E8A`) usando o cache de pacotes de `.build/Brasa-live-cached-boot.iso`. O catálogo El Torito e o payload foram verificados. Esta nova ISO ainda não foi iniciada em QEMU; a alteração da lista não tem confirmação em execução. A ISO anterior `.build/Brasa-live-progress-fix.iso` parou na lista antes de iniciar qualquer gravação e o disco virtual de teste permaneceu com 197.632 bytes. A VM foi desligada ao detectar que a execução TCG de 8 GB deixava cerca de 1 GB livre no Windows.
 
-O inventário de tags, hashes, estado, links e assets publicados está em `docs/RELEASES.md`. As cinco ISOs produzidas neste ciclo têm releases experimentais próprias, inclusive as imagens com defeitos observados durante os testes.
+O inventário de tags, hashes, estado, links e assets publicados está em `docs/RELEASES.md`. As seis ISOs produzidas neste ciclo têm releases experimentais próprias, inclusive as imagens com defeitos observados durante os testes.
 
 
 ### Retorno do Zenity e terceira ISO experimental (27/10/2026)
@@ -110,3 +110,12 @@ Openbox puxava dependências pesadas para decorar a única interface do live: a 
 A ISO `.build/Brasa-live-twm.iso` foi gerada a partir da mídia Brasa existente. Seu hash e os metadados de publicação ficam registrados em `docs/RELEASES.md`. Em QEMU/TCG com 4 GB de RAM, iniciou, baixou a atualização do catálogo, extraiu os 132 pacotes e executou o X. O processo chegou a aproximadamente 4,7 GB de memória residente no Windows durante a extração; após terminar, o desktop/assistente continuou preto e sem conteúdo legível. Comandos enviados exclusivamente pelo teclado não tornaram a tela utilizável. O QCOW2 descartável ficou em 197.632 bytes e foi removido após desligar a VM pelo monitor QMP. Não houve particionamento, instalação da base, login, teste de KDE, Wine ou áudio.
 
 A imagem, inclusive com essa falha, está registrada como release experimental própria em `docs/RELEASES.md`. A próxima investigação é corrigir a renderização/gerenciamento das janelas no X antes de avançar a etapa de instalação.
+
+
+### JWM e renderização do assistente (27/10/2026)
+
+A sexta variante troca TWM por JWM no ambiente live. A alteração corrigiu a tela preta: em QEMU/TCG com 4 GB de RAM e VGA de 128 MB, o assistente abriu com texto, botões e formulários legíveis. O cache inclui 133 dependências; JWM e os pacotes não presentes no cache são baixados pelo repositório FreeBSD. A primeira tela avançou com Enter, e os formulários de nome, usuário e senha apareceram.
+
+O teste de senha digitada via QMP terminou na mensagem de senhas diferentes e retornou ao instalador FreeBSD em texto. Como a entrada automatizada enviou caracteres um a um sob TCG, não foi possível distinguir erro de envio de um defeito no assistente. Não foi possível verificar a lista de discos nesta variante e nenhuma ação de particionamento aconteceu. O QCOW2 descartável ficou em 197.632 bytes e foi removido após encerrar QEMU. Instalação completa, KDE, Wine, áudio USB e hardware real seguem sem validação.
+
+A imagem `.build/Brasa-live-jwm.iso` tem 1.072.138.240 bytes e SHA-256 `CB0C908BD2014336BE915EDFD90DED412D4E9A35DCAF03AFD10218CB441B593C`. Ela foi publicada em release experimental própria, registrada em `docs/RELEASES.md`.

@@ -85,11 +85,11 @@ if [ -r /brasa/BRASA_PKG_CACHE_TAR ]; then
   tar -xf /brasa/BRASA_PKG_CACHE_TAR -C /var >> "$log" 2>&1 || failed
   run_logged 'Atualizando o catálogo de pacotes...' pkg update -f || failed
   run_logged 'Instalando os componentes gráficos locais...' pkg install -y \
-    xorg-minimal xinit twm zenity dejavu xf86-video-vesa xf86-video-scfb || failed
+    xorg-minimal xinit jwm zenity dejavu xf86-video-vesa xf86-video-scfb || failed
 else
   say 'Baixando os componentes gráficos. É necessária uma conexão com a internet.'
   run_logged 'Instalando a interface gráfica mínima...' pkg install -y \
-    xorg-minimal xinit twm zenity dejavu xf86-video-vesa xf86-video-scfb || failed
+    xorg-minimal xinit jwm zenity dejavu xf86-video-vesa xf86-video-scfb || failed
 fi
 tar -xzf /brasa/BRASA_PROJECT_TAR_GZ -C /tmp/brasa-source >> "$log" 2>&1 || failed
 
@@ -99,7 +99,7 @@ export PATH=/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin
 touch /var/run/brasa-live-environment
 cat > /tmp/brasa-xinitrc <<'EOF'
 #!/bin/sh
-twm >/tmp/brasa-twm.log 2>&1 &
+jwm >/tmp/brasa-jwm.log 2>&1 &
 /bin/sh /tmp/brasa-source/scripts/brasa-install-assistant
 EOF
 chmod 700 /tmp/brasa-xinitrc
