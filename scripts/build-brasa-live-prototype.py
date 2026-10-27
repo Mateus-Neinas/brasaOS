@@ -231,6 +231,34 @@ def main():
             raise RuntimeError('Os ciclos de repetição pkgbase do FreeBSD não correspondem à versão esperada.')
         pkgbase_script = pkgbase_script.replace(retry_update, retry_update_brasa)
         pkgbase_script = pkgbase_script.replace(retry_fetch, retry_fetch_brasa)
+        pkg_command = (
+            b'\tlocal pkg = "pkg --rootdir " .. chroot ..\n'
+            b'\t\t" --repo-conf-dir " .. repos_dir .. " -o IGNORE_OSVERSION=yes "\n')
+        pkg_command_brasa = (
+            b'\tlocal pkg = "pkg --rootdir " .. chroot ..\n'
+            b'\t\t" --repo-conf-dir " .. repos_dir ..\n'
+            b'\t\t" -o IGNORE_OSVERSION=yes -o FETCH_TIMEOUT=30 -o FETCH_RETRY=1 "\n')
+        if pkgbase_script.count(pkg_command) != 1:
+            raise RuntimeError('A configuração do cliente pkgbase não corresponde à versão esperada.')
+        pkgbase_script = pkgbase_script.replace(pkg_command, pkg_command_brasa)
+        phase_markers = (
+            (b'\tlocal rquery = capture(pkg .. "rquery -U -r FreeBSD-base %n")\n',
+             b'\tio.stderr:write("Brasa pkgbase: consultando os componentes do sistema base.\\n")\n'
+             b'\tlocal rquery = capture(pkg .. "rquery -U -r FreeBSD-base %n")\n'),
+            (b'\twhile not os.execute(pkg .. "update") do\n',
+             b'\tio.stderr:write("Brasa pkgbase: atualizando o cat\xc3\xa1logo FreeBSD-base.\\n")\n'
+             b'\twhile not os.execute(pkg .. "update") do\n'),
+            (b'\twhile not os.execute(pkg .. "install -U -F -y -r FreeBSD-base " .. packages) do\n',
+             b'\tio.stderr:write("Brasa pkgbase: baixando os pacotes da base.\\n")\n'
+             b'\twhile not os.execute(pkg .. "install -U -F -y -r FreeBSD-base " .. packages) do\n'),
+            (b'\tif not os.execute(pkg .. "install -U -y -r FreeBSD-base " .. packages) then\n',
+             b'\tio.stderr:write("Brasa pkgbase: instalando os pacotes baixados no disco.\\n")\n'
+             b'\tif not os.execute(pkg .. "install -U -y -r FreeBSD-base " .. packages) then\n'),
+        )
+        for marker, replacement in phase_markers:
+            if pkgbase_script.count(marker) != 1:
+                raise RuntimeError('Não foi possível localizar uma fase esperada do pkgbase para instrumentação.')
+            pkgbase_script = pkgbase_script.replace(marker, replacement)
         anchor = b'mkdir /tmp/bsdinstall_etc\n'
         if old_rc.count(anchor) != 1:
             raise RuntimeError('O arquivo de inicialização da mídia não é o esperado.')

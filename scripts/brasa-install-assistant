@@ -220,7 +220,11 @@ unset password
 cat > "$install_script" <<EOF
 PARTITIONS="$selected_disk"
 unset DISTRIBUTIONS
-COMPONENTS="base"
+# The FreeBSD "base" component includes devel and optional package sets.
+# Brasa only needs the bootable minimal userland here; desktop and app packages
+# are installed separately by bootstrap-freebsd.sh. Avoid resolving/fetching
+# the hundreds of unnecessary base packages during the interactive install.
+COMPONENTS="minimal"
 export COMPONENTS
 BRASA_REPO_CATALOG_AVAILABLE="$brasa_repo_catalog_available"
 export BRASA_REPO_CATALOG_AVAILABLE
@@ -283,22 +287,24 @@ process_is_running() {
   last_percentage=8
   last_reported_percentage=-1
   last_reported_message=''
+  last_serial_message=''
   elapsed_seconds=0
   base_install_done=no
   while process_is_running "$bsdinstall_pid"; do
     bsd_line=$(tail -n 1 "$bsdinstall_log" 2>/dev/null || true)
     output_line=$(tail -n 1 "$install_log" 2>/dev/null || true)
     progress_source="$bsd_line $output_line"
-    progress_message=${bsd_line:-$output_line}
+    progress_message=${output_line:-$bsd_line}
     # bsdinstall writes its verbose BSDCONFIG trace to BSDINSTALL_LOG while
     # installing the base. Those DEBUG records are implementation details,
     # not useful progress text. Prefer the package/bootstrap output, then a
     # plain-language fallback if neither log has a user-facing line.
     case "$progress_message" in
-      DEBUG:*|'FreeBSD Installer') progress_message=$output_line ;;
+      DEBUG:*) progress_message=$output_line ;;
     esac
+    case "$progress_message" in *'FreeBSD Installer'*) progress_message='' ;; esac
     case "$progress_source" in
-      *bootconfig*|*rootpass*|*config*)
+      *bootconfig*|*rootpass*|*'bsdinstall config'*)
         base_install_done=yes
         [ "$last_percentage" -lt 82 ] && last_percentage=82
         ;;
@@ -328,12 +334,17 @@ process_is_running() {
       sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//' | cut -c 1-180)
     if [ -z "$progress_message" ] || [ "${progress_message#DEBUG:}" != "$progress_message" ]; then
       case "$progress_source" in
+        *pkgbase*|*FreeBSD-base*) progress_message='Preparando a instalação dos pacotes do sistema base FreeBSD...' ;;
         *distextract*|*extract*) progress_message='Instalando os arquivos do FreeBSD no disco...' ;;
         *bootconfig*) progress_message='Preparando a inicialização do sistema instalado...' ;;
         *rootpass*) progress_message='Configurando a conta de administração...' ;;
-        *config*) progress_message='Configurando o sistema instalado...' ;;
+        *'bsdinstall config'*) progress_message='Configurando o sistema instalado...' ;;
         *) progress_message='Instalando o sistema base do FreeBSD no disco escolhido...' ;;
       esac
+    fi
+    if [ "$progress_message" != "$last_serial_message" ]; then
+      printf 'Brasa: %s\n' "$progress_message" > /dev/ttyu0 2>/dev/null || true
+      last_serial_message=$progress_message
     fi
     elapsed_seconds=$((elapsed_seconds + 2))
     if [ "$last_percentage" -eq "$last_reported_percentage" ] && [ "$progress_message" = "$last_reported_message" ]; then

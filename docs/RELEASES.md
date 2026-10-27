@@ -145,3 +145,24 @@ O teste com a ISO publicada chegou à confirmação explícita e iniciou no disc
 - Mudança: se a atualização do catálogo ou o download dos pacotes FreeBSD-base falhar no modo não interativo, a mídia sai com erro claro em vez de tentar abrir a pergunta de repetição do `bsddialog`. Também substitui um título genérico específico no texto da barra.
 - Testada em QEMU 11.1/WHPX com 8 GB RAM, 4 vCPUs, VirtIO GPU e QCOW descartável de 40 GB: boot live, componentes gráficos locais/rede, assistente, conta e particionamento passaram. A instalação da base permaneceu sem gravações adicionais no QCOW após criar as partições por mais de dois minutos; nenhum erro foi capturado antes de encerrar, então a correção de saída em erro ainda não foi exercitada. Não houve instalação concluída nem medição de velocidade. KDE, Wine, áudio USB e hardware real não foram validados.
 - Release experimental; não use num disco com dados importantes. As ISOs base permanecem preservadas.
+
+
+## ISO WHPX pkgbase bounded-fetch diagnostic (27/10/2026)
+
+- Tag: [`brasa-whpx-pkgbase-bounded-fetch-diagnostic-2026-10-27`](https://github.com/Mateus-Neinas/brasaOS/releases/tag/brasa-whpx-pkgbase-bounded-fetch-diagnostic-2026-10-27)
+- Arquivo: `Brasa-live-whpx-pkgbase-bounded-fetch-diagnostic.iso`
+- Tamanho: 1.072.187.392 bytes
+- SHA-256: `6494E69475B10592DE8F32CDD407C8677D889AE7E66AE9FFC02B02B6ED5EBBBE`
+- Mudança: limita a espera de download de pkg a 30 segundos e uma repetição; inclui o ajuste de DNS e a saída sem pergunta oculta no modo não interativo.
+- Teste em QEMU/WHPX com 8 GiB e quatro vCPUs: o ambiente live, assistente, conta, seleção/confirmação de disco e particionamento funcionaram. A instalação da base permaneceu sem novas gravações no QCOW por cerca de 24 minutos, com consumo crescente de CPU; não concluiu e nenhum erro de pkg foi visível. A ISO não foi instalada nem produziu sistema inicializável. KDE, Wine, USB Audio e hardware real não foram validados.
+- Release experimental. As imagens base foram preservadas.
+
+## ISO WHPX pkgbase minimal phases (27/10/2026)
+
+- Tag: [`brasa-whpx-pkgbase-minimal-phases-2026-10-27`](https://github.com/Mateus-Neinas/brasaOS/releases/tag/brasa-whpx-pkgbase-minimal-phases-2026-10-27)
+- Arquivo: `Brasa-live-whpx-pkgbase-minimal-phases.iso`
+- Tamanho: 1.072.191.488 bytes
+- SHA-256: `4C8992E5DD058E5BB941F939C3081734D59325A887504BF2137E13F540CACE9A`
+- Mudança: troca `COMPONENTS=base` por `COMPONENTS=minimal` para evitar resolver e instalar os conjuntos `devel` e `optional` durante a instalação inicial; adiciona mensagens que identificam as quatro fases do pkgbase. Mantém os limites de fetch em 30 segundos e uma repetição.
+- Teste QEMU/WHPX com 8 GiB, quatro vCPUs e VirtIO GPU 128 MiB: tanto `qemu64,-svm` quanto `core2duo` pararam no boot no mesmo texto `random: unblocking device.`. O QCOW não recebeu gravações; o fluxo gráfico e a instalação pkgbase não foram alcançados. A troca de modelo de CPU não alterou o resultado. A redução `minimal` ainda precisa ser testada depois de corrigir o bloqueio de boot/ambiente QEMU.
+- Release experimental. Não use num computador com dados importantes. As ISOs base foram preservadas.
