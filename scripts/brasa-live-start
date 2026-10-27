@@ -66,12 +66,23 @@ if ! route -n get default >/dev/null 2>&1; then
 fi
 route -n get default >/dev/null 2>&1 || failed
 
-say 'Baixando os componentes gráficos mínimos. A tela mostrará o pacote atual.'
+say 'Preparando os componentes gráficos mínimos.'
 export ASSUME_ALWAYS_YES=yes
 export PATH=/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin
-run_logged 'Preparando o gerenciador de pacotes...' pkg bootstrap -f || failed
-run_logged 'Instalando a interface gráfica mínima...' pkg install -y \
-  xorg-minimal xinit openbox zenity dejavu xf86-video-vesa xf86-video-scfb || failed
+if [ ! -x /usr/local/sbin/pkg ]; then
+  run_logged 'Preparando o gerenciador de pacotes...' pkg bootstrap -y -f || failed
+fi
+if [ -r /brasa/BRASA_PKG_CACHE_TAR ]; then
+  say 'Usando os pacotes incluídos na mídia.'
+  tar -xf /brasa/BRASA_PKG_CACHE_TAR -C /var >> "$log" 2>&1 || failed
+  run_logged 'Atualizando o catálogo de pacotes...' pkg update -f || failed
+  run_logged 'Instalando os componentes gráficos locais...' pkg install -y \
+    xorg-minimal xinit openbox zenity dejavu xf86-video-vesa xf86-video-scfb || failed
+else
+  say 'Baixando os componentes gráficos. É necessária uma conexão com a internet.'
+  run_logged 'Instalando a interface gráfica mínima...' pkg install -y \
+    xorg-minimal xinit openbox zenity dejavu xf86-video-vesa xf86-video-scfb || failed
+fi
 tar -xzf /brasa/BRASA_PROJECT_TAR_GZ -C /tmp/brasa-source >> "$log" 2>&1 || failed
 
 export HOME=/tmp/brasa-home

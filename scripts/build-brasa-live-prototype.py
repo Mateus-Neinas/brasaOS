@@ -10,8 +10,31 @@ import pycdlib
 ROOT = Path(__file__).resolve().parent.parent
 SOURCE = ROOT / 'dist/Brasa-15.1-amd64.iso'
 if len(sys.argv) > 2:
-    raise SystemExit('Uso: build-brasa-live-prototype.py [caminho-da-iso-de-saida]')
-OUTPUT = Path(sys.argv[1]).resolve() if len(sys.argv) == 2 else ROOT / '.build/Brasa-live-experimental.iso'
+    if sys.argv[1] == '--help':
+        print('Uso: build-brasa-live-prototype.py [caminho-da-iso-de-saida] [--package-cache-iso ISO]')
+        raise SystemExit(0)
+
+def parse_args():
+    output = ROOT / '.build/Brasa-live-experimental.iso'
+    cache_iso = None
+    positional_seen = False
+    args = iter(sys.argv[1:])
+    for arg in args:
+        if arg == '--package-cache-iso':
+            try:
+                cache_iso = Path(next(args)).resolve()
+            except StopIteration:
+                raise SystemExit('--package-cache-iso precisa de um caminho ISO.')
+        elif arg.startswith('--'):
+            raise SystemExit(f'Opção desconhecida: {arg}')
+        elif not positional_seen:
+            output = Path(arg).resolve()
+            positional_seen = True
+        else:
+            raise SystemExit('Informe apenas um caminho de saída.')
+    return output, cache_iso
+
+OUTPUT, PACKAGE_CACHE_ISO = parse_args()
 
 def read_rr(image, path):
     data = io.BytesIO()
@@ -45,6 +68,18 @@ def main():
                 archive.add(ROOT / 'README.md', arcname='README.md')
             for path in ('/ETC/RC.LOCAL;1', '/ETC/RC.CONF;1', '/BRASA/BRASA_PROJECT_TAR_GZ;1'):
                 image.rm_file(iso_path=path)
+            if PACKAGE_CACHE_ISO:
+                cache_archive = temp / 'brasa-pkg-cache.tar'
+                cache_image = pycdlib.PyCdlib()
+                cache_image.open(str(PACKAGE_CACHE_ISO))
+                try:
+                    with cache_archive.open('wb') as cache_file:
+                        cache_image.get_file_from_iso_fp(cache_file, rr_path='/brasa/BRASA_PKG_CACHE_TAR')
+                except Exception as error:
+                    raise RuntimeError('A ISO de referência não contém o cache Brasa de pacotes.') from error
+                finally:
+                    cache_image.close()
+                image.add_file(str(cache_archive), iso_path='/BRASA/BRASA_PKG_CACHE_TAR;1', rr_name='BRASA_PKG_CACHE_TAR')
             image.add_file(str(temp / 'rc.local'), iso_path='/ETC/RC.LOCAL;1', rr_name='rc.local')
             image.add_file(str(temp / 'rc.conf'), iso_path='/ETC/RC.CONF;1', rr_name='rc.conf')
             image.add_file(str(package), iso_path='/BRASA/BRASA_PROJECT_TAR_GZ;1', rr_name='BRASA_PROJECT_TAR_GZ')
@@ -57,7 +92,10 @@ def main():
     try:
         if not check.eltorito_boot_catalog:
             raise RuntimeError('O catálogo de boot foi perdido.')
-        for path in ('/etc/rc.local', '/brasa/brasa-live-start', '/brasa/BRASA_PROJECT_TAR_GZ'):
+        required_paths = ['/etc/rc.local', '/brasa/brasa-live-start', '/brasa/BRASA_PROJECT_TAR_GZ']
+        if PACKAGE_CACHE_ISO:
+            required_paths.append('/brasa/BRASA_PKG_CACHE_TAR')
+        for path in required_paths:
             if check.get_record(rr_path=path).data_length == 0:
                 raise RuntimeError(f'Arquivo vazio na ISO: {path}')
     finally:

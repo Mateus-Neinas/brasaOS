@@ -6,6 +6,16 @@ Iniciar por uma mídia x86-64, escolher idioma, informar o nome e a senha da con
 
 ## Estado atual
 
+### Cache dos componentes gráficos na mídia (27/10/2026)
+
+O teste de boot da ISO compacta mostrou que, sem cache, o ambiente baixa 191 pacotes a cada inicialização. Uma segunda tentativa acumulou cerca de 8,3 GB de memória no processo QEMU e deixou só 0,3 GB livres no Windows enquanto usava TCG; encerramos o QEMU antes de iniciar a instalação. O disco QCOW2 temporário permaneceu com apenas 197.632 bytes e não recebeu uma instalação.
+
+O construtor agora pode copiar o cache de pacotes presente numa ISO Brasa anterior usando `--package-cache-iso`. O script live detecta esse cache, evita reinstalar `pkg` quando ele já existe e atualiza o catálogo antes de instalar os arquivos locais. O primeiro teste apontou catálogos antigos; com `pkg update -f`, a instalação local prosseguiu, baixando apenas 3 MB de pacotes adicionais e extraindo os 191 componentes gráficos. A variante atual `.build/Brasa-live-cached-boot.iso` tem 1.305.520.128 bytes (SHA-256 `E3D62F62C94498C2B54EF41EFF1B32573DB7C9C6FBCA8ABC3C9008F348D2B306`).
+
+Em QEMU com 6 GB de RAM, 128 MB de vídeo e TCG, o assistente chegou aos campos de conta e à lista de discos. A lista mostrou apenas o disco virtual `vtbd0` de 40 GB. A VM está deixada nessa tela para inspeção; não avançamos à confirmação destrutiva, não particionamos o disco e o QCOW2 continua com 197.632 bytes. Escolhi 6 GB para o teste porque a execução anterior com 8 GB deixou apenas 0,3 GB de memória livre no Windows; com 6 GB restaram aproximadamente 1,8 GB. A instalação do FreeBSD no disco, o login, o KDE e o áudio ainda não foram validados.
+
+Para reconstruir a variante com cache, use `py scripts/build-brasa-live-prototype.py .build/Brasa-live-cached-boot.iso --package-cache-iso .build/Brasa-live-experimental.iso`. A ISO compacta continua disponível como `.build/Brasa-live-fastboot-fixed.iso` e depende da rede para carregar os componentes gráficos.
+
 ### Experimento de repetição do instalador (27/10/2026)
 
 O assistente agora oferece **Tentar novamente** ou **Sair para o instalador FreeBSD** depois de mostrar os detalhes de uma falha. Isso evita encerrar o fluxo sem uma escolha clara e permite repetir sem reiniciar a mídia. O construtor também aceita um caminho de saída para produzir uma ISO de teste separada, sem sobrescrever a imagem usada pela VM.
