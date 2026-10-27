@@ -5,7 +5,8 @@
 Iniciar por uma mídia x86-64, escolher idioma, informar o nome e a senha da conta, selecionar o disco mostrando claramente modelo e tamanho e confirmar uma única vez a operação destrutiva. Depois, instalar o sistema, configurar desktop e conta, e reiniciar na tela de login. O mesmo segredo para conta pessoal e administração só deve ser oferecido com explicação clara; nenhum segredo deve ser predefinido ou gravado em texto simples.
 
 ## Estado atual
-## Boot live e progresso visível (27/10/2026)
+
+### Boot live e progresso visível (27/10/2026)
 
 O teste com cache confirmou que a criação de um TAR de `/usr/local` no boot acrescentava uma cópia temporária de mais de 2 GB e trabalho extra em RAM. O script agora semeia o tmpfs diretamente dos pacotes incluídos na ISO e remove a cópia temporária depois, evitando gerar e depois desempacotar esse arquivo adicional. A janela do instalador agora usa o log do `bsdinstall` como texto principal e, se uma etapa não emitir linhas, mantém uma mensagem com o tempo decorrido em vez de parecer congelada.
 
