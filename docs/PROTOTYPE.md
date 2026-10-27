@@ -5,6 +5,14 @@
 Iniciar por uma mídia x86-64, escolher idioma, informar o nome e a senha da conta, selecionar o disco mostrando claramente modelo e tamanho e confirmar uma única vez a operação destrutiva. Depois, instalar o sistema, configurar desktop e conta, e reiniciar na tela de login. O mesmo segredo para conta pessoal e administração só deve ser oferecido com explicação clara; nenhum segredo deve ser predefinido ou gravado em texto simples.
 
 ## Estado atual
+## Boot live e progresso visível (27/10/2026)
+
+O teste com cache confirmou que a criação de um TAR de `/usr/local` no boot acrescentava uma cópia temporária de mais de 2 GB e trabalho extra em RAM. O script agora semeia o tmpfs diretamente dos pacotes incluídos na ISO e remove a cópia temporária depois, evitando gerar e depois desempacotar esse arquivo adicional. A janela do instalador agora usa o log do `bsdinstall` como texto principal e, se uma etapa não emitir linhas, mantém uma mensagem com o tempo decorrido em vez de parecer congelada.
+
+A imagem `.build/Brasa-live-optimized-experimental.iso` preserva o boot da ISO Brasa existente, inclui a atualização e os pacotes cacheados, mede 1.305.520.128 bytes e tem SHA-256 `6D7DA61286CA0887F23576DDB25F87107176F97CFAE2398DE416D9D57192FCC3`. O QEMU usado para a inspeção foi iniciado com 8 GB de RAM e VGA de 128 MB; WHPX não funciona neste host, então o emulador usou TCG. O boot chegou à instalação de componentes e começou a extrair o pacote 57/191, mas ainda levou minutos em emulação por software. A tela de boas-vindas não apareceu nesta execução, o QCOW2 ficou em 197.632 bytes e foi removido após encerrar a VM. Nenhuma instalação de sistema ou alteração de disco foi feita.
+
+A ISO permanece experimental: KDE, instalação no disco, primeiro login, Wine e interfaces USB de áudio ainda não foram validados. Não instale em um disco real.
+
 
 ### Cache dos componentes gráficos na mídia (27/10/2026)
 

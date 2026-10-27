@@ -43,16 +43,24 @@ chmod 700 /tmp/brasa-home
 kldload unionfs >> "$log" 2>&1 || true
 mount -t unionfs /tmp/brasa-live-etc /etc >> "$log" 2>&1 || failed
 # A small tmpfs supports package directory renames, which unionfs does not
-# reliably provide. The GUI packages are fetched on demand instead of
-# unpacking the full development package cache into RAM during every boot.
+# reliably provide. Seed it from the GUI packages already embedded in /var,
+# avoiding an extra 2+ GB archive creation, extraction and in-RAM copy on boot.
 say 'Preparando o espaço temporário para os componentes gráficos.'
-tar -cf /tmp/brasa-local-seed.tar -C /usr/local . >> "$log" 2>&1 || failed
+if [ -r /brasa/BRASA_PKG_CACHE_TAR ]; then
+  mkdir -p /tmp/brasa-pkg-seed
+  tar -xf /brasa/BRASA_PKG_CACHE_TAR -C /tmp/brasa-pkg-seed >> "$log" 2>&1 || failed
+  pkg_seed=/tmp/brasa-pkg-seed/usr/local
+else
+  pkg_seed=/usr/local
+fi
 kldload tmpfs >> "$log" 2>&1 || true
 # The minimal Xorg dependency set can exceed 2 GB once unpacked. Keep enough
 # headroom for pkg while allowing tmpfs to consume RAM only as files are written.
 mount -t tmpfs -o size=5g tmpfs /usr/local >> "$log" 2>&1 || failed
-tar -xf /tmp/brasa-local-seed.tar -C /usr/local >> "$log" 2>&1 || failed
-rm -f /tmp/brasa-local-seed.tar
+if [ -d "$pkg_seed" ]; then
+  cp -Rp "$pkg_seed"/. /usr/local/ >> "$log" 2>&1 || failed
+fi
+rm -rf /tmp/brasa-pkg-seed
 
 say 'Preparando a conexão de rede para carregar a interface gráfica.'
 printf 'timeout 20;\nretry 10;\n' > /tmp/brasa-dhclient.conf

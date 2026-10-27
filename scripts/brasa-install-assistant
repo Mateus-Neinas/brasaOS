@@ -282,11 +282,15 @@ report_progress() {
     8< "$password_file" 9< "$password_file" >> "$install_log" 2>&1 &
   bsdinstall_pid=$!
   last_percentage=68
+  last_reported_percentage=-1
+  last_reported_message=''
+  elapsed_seconds=0
   while kill -0 "$bsdinstall_pid" 2>/dev/null; do
     bsd_line=$(tail -n 1 "$bsdinstall_log" 2>/dev/null || true)
     output_line=$(tail -n 1 "$install_log" 2>/dev/null || true)
     progress_source="$bsd_line $output_line"
-    progress_message=${output_line:-$bsd_line}
+    progress_message=${bsd_line:-$output_line}
+    [ -n "$progress_message" ] || progress_message='Instalando o sistema no disco. Esta etapa pode levar vários minutos.'
     case "$progress_source" in
       *distextract*|*extract*)
         if [ "$extract_total" -gt 0 ]; then
@@ -318,7 +322,14 @@ report_progress() {
         ;;
     esac
     progress_message=$(printf '%s' "$progress_message" | tr '\t\r\n' '   ' | cut -c 1-180)
-    [ -z "$progress_message" ] || report_progress "$last_percentage" "$progress_message"
+    elapsed_seconds=$((elapsed_seconds + 2))
+    if [ "$last_percentage" -eq "$last_reported_percentage" ] && [ "$progress_message" = "$last_reported_message" ]; then
+      progress_message="$progress_message (${elapsed_seconds}s nesta etapa)"
+    else
+      last_reported_percentage=$last_percentage
+      last_reported_message=$progress_message
+    fi
+    report_progress "$last_percentage" "$progress_message"
     sleep 2
   done
   if wait "$bsdinstall_pid"; then
