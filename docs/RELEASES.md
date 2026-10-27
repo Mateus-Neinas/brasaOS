@@ -122,3 +122,14 @@ O teste com a ISO publicada chegou à confirmação explícita e iniciou no disc
 - Mudança: experimenta `bsdinstall script` com `COMPONENTS=base` e sem distribuições `.txz`, para evitar a extração monolítica. O construtor também lê o catálogo FreeBSD-ports separado da ISO de referência, sem duplicá-lo no cache.
 - QEMU 11.1/WHPX, 8 GB RAM, 4 vCPUs, VirtIO GPU e QCOW descartável de 40 GB: boot live, fallback de pacotes gráficos e assistente passaram. A etapa pkgbase falhou ao atualizar o repositório com `Transient resolver failure`; não baixou os pacotes da base e não mediu extração. O QCOW foi particionado, mas nenhum sistema inicializável foi instalado. KDE, Wine, áudio USB e hardware real não foram validados.
 - O QCOW deste teste fica em `%TEMP%` até outra ISO ser versionada. As imagens base foram preservadas. A ISO experimental não deve ser usada em computador com dados importantes.
+
+
+## ISO WHPX pkgbase resolver-fix (27/10/2026)
+
+- Tag da release: [`brasa-whpx-pkgbase-resolver-fix-2026-10-27`](https://github.com/Mateus-Neinas/brasaOS/releases/tag/brasa-whpx-pkgbase-resolver-fix-2026-10-27)
+- Arquivo: `Brasa-live-whpx-pkgbase-resolver-fix.iso`
+- Tamanho: 1.072.187.392 bytes
+- SHA-256: `B77B83D3B14A1FC578E3CA8E9994EBD94939DB696154E06FCBE41EC3C45FE36B`
+- Mudança: semeia `/mnt/etc/resolv.conf` no script pkgbase modificado, para que o `pkg --rootdir /mnt` tenha DNS antes de buscar a base.
+- QEMU 11.1/WHPX, 8 GB RAM, 4 vCPUs, VirtIO GPU e QCOW descartável de 40 GB: boot live, instalação local dos componentes gráficos e fallback de rede passaram; cadastro, senha, seleção/confirmação de `vtbd0` e particionamento passaram. A etapa `FreeBSD Installer` permaneceu em 94% por mais de dois minutos, sem crescimento adicional do QCOW ou mensagem de erro visível; a instalação base não concluiu. O ajuste de resolver ainda não está confirmado como eficaz para pkgbase, não houve medição de velocidade e não há sistema inicializável. KDE, Wine, áudio USB e hardware real não foram validados.
+- A ISO é experimental. Não use num computador com dados importantes. `dist/Brasa-15.1-amd64.iso` e `.build/freebsd-bootonly.iso` são imagens base e permanecem preservadas.

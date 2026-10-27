@@ -180,6 +180,21 @@ def main():
     image.open(str(SOURCE))
     try:
         old_rc = read_rr(image, '/etc/rc.local')
+        pkgbase_script = read_rr(image, '/usr/libexec/bsdinstall/pkgbase')
+        pkgbase_anchor = (
+            b'local chroot = assert(os.getenv("BSDINSTALL_CHROOT"))\n'
+            b'\tassert(os.execute("mkdir -p " .. chroot))\n')
+        if pkgbase_script.count(pkgbase_anchor) != 1:
+            raise RuntimeError('O script pkgbase do FreeBSD não corresponde à versão esperada.')
+        pkgbase_resolver_fix = (
+            pkgbase_anchor +
+            b'\t-- Brasa: pkg uses the target root while fetching base packages.\n'
+            b'\t-- Seed its resolver before the first repository update.\n'
+            b'\tassert(os.execute("mkdir -p " .. chroot .. "/etc"))\n'
+            b'\tif not os.execute("test -s " .. chroot .. "/etc/resolv.conf") then\n'
+            b'\t\tassert(os.execute("cp /etc/resolv.conf " .. chroot .. "/etc/resolv.conf"))\n'
+            b'\tend\n')
+        pkgbase_script = pkgbase_script.replace(pkgbase_anchor, pkgbase_resolver_fix)
         anchor = b'mkdir /tmp/bsdinstall_etc\n'
         if old_rc.count(anchor) != 1:
             raise RuntimeError('O arquivo de inicialização da mídia não é o esperado.')
@@ -194,6 +209,7 @@ def main():
             virtio_gpu_files = download_virtio_gpu_files(temp) if VIRTIO_GPU_QEMU else {}
             (temp / 'rc.local').write_bytes(rc)
             (temp / 'rc.conf').write_bytes(rc_conf)
+            (temp / 'bsdinstall-pkgbase').write_bytes(pkgbase_script)
             if VIRTIO_GPU_QEMU:
                 loader_conf = read_rr(image, '/boot/loader.conf')
                 if b'virtio_gpu_qemu_load=' not in loader_conf:
@@ -218,7 +234,11 @@ def main():
                     else:
                         archive.add(source_folder, arcname=folder)
                 archive.add(ROOT / 'README.md', arcname='README.md')
-            replace_paths = ['/ETC/RC.LOCAL;1', '/ETC/RC.CONF;1', '/BRASA/BRASA_PROJECT_TAR_GZ;1']
+            replace_paths = [
+                '/ETC/RC.LOCAL;1', '/ETC/RC.CONF;1',
+                '/USR/LIBEXEC/BSDINSTALL/PKGBASE.;1',
+                '/BRASA/BRASA_PROJECT_TAR_GZ;1',
+            ]
             if VIRTIO_GPU_QEMU:
                 replace_paths.append('/BOOT/LOADER.CONF;1')
             for path in replace_paths:
@@ -261,6 +281,9 @@ def main():
                                iso_path='/BRASA/VIRTIO_GPU_QEMU_XORG.CONF;1', rr_name='virtio_gpu_qemu_xorg.conf')
             image.add_file(str(temp / 'rc.local'), iso_path='/ETC/RC.LOCAL;1', rr_name='rc.local')
             image.add_file(str(temp / 'rc.conf'), iso_path='/ETC/RC.CONF;1', rr_name='rc.conf')
+            image.add_file(str(temp / 'bsdinstall-pkgbase'),
+                           iso_path='/USR/LIBEXEC/BSDINSTALL/PKGBASE.;1',
+                           rr_name='pkgbase', file_mode=0o555)
             image.add_file(str(package), iso_path='/BRASA/BRASA_PROJECT_TAR_GZ;1', rr_name='BRASA_PROJECT_TAR_GZ')
             image.add_file(str(ROOT / 'scripts/brasa-live-start'), iso_path='/BRASA/BRASA_LIVE_START;1', rr_name='brasa-live-start')
             if pkg_repo_catalog:
