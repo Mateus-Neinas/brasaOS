@@ -38,6 +38,7 @@ Para publicar manualmente pelo GitHub, crie uma release em `https://github.com/M
 - Tag: `brasa-zenity-argv-fix-2026-10-27`
 - Arquivo: `Brasa-live-zenity-argv-fix.iso`
 - Tamanho:1.305.524.224bytes
+-Tamanho:1.305.524.224bytes
 -SHA-256:`560B3AE1E5BDEFCA26CAC390A30725CE4F1341E90E850B0A734474BFE2DCBC0C`.
 - Estado: experimental. A lista de discos passa as linhas como argumentos individuais do Zenity e marca somente o primeiro disco elegível. A seleção resultante continua sendo comparada com os nomes de disco obtidos pelo sistema antes de qualquer operação destrutiva.
 - Testes pendentes: integridade da ISO, boot em QEMU, retorno real da seleção e instalação.
