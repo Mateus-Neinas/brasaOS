@@ -261,6 +261,13 @@ if [ "$install_status" -ne 0 ]; then
   zenity --error --title="$title" --width=560 \
     --text='A instalação não terminou. O disco escolhido pode ter sido alterado. Consulte os detalhes e reinicie antes de tentar novamente.'
   zenity --text-info --title='Detalhes da instalação' --width=760 --height=460 --filename="$install_log" || true
+  if zenity --question --title="$title" --width=600 --default-cancel \
+    --ok-label='Tentar novamente' --cancel-label='Sair para o instalador FreeBSD' \
+    --text='A instalação não foi concluída. O disco pode ter sido parcialmente alterado. Se tentar novamente, selecione e confirme o disco mais uma vez.'; then
+    cleanup
+    trap - EXIT HUP INT TERM
+    exec /bin/sh "$0"
+  fi
   exit 1
 fi
 

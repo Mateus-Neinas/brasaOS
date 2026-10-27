@@ -2,13 +2,16 @@
 """Make a separate experimental live ISO from the existing Brasa image."""
 from pathlib import Path
 import io
+import sys
 import tarfile
 import tempfile
 import pycdlib
 
 ROOT = Path(__file__).resolve().parent.parent
 SOURCE = ROOT / 'dist/Brasa-15.1-amd64.iso'
-OUTPUT = ROOT / '.build/Brasa-live-experimental.iso'
+if len(sys.argv) > 2:
+    raise SystemExit('Uso: build-brasa-live-prototype.py [caminho-da-iso-de-saida]')
+OUTPUT = Path(sys.argv[1]).resolve() if len(sys.argv) == 2 else ROOT / '.build/Brasa-live-experimental.iso'
 CACHE = ROOT / '.build/brasa-pkg-cache.tar'
 
 def read_rr(image, path):
