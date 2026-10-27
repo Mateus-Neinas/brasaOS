@@ -82,7 +82,7 @@ O teste com a ISO publicada chegou à confirmação explícita e iniciou no disc
 
 ## ISO WHPX VirtIO com progresso legível (27/10/2026)
 
-- Tag prevista: `brasa-whpx-virtio-progress-2026-10-27`
+- Tag da release: [`brasa-whpx-virtio-progress-2026-10-27`](https://github.com/Mateus-Neinas/brasaOS/releases/tag/brasa-whpx-virtio-progress-2026-10-27)
 - Arquivo: `Brasa-live-whpx-virtio-progress.iso`
 - Tamanho: 1.072.173.056 bytes
 - SHA-256: `22EE9AEBA637385982D8427A3F4C21969B0765782833CBAA3DE00B04F8C20C20`
