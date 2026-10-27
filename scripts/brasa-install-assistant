@@ -313,7 +313,17 @@ process_is_running() {
     output_line=$(tail -n 1 "$install_log" 2>/dev/null || true)
     progress_source="$bsd_line $output_line"
     progress_message=${bsd_line:-$output_line}
+    # bsdinstall writes its verbose BSDCONFIG trace to BSDINSTALL_LOG while
+    # installing the base. Those DEBUG records are implementation details,
+    # not useful progress text. Prefer the package/bootstrap output, then a
+    # plain-language fallback if neither log has a user-facing line.
+    case "$progress_message" in
+      DEBUG:*) progress_message=$output_line ;;
+    esac
     [ -n "$progress_message" ] || progress_message='Instalando o sistema no disco. Esta etapa pode levar vários minutos.'
+    case "$progress_message" in
+      DEBUG:*) progress_message='Configurando o sistema instalado. Esta etapa pode levar alguns minutos.' ;;
+    esac
     case "$progress_source" in
       *distextract*|*extract*)
         if [ "$extract_total" -gt 0 ]; then
@@ -351,6 +361,7 @@ process_is_running() {
     else
       last_reported_percentage=$last_percentage
       last_reported_message=$progress_message
+      elapsed_seconds=0
     fi
     report_progress "$last_percentage" "$progress_message"
     sleep 2

@@ -91,6 +91,11 @@ else
   run_logged 'Instalando a interface gráfica mínima...' pkg install -y \
     xorg-minimal xinit jwm zenity dejavu xf86-video-vesa xf86-video-scfb || failed
 fi
+if [ -c /dev/fb0 ] && [ -r /brasa/virtio_gpu_qemu_xorg.conf ]; then
+  install -d -m 0755 /usr/local/etc/X11/xorg.conf.d >> "$log" 2>&1 || failed
+  install -m 0644 /brasa/virtio_gpu_qemu_xorg.conf \
+    /usr/local/etc/X11/xorg.conf.d/20-virtio-gpu-qemu.conf >> "$log" 2>&1 || failed
+fi
 tar -xzf /brasa/BRASA_PROJECT_TAR_GZ -C /tmp/brasa-source >> "$log" 2>&1 || failed
 
 export HOME=/tmp/brasa-home

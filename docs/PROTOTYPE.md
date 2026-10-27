@@ -12,11 +12,19 @@ O teste com cache confirmou que a criação de um TAR de `/usr/local` no boot ac
 
 A imagem `.build/Brasa-live-optimized-experimental.iso` preserva o boot da ISO Brasa existente, inclui a atualização e os pacotes cacheados, mede 1.305.520.128 bytes e tem SHA-256 `6D7DA61286CA0887F23576DDB25F87107176F97CFAE2398DE416D9D57192FCC3`. O QEMU usado para a inspeção foi iniciado com 8 GB de RAM e VGA de 128 MB; WHPX não funciona neste host, então o emulador usou TCG. O boot chegou à instalação de componentes e começou a extrair o pacote 57/191, mas ainda levou minutos em emulação por software. A tela de boas-vindas não apareceu nesta execução, o QCOW2 ficou em 197.632 bytes e foi removido após encerrar a VM. Nenhuma instalação de sistema ou alteração de disco foi feita.
 
-Atualização do teste: no Windows 11 deste host (Intel i5-12400F), WHPX funciona durante o boot se usado com `kernel-irqchip=off`, mas o QEMU 11.1 encerra com `failed to decode instruction f 10` quando o ambiente tenta abrir o X. O teste também mostrou avisos `failed to get xsave state`. WHPX, portanto, não é uma aceleração utilizável para este desktop neste pacote do QEMU. O perfil TCG continua sendo o modo de referência para validar a interface; a build da ISO não depende do acelerador escolhido pelo hipervisor.
+Teste posterior documentado abaixo: no QEMU 11.1 deste host, WHPX com VGA padrão falha ao abrir o X; o driver VirtIO GPU FreeBSD elimina esse erro e abre a interface. O resultado não altera a compatibilidade de hardware real nem conclui a instalação.
 
 O instalador gráfico seleciona o disco em uma janela e apresenta modelo, capacidade, identificador e confirmação explícita; depois usa `bsdinstall scriptedpart` para criar automaticamente o esquema de boot e as partições. Essa instalação real ainda não foi concluída. O acompanhamento do processo foi ajustado para reconhecer subprocessos encerrados, inclusive zumbis, em vez de deixar a barra aguardando um PID que já terminou. Essa correção está no código-fonte e exige uma nova ISO para validação em QEMU.
 
 A ISO permanece experimental: KDE, instalação no disco, primeiro login, Wine e interfaces USB de áudio ainda não foram validados. Não instale em um disco real.
+
+### WHPX com driver VirtIO GPU e extração (27/10/2026)
+
+A variante `Brasa-live-whpx-virtio-test.iso` adiciona à mídia o módulo oficial `virtio-gpu-qemu-kmod` compatível com FreeBSD 15.1, configura o carregamento no início do boot e usa `xf86-video-scfb` para expor o framebuffer ao X. Isso resolveu o fechamento do QEMU que acontecia com VGA padrão. O pacote foi baixado de `pkg.freebsd.org` e validado por SHA-256 fixado no construtor.
+
+No QEMU 11.1 em Windows 11, com WHPX, 6 GB de RAM, 4 vCPUs e VGA VirtIO, o boot chegou ao live gráfico, formulário de conta, lista do disco `vtbd0` de 40 GB e confirmação final. Após a confirmação, o QCOW2 cresceu até 1.261.961.216 bytes e a tela de progresso chegou a 97%. O texto exibiu `DEBUG: f_getvar: var=[width] value=[97]`, que é uma mensagem interna de `bsdinstall` (o valor 97 é a largura do terminal, não o progresso da instalação). A janela ficou nesse estado por quase sete minutos e o arquivo QCOW2 não recebeu novas gravações desde 17:37:10; o QEMU usou aproximadamente 5,9 GB de RAM e sua CPU avançou continuamente. Encerramos a VM por QMP para poupar recursos. O disco não foi apagado e permanece temporariamente em `%TEMP%` até a próxima release ser publicada.
+
+O resultado comprova que a interface gráfica e a confirmação do disco funcionam com WHPX/VirtIO, mas não comprova a instalação da base nem do KDE. Não foi possível determinar se a última etapa é a cauda da extração da base ou sua configuração seguinte. O próximo ISO filtra linhas `DEBUG:` da caixa de progresso e mostra uma mensagem compreensível; será preciso retestar a instalação para identificar se a espera é trabalho lento ou bloqueio. Nenhum disco físico foi conectado.
 
 
 ### Cache dos componentes gráficos na mídia (27/10/2026)

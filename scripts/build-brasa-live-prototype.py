@@ -3,26 +3,47 @@
 from pathlib import Path
 import io
 import os
+import hashlib
+import shutil
+import subprocess
 import sqlite3
 import sys
 import tarfile
 import tempfile
+import urllib.request
 import pycdlib
 
 ROOT = Path(__file__).resolve().parent.parent
 SOURCE = ROOT / 'dist/Brasa-15.1-amd64.iso'
-if len(sys.argv) > 2:
-    if sys.argv[1] == '--help':
-        print('Uso: build-brasa-live-prototype.py [caminho-da-iso-de-saida] [--package-cache-iso ISO]')
-        raise SystemExit(0)
+LIVE_PACKAGE_ROOTS = (
+    'xorg-minimal', 'xinit', 'jwm', 'zenity', 'dejavu',
+    'xf86-video-vesa', 'xf86-video-scfb',
+)
+VIRTIO_GPU_KMOD_URL = (
+    'https://pkg.freebsd.org/FreeBSD:15:amd64/quarterly/All/'
+    'virtio-gpu-qemu-kmod-0.2.1501000_1.pkg'
+)
+VIRTIO_GPU_KMOD_SHA256 = '97f42fe414e1a254142bdefe94d03538abe12874707eea36e9161beec4eed6bf'
+VIRTIO_GPU_FILES = {
+    '/boot/modules/virtio_gpu_qemu.ko': 'virtio_gpu_qemu.ko',
+    '/usr/local/share/X11/xorg.conf.d/20-virtio-gpu-qemu.conf': 'virtio_gpu_qemu_xorg.conf',
+}
 
 def parse_args():
     output = ROOT / '.build/Brasa-live-experimental.iso'
     cache_iso = None
+    virtio_gpu_qemu = False
     positional_seen = False
     args = iter(sys.argv[1:])
     for arg in args:
-        if arg == '--package-cache-iso':
+        if arg == '--help':
+            print('Uso: build-brasa-live-prototype.py [caminho-da-iso-de-saida] '
+                  '[--package-cache-iso ISO] [--virtio-gpu-qemu]')
+            raise SystemExit(0)
+        elif arg == '--virtio-gpu-qemu':
+            virtio_gpu_qemu = True
+            continue
+        elif arg == '--package-cache-iso':
             try:
                 cache_iso = Path(next(args)).resolve()
             except StopIteration:
@@ -34,13 +55,38 @@ def parse_args():
             positional_seen = True
         else:
             raise SystemExit('Informe apenas um caminho de saída.')
-    return output, cache_iso
+    return output, cache_iso, virtio_gpu_qemu
 
-OUTPUT, PACKAGE_CACHE_ISO = parse_args()
-LIVE_PACKAGE_ROOTS = (
-    'xorg-minimal', 'xinit', 'jwm', 'zenity', 'dejavu',
-    'xf86-video-vesa', 'xf86-video-scfb',
-)
+OUTPUT, PACKAGE_CACHE_ISO, VIRTIO_GPU_QEMU = parse_args()
+
+
+def download_virtio_gpu_files(destination):
+    """Fetch the ABI-matched FreeBSD driver and extract only its two runtime files."""
+    archive = destination / 'virtio-gpu-qemu-kmod.pkg'
+    digest = hashlib.sha256()
+    with urllib.request.urlopen(VIRTIO_GPU_KMOD_URL, timeout=60) as response, archive.open('wb') as output:
+        while block := response.read(1024 * 1024):
+            digest.update(block)
+            output.write(block)
+    if digest.hexdigest() != VIRTIO_GPU_KMOD_SHA256:
+        raise RuntimeError('O pacote virtio-gpu-qemu-kmod não corresponde ao SHA-256 fixado.')
+
+    tar = shutil.which('tar')
+    if not tar:
+        raise RuntimeError('O comando tar é necessário para extrair os arquivos do pacote FreeBSD.')
+    extracted = {}
+    for member, output_name in VIRTIO_GPU_FILES.items():
+        output = destination / output_name
+        with output.open('wb') as stream:
+            result = subprocess.run(
+                [tar, '-xOf', str(archive), member],
+                stdout=stream, stderr=subprocess.PIPE, check=False,
+            )
+        if result.returncode or output.stat().st_size == 0:
+            detail = result.stderr.decode(errors='replace').strip()
+            raise RuntimeError(f'Falha ao extrair {member} do pacote FreeBSD: {detail}')
+        extracted[member] = output
+    return extracted
 
 def read_rr(image, path):
     data = io.BytesIO()
@@ -131,14 +177,37 @@ def main():
         rc_conf = read_rr(image, '/etc/rc.conf') + b'\ntmpsize="1g"\nvarsize="1g"\n'
         with tempfile.TemporaryDirectory(prefix='brasa-live-') as directory:
             temp = Path(directory)
+            virtio_gpu_files = download_virtio_gpu_files(temp) if VIRTIO_GPU_QEMU else {}
             (temp / 'rc.local').write_bytes(rc)
             (temp / 'rc.conf').write_bytes(rc_conf)
+            if VIRTIO_GPU_QEMU:
+                loader_conf = read_rr(image, '/boot/loader.conf')
+                if b'virtio_gpu_qemu_load=' not in loader_conf:
+                    loader_conf += (
+                        b'\n# QEMU virtio framebuffer, loaded before the built-in driver.\n'
+                        b'virtio_gpu_qemu_load="YES"\n'
+                        b'hw.virtio_gpu_qemu.width="1280"\n'
+                        b'hw.virtio_gpu_qemu.height="800"\n'
+                        b'hw.virtio_gpu_qemu.refresh_rate="30"\n'
+                    )
+                (temp / 'loader.conf').write_bytes(loader_conf)
             package = temp / 'brasa-project.tar.gz'
             with tarfile.open(package, 'w:gz') as archive:
                 for folder in ('scripts', 'config', 'docs'):
-                    archive.add(ROOT / folder, arcname=folder)
+                    source_folder = ROOT / folder
+                    if folder == 'docs':
+                        archive.add(
+                            source_folder,
+                            arcname=folder,
+                            filter=lambda member: None if Path(member.name).name == 'RELEASES.md' else member,
+                        )
+                    else:
+                        archive.add(source_folder, arcname=folder)
                 archive.add(ROOT / 'README.md', arcname='README.md')
-            for path in ('/ETC/RC.LOCAL;1', '/ETC/RC.CONF;1', '/BRASA/BRASA_PROJECT_TAR_GZ;1'):
+            replace_paths = ['/ETC/RC.LOCAL;1', '/ETC/RC.CONF;1', '/BRASA/BRASA_PROJECT_TAR_GZ;1']
+            if VIRTIO_GPU_QEMU:
+                replace_paths.append('/BOOT/LOADER.CONF;1')
+            for path in replace_paths:
                 image.rm_file(iso_path=path)
             if PACKAGE_CACHE_ISO:
                 cache_archive = temp / 'brasa-pkg-cache.tar'
@@ -154,6 +223,12 @@ def main():
                 pruned_cache = temp / 'brasa-pkg-cache-pruned.tar'
                 prune_package_cache(cache_archive, pruned_cache, temp)
                 image.add_file(str(pruned_cache), iso_path='/BRASA/BRASA_PKG_CACHE_TAR;1', rr_name='BRASA_PKG_CACHE_TAR')
+            if VIRTIO_GPU_QEMU:
+                image.add_file(str(temp / 'loader.conf'), iso_path='/BOOT/LOADER.CONF;1', rr_name='loader.conf')
+                image.add_file(str(virtio_gpu_files['/boot/modules/virtio_gpu_qemu.ko']),
+                               iso_path='/BOOT/MODULES/VIRTIO_GPU_QEMU.KO;1', rr_name='virtio_gpu_qemu.ko')
+                image.add_file(str(virtio_gpu_files['/usr/local/share/X11/xorg.conf.d/20-virtio-gpu-qemu.conf']),
+                               iso_path='/BRASA/VIRTIO_GPU_QEMU_XORG.CONF;1', rr_name='virtio_gpu_qemu_xorg.conf')
             image.add_file(str(temp / 'rc.local'), iso_path='/ETC/RC.LOCAL;1', rr_name='rc.local')
             image.add_file(str(temp / 'rc.conf'), iso_path='/ETC/RC.CONF;1', rr_name='rc.conf')
             image.add_file(str(package), iso_path='/BRASA/BRASA_PROJECT_TAR_GZ;1', rr_name='BRASA_PROJECT_TAR_GZ')
@@ -169,9 +244,14 @@ def main():
         required_paths = ['/etc/rc.local', '/brasa/brasa-live-start', '/brasa/BRASA_PROJECT_TAR_GZ']
         if PACKAGE_CACHE_ISO:
             required_paths.append('/brasa/BRASA_PKG_CACHE_TAR')
+        if VIRTIO_GPU_QEMU:
+            required_paths.extend(['/boot/loader.conf', '/boot/modules/virtio_gpu_qemu.ko',
+                                   '/brasa/virtio_gpu_qemu_xorg.conf'])
         for path in required_paths:
             if check.get_record(rr_path=path).data_length == 0:
                 raise RuntimeError(f'Arquivo vazio na ISO: {path}')
+        if VIRTIO_GPU_QEMU and b'virtio_gpu_qemu_load="YES"' not in read_rr(check, '/boot/loader.conf'):
+            raise RuntimeError('O módulo virtio_gpu_qemu não foi configurado para carregar no boot.')
     finally:
         check.close()
     print(f'ISO experimental criada: {OUTPUT}')

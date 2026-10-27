@@ -79,3 +79,14 @@ O teste com a ISO publicada chegou à confirmação explícita e iniciou no disc
 - Mudança: força a entrada padrão não interativa para `bsdinstall script`, mantendo a extração e a saída em log sob a janela gráfica de progresso.
 - Validada em QEMU/TCG com 8 GB de RAM, 2 vCPUs e VGA de 128 MB: boot live, campos de conta, lista/seleção de `vtbd0` de 40 GB e confirmação destrutiva. A etapa “Extracting distributions” apareceu. O teste foi encerrado por lentidão após ~1,27 GB de gravações, antes de começar a configuração do Brasa. O Windows reportou VT-x desativado; WHPX não foi utilizável neste host. O QCOW2 descartável foi removido ao fechar QEMU.
 - Continua sem validação: instalação completa, boot do sistema instalado, KDE, primeiro login, Wine, áudio USB class-compliant e hardware real. A ISO é experimental e não deve ser usada em um disco com dados importantes.
+
+## ISO WHPX VirtIO com progresso legível (27/10/2026)
+
+- Tag prevista: `brasa-whpx-virtio-progress-2026-10-27`
+- Arquivo: `Brasa-live-whpx-virtio-progress.iso`
+- Tamanho: 1.072.173.056 bytes
+- SHA-256: `22EE9AEBA637385982D8427A3F4C21969B0765782833CBAA3DE00B04F8C20C20`
+- Mudança: inclui o módulo oficial FreeBSD 15.1 `virtio-gpu-qemu-kmod`, configura o framebuffer para Xorg e mantém JWM apenas no ambiente temporário do instalador. A correção do progresso oculta linhas internas `DEBUG:` do `bsdinstall`, mostra a saída corrente do instalador e reinicia o contador de tempo quando a mensagem muda. KDE permanece o desktop pretendido do sistema instalado.
+- Testada em QEMU 11.1/WHPX com 6 GB de RAM, 4 vCPUs, VGA VirtIO e QCOW2 descartável de 40 GB: live gráfico, cadastro de usuário, seleção de `vtbd0` e confirmação do disco funcionaram. A instalação chegou a 97%, mas a tela permaneceu nessa etapa por quase sete minutos e o QCOW2 não teve novas gravações por mais de quatro minutos. O teste foi encerrado por QMP. O sistema instalado não foi validado; o novo texto de progresso desta compilação foi verificado estruturalmente na ISO, mas ainda precisa de reteste em QEMU.
+- O QCOW2 do teste foi mantido em `%TEMP%` aguardando esta release. A imagem base `dist/Brasa-15.1-amd64.iso` não foi alterada.
+- Continua sem validação: instalação completa e inicializável, login, KDE, Wine, áudio USB class-compliant e hardware real. Não use num disco com dados importantes.

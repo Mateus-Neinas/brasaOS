@@ -4,7 +4,7 @@ Brasa é um protótipo x86-64 baseado em FreeBSD. O objetivo é oferecer uma ins
 
 ## Estado da imagem experimental mais recente
 
-A [ISO experimental de extração não interativa](https://github.com/Mateus-Neinas/brasaOS/releases/tag/brasa-noninteractive-extract-2026-10-27) inicia o ambiente live, abre o assistente gráfico e chega à confirmação do disco virtual de 40 GB. Após a confirmação, a tela de progresso permanece visível durante a extração da base. O teste em QEMU/TCG foi interrompido por lentidão antes de terminar a instalação; não use esta imagem em um computador com dados importantes. O KDE continua planejado para o sistema instalado; JWM é somente o ambiente temporário do instalador. Consulte `docs/RELEASES.md` e `docs/PROTOTYPE.md` antes de testar.
+A [ISO experimental WHPX com VirtIO GPU](https://github.com/Mateus-Neinas/brasaOS/releases/tag/brasa-whpx-virtio-progress-2026-10-27) inicia o ambiente live, abre o assistente gráfico e chega à confirmação do disco virtual de 40 GB. O driver VirtIO permitiu abrir o X no QEMU com WHPX. Após confirmar o disco descartável, a instalação avançou pela base, mas ficou em 97% por vários minutos sem novas gravações. A instalação completa não foi validada; não use esta imagem em um computador com dados importantes. JWM é somente o ambiente temporário do instalador; KDE continua sendo o desktop pretendido no sistema instalado. Consulte `docs/RELEASES.md` e `docs/PROTOTYPE.md` antes de testar.
 
 ## O que funciona nesta mídia
 

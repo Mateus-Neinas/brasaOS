@@ -31,7 +31,7 @@ O protótipo usa o driver nativo do FreeBSD e oferece lista de dispositivos `pcm
 
 ## Estado verificável
 
-O workspace possui uma ISO Brasa baseada no FreeBSD 15.1 `bootonly`, bootstrap, tema KDE, utilitários de áudio, importador Wine, mockup interativo e um fluxo visual de instalação em desenvolvimento. A ISO não contém ambiente live gráfico: ainda não consegue iniciar o assistente Brasa e não está pronta para instalar o desktop. `scripts/self-check.sh` usa comandos simulados e não valida pacote, sessão KDE, áudio, Wine ou instalação completa em FreeBSD real. Veja o estado detalhado em [docs/PROTOTYPE.md](PROTOTYPE.md).
+O workspace possui uma ISO Brasa baseada no FreeBSD 15.1 `bootonly`, bootstrap, tema KDE, utilitários de áudio, importador Wine e um fluxo visual de instalação em desenvolvimento. A ISO experimental mais recente inicia um ambiente live JWM e o assistente gráfico. Em QEMU/WHPX com o driver VirtIO GPU, a instalação avançou para extração/configuração da base e depois ficou sem progresso observável. O sistema instalado, a sessão KDE, áudio, Wine e instalação completa ainda não foram validados. `scripts/self-check.sh` usa comandos simulados e não substitui esses testes. Veja [docs/PROTOTYPE.md](PROTOTYPE.md).
 
 ## Referências
 
