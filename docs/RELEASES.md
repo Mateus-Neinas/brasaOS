@@ -8,7 +8,7 @@ Para publicar manualmente pelo GitHub, crie uma release em `https://github.com/M
 
 - Tag pretendida: `brasa-progress-fix-2026-10-27`
 - Arquivo: `Brasa-live-progress-fix.iso`
-- Tamanho: 1.305.522.176 bytes
+- Tamanho: 1.305.520.128 bytes
 - SHA-256: `D4AF49B2D8B18F60DAD6204D4FE201FDBC84F438B61312179A0CA6D442313299`
 - Estado: experimental. Abriu o ambiente gráfico e o assistente até a lista de discos; a seleção não avançou. O disco virtual permaneceu sem instalação. Contém a correção do monitor de processos do instalador.
 - Não validado: instalação completa, login, KDE, áudio USB, Wine e hardware real.
