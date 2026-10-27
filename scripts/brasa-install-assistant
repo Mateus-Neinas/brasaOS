@@ -88,7 +88,8 @@ fi
 
 disk_rows=$(geom disk list 2>/dev/null | awk -v minimum="$minimum_bytes" -v boot="$boot_disks" '
   function emit(   n, boot_list, count) {
-    if (name == "" || bytes < minimum || model == "") return
+    if (name == "" || bytes < minimum) return
+    if (model == "") model = "Modelo não informado"
     if (name !~ /^(ada|da|nda|nvd|vtbd|mmcsd)[0-9]+$/) return
     count = split(boot, boot_list, /[[:space:]]+/)
     for (n = 1; n <= count; n++) if (boot_list[n] == name) return
@@ -114,7 +115,7 @@ disk_rows=$(geom disk list 2>/dev/null | awk -v minimum="$minimum_bytes" -v boot
 ')
 [ -n "$disk_rows" ] || { unset password; fail 'Não encontrei um disco de pelo menos 40 GB. Conecte um disco adequado e tente novamente.'; }
 
-selected_disk=$(printf '%s\n' "$disk_rows" | zenity --list --title="$title" --width=760 --height=420 \
+selected_disk=$(printf '%s\n' "$disk_rows" | awk -F '\t' '{ for (i = 1; i <= 5; i++) print $i }' | zenity --list --title="$title" --width=760 --height=420 \
   --text='Selecione o disco onde o Brasa será instalado. O conteúdo desse disco será apagado.' \
   --column='Disco' --column='Modelo' --column='Capacidade' --column='Identificação' --column='Bytes' \
   --print-column=1 --separator='' --hide-column=5) || { unset password; cancelled; }
@@ -127,9 +128,10 @@ selected_size=$(printf '%s\n' "$selected_row" | awk -F '\t' '{print $3}')
 selected_ident=$(printf '%s\n' "$selected_row" | awk -F '\t' '{print $4}')
 selected_bytes=$(printf '%s\n' "$selected_row" | awk -F '\t' '{print $5}')
 
+confirmation=$(printf 'O disco abaixo será apagado por completo. Seus arquivos e sistemas atuais serão removidos.\n\nDisco: %s\nModelo: %s\nCapacidade: %s\nIdentificação: %s\n\nO Brasa criará automaticamente as partições de inicialização e do sistema. A mesma senha será usada para sua conta e para administração. Continue somente se este for o disco correto.' "$selected_disk" "$selected_model" "$selected_size" "$selected_ident")
 zenity --question --title='Confirme o apagamento do disco' --width=600 \
   --default-cancel --ok-label='Apagar e instalar' --cancel-label='Voltar' \
-  --text="O disco abaixo será apagado por completo. Seus arquivos e sistemas atuais serão removidos.\n\nDisco: $selected_disk\nModelo: $selected_model\nCapacidade: $selected_size\n\nO Brasa criará automaticamente as partições de inicialização e do sistema. A mesma senha será usada para sua conta e para administração. Continue somente se este for o disco correto." || { unset password; cancelled; }
+  --no-markup --text="$confirmation" || { unset password; cancelled; }
 
 validate_selected_disk() {
 current_protected=$(protected_disks)
@@ -142,7 +144,7 @@ current_details=$(geom disk list "$selected_disk" 2>/dev/null | awk -v target="$
   /^[[:space:]]*Mediasize:/ { if (match($0, /[0-9]+/)) bytes = substr($0, RSTART, RLENGTH) + 0 }
   /^[[:space:]]*descr:/ { sub(/^[[:space:]]*descr:[[:space:]]*/, ""); model = $0 }
   /^[[:space:]]*ident:/ { sub(/^[[:space:]]*ident:[[:space:]]*/, ""); ident = $0 }
-  END { if (ident == "") ident = "Não informado"; printf "%.0f\t%s\t%s\n", bytes, model, ident }
+  END { if (model == "") model = "Modelo não informado"; if (ident == "") ident = "Não informado"; printf "%.0f\t%s\t%s\n", bytes, model, ident }
 ') || { unset password; fail 'Não foi possível confirmar o disco. Nenhuma instalação foi iniciada.'; }
 current_bytes=$(printf '%s\n' "$current_details" | awk -F '\t' '{print $1}')
 current_model=$(printf '%s\n' "$current_details" | awk -F '\t' '{print $2}')

@@ -27,7 +27,7 @@ mount -t unionfs /tmp/brasa-live-etc /etc >> "$log" 2>&1 || failed
 # provide. Keep the pkg binary and configuration already present on the ISO.
 tar -cf /tmp/brasa-local-seed.tar -C /usr/local . >> "$log" 2>&1 || failed
 kldload tmpfs >> "$log" 2>&1 || true
-mount -t tmpfs -o size=2g tmpfs /usr/local >> "$log" 2>&1 || failed
+mount -t tmpfs -o size=5g tmpfs /usr/local >> "$log" 2>&1 || failed
 tar -xf /tmp/brasa-local-seed.tar -C /usr/local >> "$log" 2>&1 || failed
 rm -f /tmp/brasa-local-seed.tar
 
@@ -45,13 +45,14 @@ route -n get default >/dev/null 2>&1 || failed
 
 say 'Baixando os componentes gráficos. Isso pode levar vários minutos.'
 export ASSUME_ALWAYS_YES=yes
+export PATH=/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin
 pkg bootstrap -f >> "$log" 2>&1 || failed
 if [ -r /brasa/BRASA_PKG_CACHE_TAR ]; then
   say 'Preparando os componentes gráficos incluídos na mídia.'
   tar -xf /brasa/BRASA_PKG_CACHE_TAR -C /var >> "$log" 2>&1 || failed
-  pkg install -U -y xorg-minimal xinit openbox zenity xf86-video-vesa >> "$log" 2>&1 || failed
+  pkg install -U -y xorg-minimal xinit openbox zenity dejavu xf86-video-vesa xf86-video-scfb >> "$log" 2>&1 || failed
 else
-  pkg install -y xorg-minimal xinit openbox zenity xf86-video-vesa >> "$log" 2>&1 || failed
+  pkg install -y xorg-minimal xinit openbox zenity dejavu xf86-video-vesa xf86-video-scfb >> "$log" 2>&1 || failed
 fi
 tar -xzf /brasa/BRASA_PROJECT_TAR_GZ -C /tmp/brasa-source >> "$log" 2>&1 || failed
 
