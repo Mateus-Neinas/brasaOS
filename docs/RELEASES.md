@@ -6,7 +6,7 @@ Para publicar manualmente pelo GitHub, crie uma release em `https://github.com/M
 
 ## ISO progress-fix (27/10/2026)
 
-- Tag pretendida: `brasa-progress-fix-2026-10-27`
+- Tag publicada: [`brasa-progress-fix-2026-10-27`](https://github.com/Mateus-Neinas/brasaOS/releases/tag/brasa-progress-fix-2026-10-27)
 - Arquivo: `Brasa-live-progress-fix.iso`
 - Tamanho: 1.305.520.128 bytes
 - SHA-256: `D4AF49B2D8B18F60DAD6204D4FE201FDBC84F438B61312179A0CA6D442313299`
@@ -15,7 +15,7 @@ Para publicar manualmente pelo GitHub, crie uma release em `https://github.com/M
 
 ## ISO disk-picker (27/10/2026)
 
-- Tag pretendida: `brasa-disk-picker-2026-10-27`
+- Tag publicada: [`brasa-disk-picker-2026-10-27`](https://github.com/Mateus-Neinas/brasaOS/releases/tag/brasa-disk-picker-2026-10-27)
 - Arquivo: `Brasa-live-disk-picker.iso`
 - Tamanho: 1.305.522.176 bytes
 - SHA-256: `74AB22BF646DA22D1FDCA272D1F73BBF09EC224402B79ECA53D6A7FE84F97E8A`
