@@ -4,8 +4,7 @@ Brasa é um protótipo x86-64 baseado em FreeBSD. O objetivo é oferecer uma ins
 
 ## Estado da imagem experimental mais recente
 
-A [ISO experimental WHPX com VirtIO GPU e progresso de pacotes](https://github.com/Mateus-Neinas/brasaOS/releases/tag/brasa-whpx-virtio-package-progress-2026-10-27) inicia o ambiente live e abre o assistente gráfico. O teste com QCOW2 descartável de 40 GB avançou pela conta, seleção/confirmação do disco e extração dos componentes live; depois de baixar `base.txz`, o disco parou de receber gravações por mais de quatro minutos. A instalação não concluiu e o sistema instalado não foi validado. Não use esta imagem num computador com dados importantes. JWM é somente o ambiente temporário do instalador; KDE continua sendo o desktop pretendido no sistema instalado. Consulte `docs/RELEASES.md` e `docs/PROTOTYPE.md` antes de testar.
-
+A ISO [WHPX offline-catalog-progress](https://github.com/Mateus-Neinas/brasaOS/releases/tag/brasa-whpx-offline-catalog-progress-2026-10-27) inicia o ambiente live e abre o assistente gráfico. Em QEMU/WHPX com 8 GB de RAM, o teste chegou à seleção e confirmação do QCOW2 descartável, baixou a base FreeBSD e iniciou a instalação com progresso visível. O teste foi encerrado antes de concluir para liberar memória do Windows. A tentativa de instalar os componentes live pelo catálogo local falhou e usou a atualização pela internet como alternativa. O sistema instalado, KDE, áudio USB e Wine não foram validados. Não use esta imagem num computador com dados importantes. JWM é somente o ambiente temporário do instalador; KDE continua sendo o desktop pretendido no sistema instalado. Consulte `docs/RELEASES.md` e `docs/PROTOTYPE.md` antes de testar.
 ## O que funciona nesta mídia
 
 - Inicia o instalador padrão do FreeBSD pelo menu **Boot Brasa**; também tenta abrir o assistente gráfico experimental.
@@ -15,7 +14,7 @@ A [ISO experimental WHPX com VirtIO GPU e progresso de pacotes](https://github.c
 
 ## Limitações conhecidas
 
-- A instalação da base FreeBSD ainda não foi concluída pelo assistente gráfico; no último teste, a escrita do QCOW2 parou após o download da base.
+- A instalação da base FreeBSD ainda não foi concluída pelo assistente gráfico; o último teste iniciou o download e foi encerrado para liberar memória do Windows.
 - `scripts/brasa-install-assistant` tem etapas visuais para conta, senha, seleção de disco e confirmação destrutiva. O instalador processou os componentes live e baixou a base, mas ainda não foi validado até o primeiro boot.
 - A instalação e o primeiro login ainda precisam ser validados num ambiente live real antes de usar em um computador com dados importantes.
 - O driver FreeBSD `uaudio` fornece suporte a parte dos dispositivos USB Audio Class; a compatibilidade depende do dispositivo e não foi validada contra toda a classe ou contra o macOS.

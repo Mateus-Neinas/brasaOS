@@ -83,9 +83,21 @@ fi
 if [ -r /brasa/BRASA_PKG_CACHE_TAR ]; then
   say 'Usando os pacotes incluídos na mídia.'
   tar -xf /brasa/BRASA_PKG_CACHE_TAR -C /var >> "$log" 2>&1 || failed
-  run_logged 'Atualizando o catálogo de pacotes...' pkg update -f || failed
-  run_logged 'Instalando os componentes gráficos locais...' pkg install -y \
-    xorg-minimal xinit jwm zenity dejavu xf86-video-vesa xf86-video-scfb || failed
+  if [ -r /brasa/BRASA_PKG_REPOSITORY_DB ] && [ -r /brasa/BRASA_PKG_REPOSITORY_META ]; then
+    install -d -m 0755 /var/db/pkg/repos/FreeBSD-ports >> "$log" 2>&1 || failed
+    cp /brasa/BRASA_PKG_REPOSITORY_DB /var/db/pkg/repos/FreeBSD-ports/db >> "$log" 2>&1 || failed
+    cp /brasa/BRASA_PKG_REPOSITORY_META /var/db/pkg/repos/FreeBSD-ports/meta >> "$log" 2>&1 || failed
+    say 'Catálogo de pacotes pronto na mídia.'
+  fi
+  if run_logged 'Instalando os componentes gráficos locais...' pkg install -l -y \
+    xorg-minimal xinit jwm zenity dejavu xf86-video-vesa xf86-video-scfb; then
+    :
+  else
+    say 'O cache local está incompleto; vou atualizar o catálogo e completar pela internet.'
+    run_logged 'Atualizando o catálogo de pacotes...' pkg update -f || failed
+    run_logged 'Completando os componentes gráficos pela internet...' pkg install -y \
+      xorg-minimal xinit jwm zenity dejavu xf86-video-vesa xf86-video-scfb || failed
+  fi
 else
   say 'Baixando os componentes gráficos. É necessária uma conexão com a internet.'
   run_logged 'Instalando a interface gráfica mínima...' pkg install -y \

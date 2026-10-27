@@ -28,6 +28,8 @@ VIRTIO_GPU_FILES = {
     '/boot/modules/virtio_gpu_qemu.ko': 'virtio_gpu_qemu.ko',
     '/usr/local/share/X11/xorg.conf.d/20-virtio-gpu-qemu.conf': 'virtio_gpu_qemu_xorg.conf',
 }
+PKG_REPO_DB_MEMBER = 'db/pkg/repos/FreeBSD-ports/db'
+PKG_REPO_META_MEMBER = 'db/pkg/repos/FreeBSD-ports/meta'
 
 def parse_args():
     output = ROOT / '.build/Brasa-live-experimental.iso'
@@ -98,11 +100,16 @@ def prune_package_cache(source, destination, temporary_directory):
     with tarfile.open(source, 'r:*') as archive:
         catalog_member = next((member for member in archive.getmembers()
                                if member.name.endswith('db/pkg/repos/FreeBSD-ports/db')), None)
-        if catalog_member is None:
+        catalog_meta_member = next((member for member in archive.getmembers()
+                                    if member.name.endswith('db/pkg/repos/FreeBSD-ports/meta')), None)
+        if catalog_member is None or catalog_meta_member is None:
             raise RuntimeError('O cache não contém o catálogo FreeBSD-ports necessário para reduzir os pacotes.')
         catalog_path = temporary_directory / 'freebsd-ports.sqlite'
         with catalog_path.open('wb') as catalog_file:
             catalog_file.write(archive.extractfile(catalog_member).read())
+        catalog_meta_path = temporary_directory / 'freebsd-ports.meta'
+        with catalog_meta_path.open('wb') as catalog_meta_file:
+            catalog_meta_file.write(archive.extractfile(catalog_meta_member).read())
 
         database = sqlite3.connect(catalog_path)
         try:
@@ -148,6 +155,8 @@ def prune_package_cache(source, destination, temporary_directory):
             included_packages = 0
             with tarfile.open(destination, 'w') as output:
                 for member in all_members:
+                    if member.name in (PKG_REPO_DB_MEMBER, PKG_REPO_META_MEMBER):
+                        continue
                     if member.name.startswith('cache/pkg/') and member.name.endswith('.pkg'):
                         if member.name not in keep_paths:
                             continue
@@ -158,6 +167,7 @@ def prune_package_cache(source, destination, temporary_directory):
                   f'{included_packages}/{original_packages} arquivos de pacote preservados.')
         finally:
             database.close()
+        return catalog_path, catalog_meta_path
 
 def main():
     if not SOURCE.is_file():
@@ -209,6 +219,7 @@ def main():
                 replace_paths.append('/BOOT/LOADER.CONF;1')
             for path in replace_paths:
                 image.rm_file(iso_path=path)
+            pkg_repo_catalog = None
             if PACKAGE_CACHE_ISO:
                 cache_archive = temp / 'brasa-pkg-cache.tar'
                 cache_image = pycdlib.PyCdlib()
@@ -221,7 +232,7 @@ def main():
                 finally:
                     cache_image.close()
                 pruned_cache = temp / 'brasa-pkg-cache-pruned.tar'
-                prune_package_cache(cache_archive, pruned_cache, temp)
+                pkg_repo_catalog = prune_package_cache(cache_archive, pruned_cache, temp)
                 image.add_file(str(pruned_cache), iso_path='/BRASA/BRASA_PKG_CACHE_TAR;1', rr_name='BRASA_PKG_CACHE_TAR')
             if VIRTIO_GPU_QEMU:
                 image.add_file(str(temp / 'loader.conf'), iso_path='/BOOT/LOADER.CONF;1', rr_name='loader.conf')
@@ -233,6 +244,11 @@ def main():
             image.add_file(str(temp / 'rc.conf'), iso_path='/ETC/RC.CONF;1', rr_name='rc.conf')
             image.add_file(str(package), iso_path='/BRASA/BRASA_PROJECT_TAR_GZ;1', rr_name='BRASA_PROJECT_TAR_GZ')
             image.add_file(str(ROOT / 'scripts/brasa-live-start'), iso_path='/BRASA/BRASA_LIVE_START;1', rr_name='brasa-live-start')
+            if pkg_repo_catalog:
+                image.add_file(str(pkg_repo_catalog[0]), iso_path='/BRASA/BRASA_PKG_REPOSITORY_DB;1',
+                               rr_name='BRASA_PKG_REPOSITORY_DB')
+                image.add_file(str(pkg_repo_catalog[1]), iso_path='/BRASA/BRASA_PKG_REPOSITORY_META;1',
+                               rr_name='BRASA_PKG_REPOSITORY_META')
             image.write(str(OUTPUT))
     finally:
         image.close()
@@ -243,7 +259,9 @@ def main():
             raise RuntimeError('O catálogo de boot foi perdido.')
         required_paths = ['/etc/rc.local', '/brasa/brasa-live-start', '/brasa/BRASA_PROJECT_TAR_GZ']
         if PACKAGE_CACHE_ISO:
-            required_paths.append('/brasa/BRASA_PKG_CACHE_TAR')
+            required_paths.extend(['/brasa/BRASA_PKG_CACHE_TAR',
+                                   '/brasa/BRASA_PKG_REPOSITORY_DB',
+                                   '/brasa/BRASA_PKG_REPOSITORY_META'])
         if VIRTIO_GPU_QEMU:
             required_paths.extend(['/boot/loader.conf', '/boot/modules/virtio_gpu_qemu.ko',
                                    '/brasa/virtio_gpu_qemu_xorg.conf'])

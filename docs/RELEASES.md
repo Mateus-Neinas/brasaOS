@@ -100,3 +100,14 @@ O teste com a ISO publicada chegou à confirmação explícita e iniciou no disc
 - Mudanças: o progresso interpreta os contadores `[atual/total]` das linhas de instalação e extração do `pkg`; o bootstrap usa Plasma KDE com Konsole, Dolphin e Ark em vez do metapacote completo `kde`. KDE permanece o desktop instalado pretendido.
 - Testada em QEMU 11.1/WHPX com 8 GB de RAM, 4 vCPUs, VirtIO GPU e QCOW2 descartável de 40 GB. O boot gráfico, o cadastro, a seleção de `vtbd0`, a confirmação destrutiva e a extração dos pacotes live passaram. O instalador baixou `base.txz` (156 MB), mas a escrita no QCOW2 parou em 1.270.431.744 bytes por mais de quatro minutos, com CPU do QEMU ainda ocupada; a janela só mostrava o tempo da etapa, sem explicar a atividade. A VM foi encerrada. Instalação concluída, primeiro boot, KDE, áudio USB, Wine e hardware real não foram validados.
 - O QCOW2 deste reteste fica em `%TEMP%` até uma próxima release. A ISO base `dist/Brasa-15.1-amd64.iso` permanece preservada. A imagem é experimental e não deve ser usada em disco com dados importantes.
+
+
+## ISO WHPX offline-catalog-progress (27/10/2026)
+
+- Tag da release: [`brasa-whpx-offline-catalog-progress-2026-10-27`](https://github.com/Mateus-Neinas/brasaOS/releases/tag/brasa-whpx-offline-catalog-progress-2026-10-27)
+- Arquivo: `Brasa-live-whpx-offline-catalog-progress.iso`
+- Tamanho: 1.072.185.344 bytes
+- SHA-256: `46128E44AE12515E2386B6E406198E8FC7420E71C921C27978964627FAC3EED8`
+- Mudanças: exporta o catálogo FreeBSD-ports embutido separadamente do cache para o sistema live e preserva o fallback para pacotes pela internet. A mensagem de progresso agora usa rótulos compreensíveis quando `bsdinstall` não informa a etapa.
+- Testada em QEMU 11.1/WHPX com 8 GB de RAM, 4 vCPUs, VirtIO GPU e QCOW2 descartável de 40 GB. O ambiente gráfico, cadastro, seleção/confirmação de `vtbd0` e início da instalação passaram. `pkg install -l` não usou os pacotes locais, então houve atualização do catálogo online e extração dos 133 componentes gráficos. O assistente iniciou o download de `base.txz` com progresso visível. QEMU foi encerrado antes da conclusão para liberar memória do Windows, com uso de memória perto de 6 GB. A instalação completa, primeiro boot, KDE, Wine, áudio USB e hardware real não foram validados.
+- O QCOW2 deste teste fica em `%TEMP%` até outra ISO ser versionada. `dist/Brasa-15.1-amd64.iso` e `.build/freebsd-bootonly.iso` são imagens base e permanecem preservadas. A ISO experimental não deve ser usada em disco com dados importantes.

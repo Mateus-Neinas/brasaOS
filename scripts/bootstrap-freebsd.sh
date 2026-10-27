@@ -78,13 +78,28 @@ fi
 sysrc dbus_enable="YES"
 sysrc sddm_enable="YES"
 sysrc kld_list+="snd_uaudio"
+
+repo_catalog_ready=no
+if [ -f /var/db/brasa-live-repo-catalog-ready ]; then
+  repo_catalog_ready=yes
+  export REPO_AUTOUPDATE=no
+fi
+install_packages() {
+  if [ "$repo_catalog_ready" = yes ]; then
+    if pkg install -U -y "$@"; then return 0; fi
+    msg "Atualizando o catálogo de pacotes para concluir a instalação."
+    pkg update -f
+  fi
+  pkg install -y "$@"
+}
+
 msg "Instalando o desktop KDE Plasma e os aplicativos essenciais."
-pkg install -y plasma6-plasma konsole dolphin ark sddm xorg drm-kmod zenity
+install_packages plasma6-plasma konsole dolphin ark sddm xorg drm-kmod zenity
 
 install_optional() {
   if pkg rquery '%n' "$1" 2>/dev/null | grep -qx "$1"; then
     msg "Instalando o componente opcional $1."
-    pkg install -y "$1"
+    install_packages "$1"
   else
     echo "brasa: optional package '$1' is unavailable; skipped."
   fi
@@ -102,7 +117,7 @@ else
   install_optional pipewire-spa-oss-ng
 fi
 if pkg rquery '%n' wine 2>/dev/null | grep -qx wine; then
-  pkg install -y wine
+  install_packages wine
   install_optional wine-gecko
   install_optional wine-mono
 else
@@ -140,6 +155,7 @@ EOF
   chown "$brasa_user:$brasa_group" "$brasa_home/.config/autostart/brasa-pipewire.desktop"
 fi
 if [ "${1-}" = --installing-from-live ]; then
+  rm -f /var/db/brasa-live-repo-catalog-ready
   msg "Desktop Brasa configurado para $brasa_user."
 else
   msg "O desktop Brasa foi configurado para $brasa_user. A senha de administrador e de login é a mesma. Reinicie para entrar no desktop."

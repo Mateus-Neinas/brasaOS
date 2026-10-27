@@ -196,6 +196,14 @@ progress_pipe=$progress_dir/progress
 dist_dir=$(mktemp -d /tmp/brasa-distributions.XXXXXX)
 bsdinstall_log=$dist_dir/bsdinstall.log
 dist_site='https://download.freebsd.org/releases/amd64/amd64/15.1-RELEASE'
+brasa_repo_db=/dev/null
+brasa_repo_meta=/dev/null
+brasa_repo_catalog_available=no
+if [ -r /brasa/BRASA_PKG_REPOSITORY_DB ] && [ -r /brasa/BRASA_PKG_REPOSITORY_META ]; then
+  brasa_repo_db=/brasa/BRASA_PKG_REPOSITORY_DB
+  brasa_repo_meta=/brasa/BRASA_PKG_REPOSITORY_META
+  brasa_repo_catalog_available=yes
+fi
 mkfifo "$progress_pipe"
 chmod 600 "$password_file" "$name_file" "$install_script" "$install_log"
 cleanup() {
@@ -214,6 +222,8 @@ cat > "$install_script" <<EOF
 PARTITIONS="$selected_disk"
 DISTRIBUTIONS="base.txz kernel.txz"
 export BSDINSTALL_DISTSITE="$dist_site"
+BRASA_REPO_CATALOG_AVAILABLE="$brasa_repo_catalog_available"
+export BRASA_REPO_CATALOG_AVAILABLE
 
 #!/bin/sh
 set -eu
@@ -221,6 +231,12 @@ username="$username"
 EOF
 cat >> "$install_script" <<'EOF'
 IFS= read -r full_name <&6
+if [ "$BRASA_REPO_CATALOG_AVAILABLE" = yes ]; then
+  mkdir -p /var/db/pkg/repos/FreeBSD-ports
+  cat <&10 > /var/db/pkg/repos/FreeBSD-ports/db
+  cat <&11 > /var/db/pkg/repos/FreeBSD-ports/meta
+  : > /var/db/brasa-live-repo-catalog-ready
+fi
 mkdir -p /tmp/brasa-source
 tar -xzf - -C /tmp/brasa-source <&7
 pw useradd -n "$username" -m -d "/home/$username" -s /bin/sh -G wheel,video,operator -c "$full_name"
@@ -302,7 +318,8 @@ process_is_running() {
   # output to a log, so a TTY would make the extraction UI invisible. Keep its
   # input non-interactive; bsdinstall then extracts distributions with tar.
   bsdinstall script "$install_script" 6< "$name_file" 7< "$brasa_payload" \
-    8< "$password_file" 9< "$password_file" < /dev/null >> "$install_log" 2>&1 &
+    8< "$password_file" 9< "$password_file" 10< "$brasa_repo_db" 11< "$brasa_repo_meta" \
+    < /dev/null >> "$install_log" 2>&1 &
   bsdinstall_pid=$!
   last_percentage=68
   last_reported_percentage=-1
@@ -319,10 +336,6 @@ process_is_running() {
     # plain-language fallback if neither log has a user-facing line.
     case "$progress_message" in
       DEBUG:*) progress_message=$output_line ;;
-    esac
-    [ -n "$progress_message" ] || progress_message='Instalando o sistema no disco. Esta etapa pode levar vários minutos.'
-    case "$progress_message" in
-      DEBUG:*) progress_message='Configurando o sistema instalado. Esta etapa pode levar alguns minutos.' ;;
     esac
     case "$progress_source" in
       *distextract*|*extract*)
@@ -355,7 +368,17 @@ process_is_running() {
     elif [ "$last_percentage" -lt 94 ] && [ -n "$output_line" ]; then
       case "$output_line" in *Installing*|*Fetching*|*pkg*) last_percentage=94 ;; esac
     fi
-    progress_message=$(printf '%s' "$progress_message" | tr '\t\r\n' '   ' | cut -c 1-180)
+    progress_message=$(printf '%s' "$progress_message" | tr '\t\r\n' '   ' | \
+      sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//' | cut -c 1-180)
+    if [ -z "$progress_message" ] || [ "${progress_message#DEBUG:}" != "$progress_message" ]; then
+      case "$progress_source" in
+        *distextract*|*extract*) progress_message='Instalando os arquivos do FreeBSD no disco...' ;;
+        *bootconfig*) progress_message='Preparando a inicialização do sistema instalado...' ;;
+        *rootpass*) progress_message='Configurando a conta de administração...' ;;
+        *config*) progress_message='Configurando o sistema instalado...' ;;
+        *) progress_message='Instalando o Brasa no disco escolhido. Esta etapa pode levar alguns minutos.' ;;
+      esac
+    fi
     elapsed_seconds=$((elapsed_seconds + 2))
     if [ "$last_percentage" -eq "$last_reported_percentage" ] && [ "$progress_message" = "$last_reported_message" ]; then
       progress_message="$progress_message (${elapsed_seconds}s nesta etapa)"

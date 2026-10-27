@@ -31,7 +31,7 @@ O protótipo usa o driver nativo do FreeBSD e oferece lista de dispositivos `pcm
 
 ## Estado verificável
 
-O workspace possui uma ISO Brasa baseada no FreeBSD 15.1 `bootonly`, bootstrap, tema KDE, utilitários de áudio, importador Wine e um fluxo visual de instalação em desenvolvimento. A ISO experimental mais recente inicia um ambiente live JWM e o assistente gráfico. Em QEMU/WHPX com VirtIO GPU, a conta, seleção/confirmação do QCOW2 descartável e extração dos componentes live funcionaram. A etapa baixou a base FreeBSD, mas não concluiu: o QCOW2 parou de receber gravações por mais de quatro minutos enquanto a CPU continuava ocupada. A imagem está publicada como experimento e não deve ser usada em disco com dados. O sistema instalado, sessão KDE, áudio USB e Wine ainda não foram validados. `scripts/self-check.sh` usa comandos simulados e não substitui esses testes. Veja [docs/PROTOTYPE.md](PROTOTYPE.md).
+O workspace possui uma ISO Brasa baseada no FreeBSD 15.1 `bootonly`, bootstrap, tema KDE, utilitários de áudio, importador Wine e um fluxo visual de instalação em desenvolvimento. A ISO experimental mais recente inicia um ambiente live JWM e o assistente gráfico. Em QEMU/WHPX com 8 GB, o teste confirmou o QCOW2 descartável, instalou os componentes live via fallback pela internet, iniciou o download da base e exibiu progresso. A VM foi encerrada antes da conclusão para liberar memória do Windows. A imagem está publicada como experimento e não deve ser usada em disco com dados. O sistema instalado, sessão KDE, áudio USB e Wine ainda não foram validados. `scripts/self-check.sh` usa comandos simulados e não substitui esses testes. Veja [docs/PROTOTYPE.md](PROTOTYPE.md).
 
 ## Referências
 
