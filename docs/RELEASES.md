@@ -35,10 +35,10 @@ Para publicar manualmente pelo GitHub, crie uma release em `https://github.com/M
 
 ## ISO zenity-argv-fix (27/10/2026)
 
-- Tag: `brasa-zenity-argv-fix-2026-10-27`
+- Tag publicada: [`brasa-zenity-argv-fix-2026-10-27`](https://github.com/Mateus-Neinas/brasaOS/releases/tag/brasa-zenity-argv-fix-2026-10-27)
 - Arquivo: `Brasa-live-zenity-argv-fix.iso`
 - Tamanho:1.305.524.224bytes
 -Tamanho:1.305.524.224bytes
 -SHA-256:`560B3AE1E5BDEFCA26CAC390A30725CE4F1341E90E850B0A734474BFE2DCBC0C`.
 - Estado: experimental. A lista de discos passa as linhas como argumentos individuais do Zenity e marca somente o primeiro disco elegível. A seleção resultante continua sendo comparada com os nomes de disco obtidos pelo sistema antes de qualquer operação destrutiva.
-- Testes pendentes: integridade da ISO, boot em QEMU, retorno real da seleção e instalação.
+- Validada em QEMU: inicialização live, seleção pré-marcada de `vtbd0` e abertura da confirmação final com o disco e a capacidade visíveis. A instalação começou após a confirmação. A tela ficou preta durante a extração da base, sem progresso de escrita por dois intervalos de 30 s; o QCOW2 registrava 782.883.840 bytes gravados e a memória livre do Windows caiu para cerca de 1,2 GB. A VM foi encerrada e o disco temporário removido. A instalação não terminou; primeiro login, KDE, áudio USB, Wine e hardware real não foram testados.

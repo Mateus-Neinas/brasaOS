@@ -94,3 +94,10 @@ O código foi alterado para pedir todas as colunas da linha selecionada e locali
 ### Entrada da lista Zenity em colunas (27/10/2026)
 
 O segundo boot da ISO `Brasa-live-picker-output-fix.iso` confirmou que a interface inicia, mas o botão de avanço apresentou “A seleção do disco não foi reconhecida”. O QCOW2 de 40 GB continuou sem instalação. A lógica de correspondência foi simulada isoladamente e retornou `vtbd0`; o valor impresso pelo Zenity na execução real ainda não foi decodificado como esperado. Para evitar a ambiguidade do formato de múltiplas colunas pela entrada padrão, a quarta variante constrói os argumentos Zenity coluna por coluna e deixa apenas o primeiro disco elegível inicialmente marcado. Nenhuma alteração ao disco ocorre até à confirmação explícita.
+
+
+### Seleção confirmada e travamento durante instalação (27/10/2026)
+
+A quarta variante `Brasa-live-zenity-argv-fix.iso` foi inicializada em QEMU com 6 GB de RAM, 128 MB de VGA, TCG e disco QCOW2 de 40 GB. O assistente mostrou `vtbd0` como primeira opção selecionada; após Tab/Tab/Enter, a confirmação final exibiu o disco correto. Isso confirma o fluxo gráfico de seleção e a passagem do nome do disco ao assistente.
+
+Após a confirmação, o instalador baixou e verificou os arquivos e começou a extração da base. A janela então ficou preta. O QMP mostrou QEMU ainda em execução, mas as estatísticas de escrita do dispositivo ficaram em 782.883.840 bytes sem alteração em dois intervalos de 30 segundos, e a CPU quase não avançou; o Windows tinha aproximadamente 1,2 GB livres. A VM foi encerrada e o QCOW2 descartável foi removido. Portanto, o particionamento/instalação completa, o boot instalado, a conta, o KDE e o áudio continuam sem validação. Investigar o desaparecimento da janela e a memória durante a extração é o próximo passo.
