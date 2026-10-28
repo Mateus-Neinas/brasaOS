@@ -4,6 +4,18 @@ Toda imagem ISO criada deve receber uma release própria no GitHub, inclusive qu
 
 Para publicar manualmente pelo GitHub, crie uma release em `https://github.com/Mateus-Neinas/brasaOS/releases/new`, informe a tag correspondente, copie as notas documentadas e anexe a ISO. A release não substitui o histórico de código: faça commits e push dos fontes e documentação separadamente.
 
+## ISO r13: uma passagem de cache e retorno normal do instalador (27/10/2026)
+
+- Tag: `brasa-r13-single-cache-pass-2026-10-27`
+- Arquivo: `Brasa-live-staged-install-r13-single-cache-pass-2026-10-27.iso`
+- Tamanho: 1.285.007.360 bytes
+- SHA-256: `277ED8B68D703C901B22D9A252E182EC80BF85343BB8E846400C58FBBCEE97B2`
+- Mudanças: elimina uma extração temporária redundante de aproximadamente 450 MB do cache de pacotes no boot live; impede que uma saída normal/cancelamento do assistente abra em seguida o instalador texto do FreeBSD; o construtor valida essas duas condições na ISO.
+- Teste em QEMU 11.1/WHPX, `core2duo`, 8 GiB RAM, quatro vCPUs, VirtIO GPU 128 MiB e QCOW2 descartável de 40 GiB: boot live, cadastro por teclado, seleção do único disco virtual `vtbd0` e confirmação de apagamento passaram. A base e o kernel locais foram instalados, e o fluxo chegou à configuração KDE/áudio/suporte. A etapa ficou perto de 10 minutos em 92%; o QCOW parou em 1.259.864.064 bytes e não houve escrita de bloco por vários minutos. O processo QEMU continuou usando CPU. Em seis verificações não havia conexão TCP externa do QEMU; o DNS no host resolvia `pkg.freebsd.org`. A tela e o log serial não identificam o subprocesso. QEMU foi encerrado no limite de diagnóstico e o QCOW descartável removido.
+- A ordem atual instala KDE/Xorg (incluindo `drm-kmod`) primeiro, depois os componentes opcionais PipeWire, Wine e os ajustes finais. Portanto não foi possível confirmar se o atraso era a resolução local da transação de KDE, outro comando anterior ou uma falha de repositório; não havia evidência de download ativo durante as amostras.
+- Não validado: conclusão do KDE, configuração final de suporte à máquina, primeiro boot, Wine, áudio USB class-compliant em hardware real e instalação em computador físico. O driver `snd_uaudio` permanece incluído na base/kernel da mídia. Release experimental; não use em disco com dados importantes. A ISO base `dist/Brasa-15.1-amd64.iso` foi preservada.
+
+
 ## ISO r9: KDE reduzido e cache live restaurado (27/10/2026)
 
 - Tag da release: [`brasa-r9-kde-reduced-cache-fallback-2026-10-27`](https://github.com/Mateus-Neinas/brasaOS/releases/tag/brasa-r9-kde-reduced-cache-fallback-2026-10-27)

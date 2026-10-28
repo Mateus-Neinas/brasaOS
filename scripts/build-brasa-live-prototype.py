@@ -304,7 +304,11 @@ def main():
             raise RuntimeError('O arquivo de inicialização da mídia não é o esperado.')
         hook = (b'# Experimental Brasa live desktop; fall back to stock installer on failure.\n'
                 b'if [ -r /brasa/brasa-live-start ]; then\n'
-                b'    /bin/sh /brasa/brasa-live-start || true\n'
+                b'    if /bin/sh /brasa/brasa-live-start; then\n'
+                b'        # A normal exit, including a cancel choice, must not\n'
+                b'        # fall through to a second, unrelated text installer.\n'
+                b'        exit 0\n'
+                b'    fi\n'
                 b'fi\n\n')
         rc = old_rc.replace(anchor, anchor + b'\n' + hook)
         rc_conf = read_rr(image, '/etc/rc.conf') + b'\ntmpsize="1g"\nvarsize="1g"\n'
@@ -412,6 +416,14 @@ def main():
     try:
         if not check.eltorito_boot_catalog:
             raise RuntimeError('O catálogo de boot foi perdido.')
+        rc_local = read_rr(check, '/etc/rc.local')
+        if (b'if /bin/sh /brasa/brasa-live-start; then' not in rc_local or
+                b'        exit 0\n' not in rc_local):
+            raise RuntimeError('A saída normal do live Brasa ainda cai no instalador texto do FreeBSD.')
+        live_start = read_rr(check, '/brasa/brasa-live-start')
+        if (b'brasa-pkg-seed' in live_start or
+                live_start.count(b'tar -xf /brasa/BRASA_PKG_CACHE_TAR -C /var') != 1):
+            raise RuntimeError('O cache de pacotes live deve ser extraído apenas uma vez para /var.')
         required_paths = ['/etc/rc.local', '/brasa/brasa-live-start', '/brasa/BRASA_PROJECT_TAR_GZ',
                           '/brasa/freebsd-dist/MANIFEST', '/brasa/freebsd-dist/base.txz',
                           '/brasa/freebsd-dist/kernel.txz']
