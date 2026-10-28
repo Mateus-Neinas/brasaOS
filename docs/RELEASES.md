@@ -221,3 +221,13 @@ O teste com a ISO publicada chegou à confirmação explícita e iniciou no disc
 - Mudanças: limita os downloads do `pkg` a 30 segundos por arquivo e uma repetição; separa a configuração pós-instalação em KDE/aplicativos essenciais, áudio USB/PipeWire e Wine/Gecko/Mono, com mensagens de etapa. Mantém `snd_uaudio` habilitado e usa o cache gráfico r7 como base do ambiente live, preservando fallback online.
 - Teste QEMU/TCG com 8 GiB RAM, 4 vCPUs, VGA 128 MiB e QCOW2 descartável de 40 GB: o live processou o catálogo de 38.288 pacotes, extraiu os componentes gráficos locais e completou 11 dependências restantes pela rede; o assistente gráfico abriu e o menu Installer do FreeBSD foi alcançado. A sessão foi interrompida antes de escolher ou alterar o disco. WHPX parou em `random: unblocking device.` nesta máquina.
 - As três transações novas de pós-instalação, a instalação completa, primeiro boot, KDE instalado, Wine, áudio USB em hardware e estabilidade em máquina real não foram validados. Release experimental; não use num disco com dados importantes. A imagem base foi preservada.
+
+## ISO Brasa staged install r11 WHPX VirtIO (27/10/2026)
+
+- Tag: `brasa-r11-whpx-virtio-2026-10-27`
+- Arquivo: `Brasa-live-staged-install-r11-whpx-2026-10-27.iso`
+- Tamanho: 1.285.005.312 bytes
+- SHA-256: `1BFFE9477FB3C68CA6CADFF16AE2FE7DD3108F8FE487B5E493A2AB6AFAAD3D41`
+- Mudança: inclui o módulo oficial `virtio-gpu-qemu-kmod` e configuração do framebuffer para testar a interface live com VGA VirtIO sob WHPX; preserva o KDE planejado, `snd_uaudio`, instalador gráfico e fallback online.
+- Testada em QEMU 11.1/WHPX, 8 GiB RAM, 4 vCPUs, VirtIO GPU com 128 MiB e QCOW2 descartável de 40 GiB. O boot avançou além da mensagem `random: unblocking device`, preparou a rede, instalou dependências gráficas locais e buscou 11 componentes restantes pela rede; a janela de boas-vindas do Brasa abriu. O canal de teclado/QMP deixou de responder na tela inicial. Nenhuma conta ou partição foi criada e o instalador FreeBSD não foi iniciado. O QCOW2 descartável foi removido.
+- Não validados: instalação completa, primeiro boot, KDE instalado, Wine/Proton, áudio USB em equipamento físico e instalação em hardware real. Release experimental; não use num disco com dados importantes. A ISO base permanece preservada.
