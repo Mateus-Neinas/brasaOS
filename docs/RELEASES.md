@@ -10,7 +10,7 @@ Todas as alterações de código e os resultados de cada build devem ser version
 - Mudanças: preserva a correção de DNS da r35 e transmite para a janela de progresso a linha atual do script pós-instalação. A saída serial de diagnóstico foi removida.
 - Build validado pelo construtor. Em QEMU/WHPX com 8 GiB RAM, 4 vCPUs e VirtIO GPU de 128 MiB, o assistente abriu, mostrou somente `vtbd0` de 40 GiB e instalou a base/kernel, conta, KDE, componentes de áudio e Wine. A confirmação de sucesso apareceu após cerca de 7 minutos.
 - A linha da interface acompanhou as etapas de pacote, inclusive a extração de KDE e instalação de Wine; o disco recebeu gravações durante a instalação.
-- Primeiro boot do QCOW sem ISO não chegou à tela gráfica: após mensagens iniciais do kernel, a tela ficou preta e QEMU permaneceu ativo. O QCOW permanece aberto em `%TEMP%\Brasa-r36-test.qcow2` para inspeção.
+- Primeiro boot do QCOW sem ISO não chegou à tela gráfica: após mensagens iniciais do kernel, a tela ficou preta e QEMU permaneceu ativo. Repetir com VGA padrão também ficou preto, então o problema não parece exclusivo do driver VirtIO. O QCOW permanece aberto em `%TEMP%\Brasa-r36-test.qcow2` para inspeção.
 - Nenhuma unidade física foi conectada. KDE está instalado, mas login/desktop em execução, Wine funcional e áudio USB físico ainda não foram validados. r36 é a única ISO Brasa local; as imagens-base foram preservadas e nenhum asset ISO foi publicado no GitHub.
 
 ### r29–r35: correções do fluxo pós-instalação (28/10/2026)
