@@ -1,25 +1,18 @@
 # Brasa OS — protótipo de instalador
 
-Brasa é um protótipo x86-64 baseado em FreeBSD. O objetivo é oferecer uma instalação gráfica simples, KDE preservado, Wine e suporte a interfaces de áudio USB class-compliant. Ainda não está pronto para instalar num computador de uso diário.
+Brasa é um protótipo x86-64 baseado em FreeBSD. O objetivo é oferecer instalação gráfica simples, desktop KDE, suporte a áudio USB class-compliant e execução de alguns aplicativos Windows por Wine. Ainda não está pronto para instalar num computador de uso diário.
 
-## Estado da imagem experimental mais recente
+## Estado da ISO
 
-A ISO local mais recente é r28 (`.build/Brasa-live-r28-fd-fix-2026-10-28.iso`). O r27 confirmou que o seletor gráfico e a instalação da base/kernel local funcionam, mas revelou `Bad fd number` ao copiar o catálogo no script pós-instalação: `/bin/sh` não aceita os descritores 10 e 11. A r28 troca por 4 e 5; o build passou, mas o ensaio gráfico não confirmou a correção. KDE instalado, primeiro boot, Wine e áudio USB em hardware real seguem sem validação. Consulte `docs/RELEASES.md` para hash e resultados. As imagens são experimentais; não use num computador com dados importantes. JWM é somente o ambiente temporário do instalador; KDE continua sendo o desktop pretendido no sistema instalado. Consulte `docs/PROTOTYPE.md` antes de testar.
+A única ISO Brasa mantida localmente é `.build/Brasa-live-r36-install-progress-2026-10-28.iso` (SHA-256 `D9A931F7F741326A1791A6A02EC70AED4418F57BC2E81E90DE0099AA4A483475`). Em QEMU, o instalador concluiu a instalação no QCOW de 40 GiB. O boot do disco não chegou à tela de login gráfica; a VM segue aberta no teste. O QCOW fica em `%TEMP%\Brasa-r36-test.qcow2`.
 
-## O que funciona nesta mídia
+Não use esta imagem num disco físico. A base FreeBSD e o kernel vêm na ISO; KDE, Wine e componentes opcionais são instalados pela rede durante a instalação. O módulo `snd_uaudio` está habilitado, mas áudio USB em dispositivo físico ainda não foi testado.
 
-- A instalação no disco virtual ainda não concluiu o pós-instalação; r27 confirmou o fluxo até a configuração do sistema, e r28 ainda não validou o ajuste.
-- Inclui o pacote Brasa em `/BRASA/BRASA_PROJECT_TAR_GZ` e `snd_uaudio.ko` no kernel.
-- KDE instalado, Wine, áudio USB físico e primeiro boot continuam sem validação.
+## Objetivos e limitações
 
-## Limitações conhecidas
+- KDE Plasma continua sendo o desktop instalado pretendido.
+- Wine oferece compatibilidade parcial com aplicativos Windows; não executa drivers Windows.
+- O driver FreeBSD `uaudio` cobre parte dos dispositivos USB Audio Class, sem garantia universal nem paridade com macOS.
+- Instalação em computador físico, primeiro login KDE, áudio USB real e compatibilidade de aplicativos Windows não foram validados.
 
-- A instalação da base FreeBSD e a configuração do desktop ainda não foram concluídas pelo assistente gráfico.
-- `scripts/brasa-install-assistant` tem etapas visuais para conta, senha, seleção de disco e confirmação destrutiva. O instalador processou os componentes live, mas ainda não foi validado até o primeiro boot.
-- A instalação e o primeiro login ainda precisam ser validados num ambiente live real antes de usar em um computador com dados importantes.
-- O driver FreeBSD `uaudio` fornece suporte a parte dos dispositivos USB Audio Class; a compatibilidade depende do dispositivo e não foi validada contra toda a classe ou contra o macOS.
-- Wine executa alguns programas Windows em espaço de usuário. Não executa drivers Windows nem garante compatibilidade geral.
-
-## Desenvolvimento
-
-Leia `docs/PROJECT.md`, `docs/PROTOTYPE.md`, `docs/RELEASES.md` e `docs/USB-AUDIO.md` antes de tentar instalar. Mantenha qualquer teste numa máquina virtual descartável. A compatibilidade de áudio USB depende do dispositivo, e a instalação completa, o primeiro login, KDE e Wine ainda precisam ser validados.
+Leia `docs/PROJECT.md`, `docs/PROTOTYPE.md`, `docs/RELEASES.md` e `docs/USB-AUDIO.md`. Enquanto o boot do disco não for confirmado, mantenha os testes em QCOW descartável e não publique ISO como release.

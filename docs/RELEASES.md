@@ -2,16 +2,20 @@
 
 Todas as alterações de código e os resultados de cada build devem ser versionados e documentados no Git. Enquanto as imagens forem instáveis, mantenha localmente somente a ISO mais recente; não publique assets experimentais no GitHub. Preserve as ISOs-base. Depois que uma instalação completar e iniciar KDE pelo disco instalado, a próxima release poderá receber título `beta_1.x`.
 
-## ISO experimental mais recente: r28 (28/10/2026)
+## ISO experimental mais recente: r36 (28/10/2026)
 
-- Arquivo local: `.build/Brasa-live-r28-fd-fix-2026-10-28.iso`
-- Tamanho: 1.285.015.552 bytes
-- SHA-256: `D2EEF66148C30F743426946A398E3215DB9FD767BA67A51AB4D226401379A78F`
-- Mudança: os descritores usados pelo script pós-instalação para ler o catálogo passam de 10/11 para 4/5, compatíveis com o `/bin/sh` FreeBSD.
-- Build verificado. O teste r28 não chegou a validar o diálogo de instalação: a captura do QEMU alternou entre console e tela preta. Seu QCOW descartável foi removido e o QEMU encerrado.
-- A r27 confirmou o seletor gráfico e mostrou somente `vtbd0` (40 GiB), o QCOW descartável. Após confirmação, a instalação local de base/kernel passou; o script pós-instalação parou na cópia do catálogo com `/tmp/installscript: 14: Syntax error: Bad fd number` (status 2). Não foi identificado defeito no `bsdconfig`: o erro ocorreu depois dessa etapa, no script de Brasa.
-- r26 e r27 foram removidas após a criação da r28. Esta é a única ISO Brasa mantida localmente; imagens-base preservadas. Nenhuma ISO experimental foi publicada no GitHub.
-- A instalação completa, KDE no disco, primeiro boot, Wine, áudio USB físico e hardware real continuam sem validação.
+- Arquivo local: `.build/Brasa-live-r36-install-progress-2026-10-28.iso`
+- Tamanho: 1.285.017.600 bytes
+- SHA-256: `D9A931F7F741326A1791A6A02EC70AED4418F57BC2E81E90DE0099AA4A483475`
+- Mudanças: preserva a correção de DNS da r35 e transmite para a janela de progresso a linha atual do script pós-instalação. A saída serial de diagnóstico foi removida.
+- Build validado pelo construtor. Em QEMU/WHPX com 8 GiB RAM, 4 vCPUs e VirtIO GPU de 128 MiB, o assistente abriu, mostrou somente `vtbd0` de 40 GiB e instalou a base/kernel, conta, KDE, componentes de áudio e Wine. A confirmação de sucesso apareceu após cerca de 7 minutos.
+- A linha da interface acompanhou as etapas de pacote, inclusive a extração de KDE e instalação de Wine; o disco recebeu gravações durante a instalação.
+- Primeiro boot do QCOW sem ISO não chegou à tela gráfica: após mensagens iniciais do kernel, a tela ficou preta e QEMU permaneceu ativo. O QCOW permanece aberto em `%TEMP%\Brasa-r36-test.qcow2` para inspeção.
+- Nenhuma unidade física foi conectada. KDE está instalado, mas login/desktop em execução, Wine funcional e áudio USB físico ainda não foram validados. r36 é a única ISO Brasa local; as imagens-base foram preservadas e nenhum asset ISO foi publicado no GitHub.
+
+### r29–r35: correções do fluxo pós-instalação (28/10/2026)
+
+As tentativas r29–r34 corrigiram problemas sucessivos na passagem de dados e no DNS. O r30 criou a conta e iniciou o bootstrap, mas falhou ao resolver o repositório. A r35 salvou o `resolv.conf` live antes de `bsdinstall config` e o restaurou no sistema-alvo; a resolução de `pkg.freebsd.org` no chroot e a instalação completa foram confirmadas. As ISOs intermediárias foram substituídas localmente, sem assets de release.
 
 ### Resultado do r20: erro do bsdinstall oculto (28/10/2026)
 

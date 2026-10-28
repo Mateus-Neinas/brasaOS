@@ -358,6 +358,17 @@ def main():
             if bsdinstall_script.count(anchor) != 1:
                 raise RuntimeError('Não foi possível localizar uma etapa bsdinstall para exibir o progresso.')
             bsdinstall_script = bsdinstall_script.replace(anchor, replacement)
+        resolver_anchor = b'brasa_phase configurando-brasa\n# Run post-install script\n'
+        resolver_copy = (b'brasa_phase configurando-brasa\n'
+                         b'# bsdinstall config cleans the live resolver link target; use the pre-install snapshot.\n'
+                         b'if [ -s "$BRASA_RESOLV_CONF" ]; then\n'
+                         b'\trm -f $BSDINSTALL_CHROOT/etc/resolv.conf\n'
+                         b'\tcp "$BRASA_RESOLV_CONF" $BSDINSTALL_CHROOT/etc/resolv.conf\n'
+                         b'fi\n'
+                         b'# Run post-install script\n')
+        if bsdinstall_script.count(resolver_anchor) != 1:
+            raise RuntimeError('Não foi possível localizar o ponto de sincronização do DNS no sistema-alvo.')
+        bsdinstall_script = bsdinstall_script.replace(resolver_anchor, resolver_copy)
         postinstall_markers = (
             (b'if [ -f $TMPDIR/bsdinstall-installscript-setup ]; then\n',
              b'brasa_phase bsdinstall-postinstall-copy\n'
@@ -371,17 +382,28 @@ def main():
              b'\tchmod a+x $BSDINSTALL_CHROOT/tmp/installscript\n'),
             (b'\tchroot $BSDINSTALL_CHROOT /tmp/installscript $@ 2>&1\n',
              b'\tbrasa_phase bsdinstall-postinstall-start\n'
-             b'\tprintf "Brasa: executando o script do sistema-alvo com /bin/sh.\\n" > /dev/ttyu0\n'
-             b'\tls -l $BSDINSTALL_CHROOT/tmp/installscript > /dev/ttyu0 2>&1\n'
-             b'\tod -An -tx1 -N16 $BSDINSTALL_CHROOT/tmp/installscript > /dev/ttyu0 2>&1\n'
-             b'\tif chroot $BSDINSTALL_CHROOT /bin/sh /tmp/installscript $@ > $BSDINSTALL_CHROOT/tmp/brasa-installscript.log 2>&1; then\n'
-             b'\t\tcat $BSDINSTALL_CHROOT/tmp/brasa-installscript.log > /dev/ttyu0\n'
-             b'\t\tcat $BSDINSTALL_CHROOT/tmp/brasa-installscript.log\n'
+             b'\tbrasa_log=$BSDINSTALL_CHROOT/tmp/brasa-installscript.log\n'
+             b'\t: > "$brasa_log"\n'
+             b'\tchroot $BSDINSTALL_CHROOT /bin/sh /tmp/installscript $@ > "$brasa_log" 2>&1 &\n'
+             b'\tbrasa_pid=$!\n'
+             b'\tbrasa_last_line=\n'
+             b'\twhile :; do\n'
+             b'\t\tbrasa_state=$(ps -o stat= -p "$brasa_pid" 2>/dev/null || true)\n'
+             b"\t\tcase \"$brasa_state\" in Z*|'') break ;; esac\n"
+             b'\t\tbrasa_line=$(tail -n 1 "$brasa_log" 2>/dev/null || true)\n'
+             b'\t\tif [ -n "$brasa_line" ] && [ "$brasa_line" != "$brasa_last_line" ]; then\n'
+             b'\t\t\tprintf "%s\\n" "$brasa_line"\n'
+             b'\t\t\tbrasa_last_line=$brasa_line\n'
+             b'\t\tfi\n'
+             b'\t\tsleep 2\n'
+             b'\tdone\n'
+             b'\tif wait "$brasa_pid"; then\n'
+             b'\t\tbrasa_line=$(tail -n 1 "$brasa_log" 2>/dev/null || true)\n'
+             b'\t\tif [ -n "$brasa_line" ] && [ "$brasa_line" != "$brasa_last_line" ]; then printf "%s\\n" "$brasa_line"; fi\n'
              b'\t\tbrasa_phase bsdinstall-postinstall-returned\n'
              b'\telse\n'
              b'\t\tbrasa_status=$?\n'
-             b'\t\tcat $BSDINSTALL_CHROOT/tmp/brasa-installscript.log > /dev/ttyu0 2>&1 || true\n'
-             b'\t\tprintf "Brasa: script do sistema-alvo falhou com status %s.\\n" "$brasa_status" > /dev/ttyu0\n'
+             b'\t\tcat "$brasa_log"\n'
              b'\t\texit "$brasa_status"\n'
              b'\tfi\n'),
             (b'\trm $BSDINSTALL_CHROOT/tmp/installscript\n',
@@ -545,7 +567,8 @@ def main():
         for marker in (b'bsdinstall-config-start', b'bsdinstall-config-returned',
                        b'bsdinstall-postinstall-copy', b'bsdinstall-postinstall-chmod',
                        b'bsdinstall-postinstall-start', b'bsdinstall-postinstall-returned',
-                       b'/bin/sh /tmp/installscript'):
+                       b'brasa_state=$(ps -o stat= -p \"$brasa_pid\" 2>/dev/null || true)',
+                       b'cp "$BRASA_RESOLV_CONF" $BSDINSTALL_CHROOT/etc/resolv.conf'):
             if marker not in bsd_script_payload:
                 raise RuntimeError('A ISO precisa identificar a entrada e a saida de bsdinstall config.')
         config_payload = read_rr(check, '/usr/libexec/bsdinstall/config')
@@ -563,10 +586,17 @@ def main():
         if b"bsdinstall-postinstall-start)\n        case \"$output_line\" in" not in assistant:
             raise RuntimeError('O progresso deve preservar a saída real do script pós-instalação.')
         if (b'cat > "$install_script" <<EOF\nPARTITIONS=' not in assistant or
-                b'export BRASA_REPO_CATALOG_AVAILABLE\n\n#!/bin/sh\nset -eu' not in assistant):
+                b'export DISTRIBUTIONS\n\n#!/bin/sh\nset -eu' not in assistant):
             raise RuntimeError('As variáveis bsdinstall precisam ficar antes do separador shebang do script.')
+        if (b'cp -L /etc/resolv.conf "$resolver_file"' not in assistant or
+                b'export BRASA_RESOLV_CONF="$resolver_file"' not in assistant or
+                b'cp "$BRASA_RESOLV_CONF" $BSDINSTALL_CHROOT/etc/resolv.conf' not in bsd_script_payload):
+            raise RuntimeError('A instalação precisa salvar o DNS live antes do bsdinstall config e restaurá-lo no alvo.')
         if b"tr -d '\\015' < \"$install_script\" > \"$install_script.normalized\"" not in assistant:
             raise RuntimeError('O script de pós-instalação precisa remover CR antes de ser executado pelo chroot.')
+        if (b'repo_catalog_file' in assistant or b'cat <&10' in assistant or
+                b'cat <&11' in assistant or b'tar -xf - -C /var/db/pkg/repos' in assistant):
+            raise RuntimeError('O script não deve copiar catálogos com descritores frágeis; o sistema-alvo atualiza via pkg.')
         if b'report_install_processes() {' not in assistant or \
                 b'ps -ax -o pid,ppid,stat,etime,pcpu,command' not in assistant:
             raise RuntimeError('A ISO precisa registrar os processos ativos do instalador durante esperas longas.')

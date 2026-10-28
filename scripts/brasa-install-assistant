@@ -183,6 +183,10 @@ if ! route -n get default >/dev/null 2>&1; then
   done
 fi
 validate_selected_disk
+resolver_file=$(mktemp /tmp/brasa-live-resolv.XXXXXX)
+if [ -r /etc/resolv.conf ]; then
+  cp -L /etc/resolv.conf "$resolver_file" || true
+fi
 
 password_file=$(mktemp /tmp/brasa-password.XXXXXX)
 name_file=$(mktemp /tmp/brasa-name.XXXXXX)
@@ -201,19 +205,11 @@ for distribution in base.txz kernel.txz MANIFEST; do
     fail "A mídia está sem o conjunto local $distribution. Nenhum disco foi alterado."
   }
 done
-brasa_repo_db=/dev/null
-brasa_repo_meta=/dev/null
-brasa_repo_catalog_available=no
-if [ -r /brasa/BRASA_PKG_REPOSITORY_DB ] && [ -r /brasa/BRASA_PKG_REPOSITORY_META ]; then
-  brasa_repo_db=/brasa/BRASA_PKG_REPOSITORY_DB
-  brasa_repo_meta=/brasa/BRASA_PKG_REPOSITORY_META
-  brasa_repo_catalog_available=yes
-fi
 mkfifo "$progress_pipe"
 chmod 600 "$password_file" "$name_file" "$install_script" "$install_log"
 cleanup() {
   unset password
-  rm -f "$password_file" "$name_file" "$install_script" "$progress_pipe"
+  rm -f "$password_file" "$name_file" "$install_script" "$resolver_file" "$progress_pipe"
   rm -f "$install_phase_file"
   rmdir "$progress_dir" 2>/dev/null || true
   rm -f "$bsdinstall_log"
@@ -228,8 +224,6 @@ cat > "$install_script" <<EOF
 PARTITIONS="$selected_disk"
 DISTRIBUTIONS="base.txz kernel.txz"
 export DISTRIBUTIONS
-BRASA_REPO_CATALOG_AVAILABLE="$brasa_repo_catalog_available"
-export BRASA_REPO_CATALOG_AVAILABLE
 
 #!/bin/sh
 set -eu
@@ -240,13 +234,6 @@ printf '\nBrasa: Inicializando as configurações do sistema instalado.\n'
 printf '\nBrasa: Recebendo o nome da conta criada no assistente.\n'
 IFS= read -r full_name <&6
 printf '\nBrasa: Dados da conta recebidos.\n'
-printf '\nBrasa: Copiando o catálogo do repositório para o sistema instalado.\n'
-if [ "$BRASA_REPO_CATALOG_AVAILABLE" = yes ]; then
-  mkdir -p /var/db/pkg/repos/FreeBSD-ports
-  cat <&4 > /var/db/pkg/repos/FreeBSD-ports/db
-  cat <&5 > /var/db/pkg/repos/FreeBSD-ports/meta
-  : > /var/db/brasa-live-repo-catalog-ready
-fi
 mkdir -p /tmp/brasa-source
 printf '\nBrasa: Extraindo os arquivos de configuração do Brasa.\n'
 tar -xzf - -C /tmp/brasa-source <&7
@@ -310,6 +297,7 @@ report_install_processes() {
   set -e
   export BSDINSTALL_DISTDIR="$freebsd_dist_dir"
   export BSDINSTALL_LOG="$bsdinstall_log"
+  export BRASA_RESOLV_CONF="$resolver_file"
   report_progress 2 'Preparando os componentes oficiais do FreeBSD...'
   printf '%s\n' 'Brasa: Instalando a base e o kernel locais do FreeBSD 15.1.' >> "$install_log"
   report_progress 5 'Usando a base e o kernel incluídos na ISO...'
@@ -319,7 +307,7 @@ report_install_processes() {
   # the ISO. bsdinstall's fetchmissingdists sees both sets locally and does not
   # prompt for a mirror or download the operating system over the network.
   bsdinstall script "$install_script" 6< "$name_file" 7< "$brasa_payload" \
-    8< "$password_file" 9< "$password_file" 4< "$brasa_repo_db" 5< "$brasa_repo_meta" \
+    8< "$password_file" 9< "$password_file" \
     < /dev/null >> "$install_log" 2>&1 &
   bsdinstall_pid=$!
   last_percentage=8

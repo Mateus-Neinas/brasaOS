@@ -6,6 +6,14 @@ Iniciar por uma mídia x86-64, escolher idioma, informar o nome e a senha da con
 
 ## Estado atual
 
+### r36: instalação concluída; primeiro boot pendente (28/10/2026)
+
+A ISO `.build/Brasa-live-r36-install-progress-2026-10-28.iso` concluiu a instalação em QCOW2 de 40 GiB no QEMU com WHPX, 8 GiB de RAM, 4 vCPUs e VirtIO GPU de 128 MiB. Base/kernel local, conta, KDE Plasma, componentes de áudio e Wine foram instalados. A confirmação do assistente apareceu após cerca de 7 minutos. A barra e o texto acompanharam a extração de pacotes KDE e a instalação de Wine.
+
+O primeiro boot pelo QCOW não chegou à tela de login gráfica. Após mensagens iniciais do kernel, a captura ficou preta e QEMU continuou ativo; a saída serial não trouxe dados. Causa ainda desconhecida. O QCOW fica em `%TEMP%\Brasa-r36-test.qcow2`, e a janela QEMU permanece aberta sem a ISO conectada. Nenhuma unidade física foi usada. KDE está instalado no destino, mas início de sessão, Wine funcional e áudio USB físico seguem sem validação.
+
+A r36 também transmite a linha mais recente do script de pós-instalação para o progresso gráfico enquanto ele roda e remove diagnósticos seriais temporários. O instalador completo e a atualização da linha foram validados em QEMU; o primeiro boot continua sendo o bloqueio atual.
+
 ### Boot live e progresso visível (27/10/2026)
 
 O teste com cache confirmou que a criação de um TAR de `/usr/local` no boot acrescentava uma cópia temporária de mais de 2 GB e trabalho extra em RAM. O script agora semeia o tmpfs diretamente dos pacotes incluídos na ISO e remove a cópia temporária depois, evitando gerar e depois desempacotar esse arquivo adicional. A janela do instalador agora usa o log do `bsdinstall` como texto principal e, se uma etapa não emitir linhas, mantém uma mensagem com o tempo decorrido em vez de parecer congelada.
