@@ -2,7 +2,7 @@
 # Bootstrap Brasa OS on a fresh FreeBSD amd64 installation.
 set -eu
 fail() { echo "brasa: $*" >&2; exit 1; }
-msg() { printf '\n\033[1;36mBrasa\033[0m %s\n' "$*"; }
+msg() { printf '\nBrasa: %s\n' "$*"; }
 ask() {
   prompt=$1 default=${2-}
   if [ -n "$default" ]; then
@@ -25,7 +25,9 @@ case "$release" in
 esac
 msg "Bem-vindo à configuração do Brasa. Vamos preparar a conta e o desktop."
 if [ ! -x /usr/local/sbin/pkg ]; then
+  msg "Preparando o gerenciador de pacotes pkg."
   env ASSUME_ALWAYS_YES=yes /usr/sbin/pkg bootstrap -f
+  msg "Gerenciador de pacotes pkg pronto."
 fi
 # Bound network stalls for repository metadata and missing packages. pkg.conf
 # uses UCL syntax; each individual file fetch already defaults to 30 seconds.
@@ -116,6 +118,7 @@ msg "Preparando o desktop KDE Plasma e os aplicativos essenciais."
 # desktop under SDDM.
 set -- plasma6-plasma-desktop plasma6-kwin-x11 plasma6-breeze konsole dolphin ark \
   sddm xorg-minimal drm-kmod
+msg "Verificando a disponibilidade do componente opcional KDE kf6-kdesu."
 if pkg rquery '%n' kf6-kdesu 2>/dev/null | grep -qx kf6-kdesu; then
   set -- "$@" kf6-kdesu
 else
@@ -131,6 +134,7 @@ set --
 # Prefer the FreeBSD-native OSS backend with its rate servo. Keep OSS/kernel
 # audio available as a fallback if the newer optional packages are missing.
 for package in sox pipewire wireplumber; do
+  msg "Verificando a disponibilidade do pacote de áudio $package."
   if pkg rquery '%n' "$package" 2>/dev/null | grep -qx "$package"; then
     set -- "$@" "$package"
   else
@@ -141,6 +145,7 @@ if pkg info -e pipewire-spa-oss >/dev/null 2>&1; then
   echo "brasa: pipewire-spa-oss is installed and conflicts with pipewire-spa-oss-ng; keeping the OSS/kernel audio fallback."
 else
   package=pipewire-spa-oss-ng
+  msg "Verificando a disponibilidade do backend OSS do PipeWire."
   if pkg rquery '%n' "$package" 2>/dev/null | grep -qx "$package"; then
     set -- "$@" "$package"
   else
@@ -155,9 +160,11 @@ else
 fi
 
 set --
+msg "Verificando a disponibilidade do Wine."
 if pkg rquery '%n' wine 2>/dev/null | grep -qx wine; then
   set -- wine
   for package in wine-gecko wine-mono; do
+    msg "Verificando a disponibilidade do componente $package."
     if pkg rquery '%n' "$package" 2>/dev/null | grep -qx "$package"; then
       set -- "$@" "$package"
     else

@@ -1,8 +1,10 @@
 # Releases das ISOs
 
-Toda imagem ISO criada deve receber uma release própria no GitHub, inclusive quando for experimental, incompleta ou sabidamente defeituosa. Não reutilize tags: use uma tag por artefato, anexe a ISO exata e registre data, hash SHA-256, estado conhecido, limitações e se passou por boot e teste de instalação.
+Todas as alterações de código e os resultados de cada build devem ser versionados e documentados no Git. Enquanto as imagens forem instáveis, mantenha localmente somente a ISO mais recente; não publique assets experimentais no GitHub. Preserve as ISOs-base. Depois que uma instalação completar e iniciar KDE pelo disco instalado, a próxima release poderá receber título `beta_1.x`.
 
-Para publicar manualmente pelo GitHub, crie uma release em `https://github.com/Mateus-Neinas/brasaOS/releases/new`, informe a tag correspondente, copie as notas documentadas e anexe a ISO. A release não substitui o histórico de código: faça commits e push dos fontes e documentação separadamente.
+As entradas abaixo são registros históricos de builds e testes. A prioridade de versionamento é o código-fonte e a documentação no Git; uma ISO para download público só será publicada depois de passar pela instalação e pelo boot KDE previstos.
+
+Em 27/10/2026, as 23 releases alpha/experimentais e seus 23 assets ISO foram removidos do GitHub a pedido do usuário para liberar armazenamento (26.319.869.952 bytes de assets). Os commits e tags Git foram mantidos. O histórico abaixo documenta os builds, mas os objetos de release e links de download já não existem.
 
 ## ISO r13: uma passagem de cache e retorno normal do instalador (27/10/2026)
 
@@ -11,9 +13,28 @@ Para publicar manualmente pelo GitHub, crie uma release em `https://github.com/M
 - Tamanho: 1.285.007.360 bytes
 - SHA-256: `277ED8B68D703C901B22D9A252E182EC80BF85343BB8E846400C58FBBCEE97B2`
 - Mudanças: elimina uma extração temporária redundante de aproximadamente 450 MB do cache de pacotes no boot live; impede que uma saída normal/cancelamento do assistente abra em seguida o instalador texto do FreeBSD; o construtor valida essas duas condições na ISO.
-- Teste em QEMU 11.1/WHPX, `core2duo`, 8 GiB RAM, quatro vCPUs, VirtIO GPU 128 MiB e QCOW2 descartável de 40 GiB: boot live, cadastro por teclado, seleção do único disco virtual `vtbd0` e confirmação de apagamento passaram. A base e o kernel locais foram instalados, e o fluxo chegou à configuração KDE/áudio/suporte. A etapa ficou perto de 10 minutos em 92%; o QCOW parou em 1.259.864.064 bytes e não houve escrita de bloco por vários minutos. O processo QEMU continuou usando CPU. Em seis verificações não havia conexão TCP externa do QEMU; o DNS no host resolvia `pkg.freebsd.org`. A tela e o log serial não identificam o subprocesso. QEMU foi encerrado no limite de diagnóstico e o QCOW descartável removido.
-- A ordem atual instala KDE/Xorg (incluindo `drm-kmod`) primeiro, depois os componentes opcionais PipeWire, Wine e os ajustes finais. Portanto não foi possível confirmar se o atraso era a resolução local da transação de KDE, outro comando anterior ou uma falha de repositório; não havia evidência de download ativo durante as amostras.
+- Teste em QEMU 11.1/WHPX, `core2duo`, 8 GiB RAM, quatro vCPUs, VirtIO GPU 128 MiB e QCOW2 descartável de 40 GiB: boot live, cadastro por teclado, seleção do único disco virtual `vtbd0` e confirmação de apagamento passaram. A base e o kernel locais foram instalados. O marcador `Configurando KDE, áudio USB e suporte do computador` é escrito antes do script pós-instalação, portanto não prova que o KDE já estava sendo instalado. A barra ficou perto de 10 minutos em 92%; o QCOW parou em 1.259.864.064 bytes e não houve escrita de bloco por vários minutos. O processo QEMU continuou usando CPU. Em seis verificações não havia conexão TCP externa do QEMU; o DNS no host resolvia `pkg.freebsd.org`. A tela/log não identificam o comando interno. QEMU foi encerrado no limite de diagnóstico e o QCOW descartável removido.
+- O script pós-instalação descompacta primeiro um arquivo de projeto de 33.544 bytes e prepara contas; em seguida o bootstrap verifica/instala `pkg` e começa as consultas de pacotes. A espera pode ter ocorrido antes ou depois dessas operações. Não foi possível confirmar download, resolução de dependências KDE ou suporte de hardware.
 - Não validado: conclusão do KDE, configuração final de suporte à máquina, primeiro boot, Wine, áudio USB class-compliant em hardware real e instalação em computador físico. O driver `snd_uaudio` permanece incluído na base/kernel da mídia. Release experimental; não use em disco com dados importantes. A ISO base `dist/Brasa-15.1-amd64.iso` foi preservada.
+- O título temporário no GitHub foi `alpha_1.22`; a release e o asset foram removidos na limpeza de armazenamento solicitada.
+
+## ISO r14: saída do bootstrap no progresso (27/10/2026)
+
+- Título de versão interno: `alpha_1.23` (sem release/asset no GitHub).
+- Arquivo local: `.build/Brasa-live-r14-pkg-trace-2026-10-27.iso` (removido após gerar a r15).
+- Tamanho: 1.285.007.360 bytes; SHA-256 `FA9A822775E0676E4F7B736684E707E2B0846207FF6B8F9F533E1E2FE0324B13`.
+- Mudanças: imprime as etapas de preparação do `pkg`, consultas de disponibilidade e grupos de KDE, áudio e Wine; o diálogo de progresso preserva a última linha útil.
+- QEMU 11.1/WHPX, `core2duo`, 8 GiB, 4 vCPUs, VirtIO GPU 128 MiB e QCOW2 descartável de 40 GiB: o fluxo gráfico e a seleção de `vtbd0` funcionaram. A etapa mostrou `bsdconfig` por cerca de dez minutos, sem gravações no QCOW desde 23:46 e sem avanço no log serial. Instalação não concluiu. QCOW removido.
+
+## ISO r15: rastreamento do `bsdinstall config` (28/10/2026)
+
+- Título de versão interno: `alpha_1.24` (sem release/asset no GitHub).
+- Arquivo local mais recente: `.build/Brasa-live-r15-bsdconfig-trace-2026-10-27.iso`.
+- Tamanho: 1.285.009.408 bytes; SHA-256 `30C09815403F60DAA9602C3BD33E5F80D9D89D8A529FCC60103A48A028CB8C87`.
+- Mudanças: acrescenta marcadores no script `bsdinstall config` para localizar cópias de configuração, chamada de `newaliases` e fim da etapa; valida que os marcadores estão dentro da ISO.
+- QEMU 11.1/WHPX, `core2duo`, 8 GiB, 4 vCPUs, VirtIO GPU 128 MiB e QCOW2 descartável de 40 GiB: boot live e assistente gráfico passaram; só `vtbd0`/40 GiB foi listado e confirmado. Base/kernel locais foram extraídos. A tela permaneceu em `bsdconfig` por cerca de dez minutos; o QCOW ficou sem gravações desde 00:09:10 até encerrar às 00:17, e QEMU continuou usando CPU. Os marcadores inseridos em `bsdinstall config` não apareceram no serial; o subcomando exato ainda não foi identificado. QCOW removido.
+- Pesquisa: documentação oficial descreve busca de arquivos de mapa de teclado no `bsdconfig`, sem indicar espera de vários minutos. Há relatos de atualização lenta do catálogo `pkg` (4–6 minutos), mas essa atividade distinta não explica a espera observada. KDE instalado, primeiro boot, Wine e USB Audio físico continuam sem validação.
+- Nenhuma release/asset experimental foi publicada. As ISOs antigas foram removidas localmente; r15 é a única ISO Brasa experimental mantida junto das imagens-base.
 
 
 ## ISO r9: KDE reduzido e cache live restaurado (27/10/2026)

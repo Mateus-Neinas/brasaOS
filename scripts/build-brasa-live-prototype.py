@@ -267,6 +267,27 @@ def main():
         old_rc = read_rr(image, '/etc/rc.local')
         pkgbase_script = read_rr(image, '/usr/libexec/bsdinstall/pkgbase')
         bsdinstall_script = read_rr(image, '/usr/libexec/bsdinstall/script')
+        bsdinstall_config = read_rr(image, '/usr/libexec/bsdinstall/config')
+        config_markers = (
+            (b'cat $BSDINSTALL_TMPETC/rc.conf.* >> $BSDINSTALL_TMPETC/rc.conf',
+             b'printf "\\nBrasa: bsdinstall config: consolidando rc.conf.\\n"\n'
+             b'cat $BSDINSTALL_TMPETC/rc.conf.* >> $BSDINSTALL_TMPETC/rc.conf'),
+            (b'cp $BSDINSTALL_TMPETC/* $BSDINSTALL_CHROOT/etc',
+             b'printf "Brasa: bsdinstall config: copiando configuracao do sistema.\\n"\n'
+             b'cp $BSDINSTALL_TMPETC/* $BSDINSTALL_CHROOT/etc'),
+            (b'cp $BSDINSTALL_TMPBOOT/* $BSDINSTALL_CHROOT/boot',
+             b'printf "Brasa: bsdinstall config: copiando configuracao de boot.\\n"\n'
+             b'cp $BSDINSTALL_TMPBOOT/* $BSDINSTALL_CHROOT/boot'),
+            (b'chroot $BSDINSTALL_CHROOT /usr/bin/newaliases > /dev/null 2>&1',
+             b'printf "Brasa: bsdinstall config: iniciando newaliases.\\n"\n'
+             b'chroot $BSDINSTALL_CHROOT /usr/bin/newaliases > /dev/null 2>&1\n'
+             b'printf "Brasa: bsdinstall config: newaliases concluido.\\n"'),
+            (b'exit 0', b'printf "Brasa: bsdinstall config: etapa concluida.\\n"\nexit 0'),
+        )
+        for anchor, replacement in config_markers:
+            if bsdinstall_config.count(anchor) != 1:
+                raise RuntimeError('Nao foi possivel instrumentar uma etapa do bsdinstall config.')
+            bsdinstall_config = bsdinstall_config.replace(anchor, replacement)
         phase_anchor = b'set -e\ntrap error EXIT\n'
         phase_helper = (
             phase_anchor +
@@ -344,6 +365,7 @@ def main():
                 '/ETC/RC.LOCAL;1', '/ETC/RC.CONF;1',
                 '/USR/LIBEXEC/BSDINSTALL/PKGBASE.;1',
                 '/USR/LIBEXEC/BSDINSTALL/SCRIPT.;1',
+                '/USR/LIBEXEC/BSDINSTALL/CONFIG.;1',
                 '/BRASA/BRASA_PROJECT_TAR_GZ;1',
             ]
             if VIRTIO_GPU_QEMU:
@@ -394,6 +416,11 @@ def main():
             image.add_file(str(temp / 'bsdinstall-script'),
                            iso_path='/USR/LIBEXEC/BSDINSTALL/SCRIPT.;1',
                            rr_name='script', file_mode=0o100555)
+            instrumented_config = temp / 'bsdinstall-config'
+            instrumented_config.write_bytes(bsdinstall_config)
+            image.add_file(str(instrumented_config),
+                           iso_path='/USR/LIBEXEC/BSDINSTALL/CONFIG.;1',
+                           rr_name='config', file_mode=0o100555)
             image.add_file(str(package), iso_path='/BRASA/BRASA_PROJECT_TAR_GZ;1', rr_name='BRASA_PROJECT_TAR_GZ')
             image.add_directory(iso_path='/BRASA/FREEBSD_DIST', rr_name='freebsd-dist')
             for name, path in freebsd_dist_files.items():
@@ -424,6 +451,28 @@ def main():
         if (b'brasa-pkg-seed' in live_start or
                 live_start.count(b'tar -xf /brasa/BRASA_PKG_CACHE_TAR -C /var') != 1):
             raise RuntimeError('O cache de pacotes live deve ser extraído apenas uma vez para /var.')
+        project_payload = read_rr(check, '/brasa/BRASA_PROJECT_TAR_GZ')
+        with tarfile.open(fileobj=io.BytesIO(project_payload), mode='r:gz') as project_archive:
+            assistant = project_archive.extractfile('scripts/brasa-install-assistant').read()
+            bootstrap = project_archive.extractfile('scripts/bootstrap-freebsd.sh').read()
+        for marker in (b'Brasa: Extraindo os arquivos de configura\xc3\xa7\xc3\xa3o do Brasa.',
+                       b'Brasa: Criando a conta de usu\xc3\xa1rio.',
+                       b'Brasa: Iniciando o bootstrap do desktop e dos componentes.'):
+            if marker not in assistant:
+                raise RuntimeError('A ISO precisa mostrar cada etapa anterior ao bootstrap do Brasa.')
+        if (b'*) progress_message=$output_line ;;' not in assistant or
+                b'Preparando o gerenciador de pacotes pkg.' not in bootstrap or
+                b'Verificando a disponibilidade do Wine.' not in bootstrap):
+            raise RuntimeError('A ISO precisa exibir a saída do instalador e as consultas de pacotes.')
+        config_payload = read_rr(check, '/usr/libexec/bsdinstall/config')
+        for marker in (b'bsdinstall config: consolidando rc.conf.',
+                       b'bsdinstall config: copiando configuracao do sistema.',
+                       b'bsdinstall config: copiando configuracao de boot.',
+                       b'bsdinstall config: iniciando newaliases.',
+                       b'bsdinstall config: newaliases concluido.',
+                       b'bsdinstall config: etapa concluida.'):
+            if marker not in config_payload:
+                raise RuntimeError('A ISO precisa identificar cada subetapa do bsdinstall config.')
         required_paths = ['/etc/rc.local', '/brasa/brasa-live-start', '/brasa/BRASA_PROJECT_TAR_GZ',
                           '/brasa/freebsd-dist/MANIFEST', '/brasa/freebsd-dist/base.txz',
                           '/brasa/freebsd-dist/kernel.txz']

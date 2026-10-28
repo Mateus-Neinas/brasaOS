@@ -237,6 +237,7 @@ username="$username"
 EOF
 cat >> "$install_script" <<'EOF'
 IFS= read -r full_name <&6
+printf '\nBrasa: Copiando o catálogo do repositório para o sistema instalado.\n'
 if [ "$BRASA_REPO_CATALOG_AVAILABLE" = yes ]; then
   mkdir -p /var/db/pkg/repos/FreeBSD-ports
   cat <&10 > /var/db/pkg/repos/FreeBSD-ports/db
@@ -244,15 +245,21 @@ if [ "$BRASA_REPO_CATALOG_AVAILABLE" = yes ]; then
   : > /var/db/brasa-live-repo-catalog-ready
 fi
 mkdir -p /tmp/brasa-source
+printf '\nBrasa: Extraindo os arquivos de configuração do Brasa.\n'
 tar -xzf - -C /tmp/brasa-source <&7
+printf '\nBrasa: Criando a conta de usuário.\n'
 pw useradd -n "$username" -m -d "/home/$username" -s /bin/sh -G wheel,video,operator -c "$full_name"
+printf '\nBrasa: Definindo as senhas da conta e de administrador.\n'
 pw usermod root -h 8
 pw usermod "$username" -h 9
 printf '%s|%s\n' "$username" "$full_name" > /var/db/brasa-live-user
 : > /var/db/brasa-password-ready
+printf '\nBrasa: Configurando a rede do sistema instalado.\n'
 sysrc ifconfig_DEFAULT="DHCP"
 cd /tmp/brasa-source
+printf '\nBrasa: Iniciando o bootstrap do desktop e dos componentes.\n'
 sh scripts/bootstrap-freebsd.sh --installing-from-live
+printf '\nBrasa: Bootstrap concluído.\n'
 cd /
 rm -rf /tmp/brasa-source
 EOF
@@ -363,7 +370,11 @@ process_is_running() {
         [ "$last_percentage" -lt 88 ] && last_percentage=88
         ;;
       configurando-brasa)
-        progress_message='Configurando KDE, áudio USB e suporte do computador...'
+        case "$output_line" in
+          ''|DEBUG:*) progress_message='Preparando KDE, áudio USB e suporte do computador...' ;;
+          *'FreeBSD Installer'*) progress_message='Preparando KDE, áudio USB e suporte do computador...' ;;
+          *) progress_message=$output_line ;;
+        esac
         [ "$last_percentage" -lt 92 ] && last_percentage=92
         ;;
     esac
