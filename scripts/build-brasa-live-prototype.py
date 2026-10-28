@@ -205,29 +205,20 @@ def prune_package_cache(source, destination, temporary_directory, catalog_fallba
                         raise RuntimeError(f'Dependência sem pacote no catálogo: {name}-{version}')
                     pending.append(dependency)
 
+            keep_paths = set()
             present_paths = {member.name for member in archive.getmembers()}
             downloaded_packages = []
             package_roots = []
-            # pkg add can resolve a local package's dependencies by searching
-            # beside that package for conventional name-version.pkg files.
-            # Older cache ISOs store some archives under opaque hashes, which
-            # makes an otherwise complete dependency cache look incomplete at
-            # boot. Rewrite selected archive names to the canonical form.
-            package_archive_members = {}
             for package_id, name, version, path, package_size in rows:
                 if package_id not in selected:
                     continue
                 regular_path = f'cache/pkg/{name}-{version}.pkg'
                 hashed_path = f'cache/pkg/{os.path.basename(path)}'
-                if regular_path in present_paths:
-                    package_archive_members[regular_path] = regular_path
+                if regular_path in present_paths or hashed_path in present_paths:
+                    keep_paths.update((regular_path, hashed_path))
                     if name in LIVE_PACKAGE_ROOTS:
-                        package_roots.append(os.path.basename(regular_path))
-                    continue
-                if hashed_path in present_paths:
-                    package_archive_members[hashed_path] = regular_path
-                    if name in LIVE_PACKAGE_ROOTS:
-                        package_roots.append(os.path.basename(regular_path))
+                        package_roots.append(os.path.basename(path) if hashed_path in present_paths
+                                             else os.path.basename(regular_path))
                     continue
                 # A cache may have the dependency catalog but omit a handful
                 # of required GUI packages. Fetch only those absent archives
@@ -238,9 +229,10 @@ def prune_package_cache(source, destination, temporary_directory, catalog_fallba
                         output.write(block)
                 if destination_path.stat().st_size != package_size:
                     raise RuntimeError(f'O pacote gráfico {name}-{version} veio incompleto do repositório FreeBSD.')
-                downloaded_packages.append((destination_path, regular_path))
+                downloaded_packages.append((destination_path, hashed_path))
+                keep_paths.add(hashed_path)
                 if name in LIVE_PACKAGE_ROOTS:
-                    package_roots.append(os.path.basename(regular_path))
+                    package_roots.append(os.path.basename(path))
 
             all_members = archive.getmembers()
             original_packages = sum(1 for member in all_members
@@ -251,11 +243,9 @@ def prune_package_cache(source, destination, temporary_directory, catalog_fallba
                     if member.name in (PKG_REPO_DB_MEMBER, PKG_REPO_META_MEMBER):
                         continue
                     if member.name.startswith('cache/pkg/') and member.name.endswith('.pkg'):
-                        canonical_name = package_archive_members.get(member.name)
-                        if canonical_name is None:
+                        if member.name not in keep_paths:
                             continue
                         included_packages += 1
-                        member.name = canonical_name
                     file_data = archive.extractfile(member) if member.isreg() else None
                     output.addfile(member, file_data)
                 for package_path, archive_path in downloaded_packages:

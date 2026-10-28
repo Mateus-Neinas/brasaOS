@@ -188,3 +188,5 @@ WHPX ficou parado após `random: unblocking device.` com VGA padrão e VirtIO; e
 ### Cache local reduzido: variante r6 rejeitada (27/10/2026)
 
 Para evitar o fallback de rede na r5, a r6 renomeou os arquivos do cache local para o formato nome-versão e reduziu a ISO de 1.285.003.264 para 837.859.328 bytes. No boot com TCG, 8 GiB e VGA de 128 MiB, o `pkg` foi preparado e o catálogo embarcado foi encontrado, mas a inicialização gráfica falhou antes de abrir o Zenity; a VM voltou ao menu textual FreeBSD. O QCOW2 novo continuou com 197.632 bytes. Como o resultado regrediu em relação à r5, o código foi restaurado ao caminho de fallback pela internet, e a r6 foi preservada como artefato experimental com a falha documentada.
+
+O código de construção atual voltou ao comportamento anterior da r5. Uma nova VM descartável está inicializando a r5 com TCG, 8 GiB de RAM, 128 MiB de VGA e disco QCOW2 de 40 GiB; o fallback online começou depois da extração local e o QCOW2 ainda está em 197.632 bytes. A sessão permanece aberta para validar novamente o retorno à tela gráfica.
