@@ -112,11 +112,11 @@ if [ "$repo_catalog_ready" != yes ]; then
 fi
 
 msg "Preparando o desktop KDE Plasma e os aplicativos essenciais."
-# Install the X11 Plasma desktop directly instead of the full plasma6-plasma
-# meta port, which also pulls hundreds of optional KDE applications. KWin and
-# Breeze are explicit so the smaller set still starts as a familiar Plasma
-# desktop under SDDM.
-set -- plasma6-plasma-desktop plasma6-kwin-x11 plasma6-breeze konsole dolphin ark \
+# Use FreeBSD Handbook's Plasma meta package so the session manager, shell,
+# activity manager, audio widget, and other required desktop services are all
+# installed together. Keep the desired X11 session and familiar applications.
+set -- plasma6-plasma plasma6-kactivitymanagerd plasma6-plasma-pa plasma6-kglobalacceld \
+  plasma6-kwin-x11 plasma6-breeze konsole dolphin ark \
   sddm xorg-minimal drm-kmod
 msg "Verificando a disponibilidade do componente opcional KDE kf6-kdesu."
 if pkg rquery '%n' kf6-kdesu 2>/dev/null | grep -qx kf6-kdesu; then
@@ -193,6 +193,8 @@ install -m 0644 config/brasa-audio-aggregate.desktop /usr/local/share/applicatio
 install -m 0644 config/brasa-audio-test.desktop /usr/local/share/applications/brasa-audio-test.desktop
 install -m 0644 config/brasa-audio-monitor.desktop /usr/local/share/applications/brasa-audio-monitor.desktop
 install -m 0644 config/brasa-windows.desktop /usr/local/share/applications/brasa-windows.desktop
+install -d -m 0755 "$brasa_home/.config"
+chown "$brasa_user:$brasa_group" "$brasa_home/.config"
 install -d -o "$brasa_user" -g "$brasa_group" -m 0755 "$brasa_home/.config/autostart"
 install -o "$brasa_user" -g "$brasa_group" -m 0644 config/brasa-theme-autostart.desktop "$brasa_home/.config/autostart/brasa-theme.desktop"
 if pkg info -e pipewire && pkg info -e wireplumber && pkg info -e pipewire-spa-oss-ng; then

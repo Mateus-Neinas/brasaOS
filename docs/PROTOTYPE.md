@@ -233,9 +233,9 @@ A r5 havia chegado à confirmação do disco, mas o `bsdinstall` devolveu `Permi
 
 Na r7, QEMU/TCG com 8 GiB e 4 vCPUs avançou pelo particionamento, verificação e extração local da base e kernel. O disco virtual recebeu 1.259.339.776 bytes e a etapa mudou para “Configurando KDE, áudio USB e suporte do computador”. A gravação do QCOW não avançou por mais de cinco minutos nessa etapa; o QEMU permaneceu ativo, consumiu cerca de 6,7 GiB de memória e foi fechado a pedido do usuário. O disco ficou em `%TEMP%` como QCOW2 parcial. A falha de permissão foi removida, mas ainda não há confirmação de que KDE, Wine ou PipeWire terminem a instalação nem que o primeiro boot funcione. A ausência de gravações nessa etapa sugere investigar o acesso DNS/rede do sistema-alvo, que executa `pkg` no chroot.
 
-### Redução do conjunto KDE para a próxima ISO (27/10/2026)
+### Correção da primeira sessão KDE (28/10/2026)
 
-A configuração do desktop passa a instalar diretamente `plasma6-plasma-desktop`, `plasma6-kwin-x11` e Breeze, com SDDM, Xorg mínimo, Dolphin, Konsole, Ark, PipeWire/OSS-ng e Wine. Isso mantém o Plasma X11 e os recursos solicitados sem o meta pacote completo `plasma6-plasma`, que traz centenas de aplicativos adicionais. Os pacotes são resolvidos e instalados numa transação, depois de atualizar o catálogo uma única vez quando a mídia não fornece um catálogo local.
+O teste de r36 mostrou que o login SDDM funcionava, mas o desktop carregava sem painel. No QCOW foram instalados o conjunto `plasma6-plasma` recomendado pelo FreeBSD Handbook, o gerenciador de atividades e o widget de áudio; também se corrigiu a propriedade de `/home/brasa/.config`, que havia sido criada como root. Com isso, o painel e o Konsole apareceram. O bootstrap passa a instalar esse conjunto de sessão e a garantir que `.config` pertence ao usuário antes de criar os arquivos de inicialização automática. A próxima ISO precisa ser testada por instalação limpa antes de considerar o fluxo reproduzível.
 
 No catálogo trimestral incluído na ISO de referência r6, a dependência transitiva estimada passa de 960 pacotes/2.358,5 MiB para 683 pacotes/1.378,3 MiB. Esse número descreve o catálogo consultado, não uma medição de tempo ou bytes efetivamente baixados durante a instalação.
 

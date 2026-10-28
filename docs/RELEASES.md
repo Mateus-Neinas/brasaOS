@@ -1,8 +1,25 @@
 # Releases das ISOs
 
-Todas as alterações de código e os resultados de cada build devem ser versionados e documentados no Git. Enquanto as imagens forem instáveis, mantenha localmente somente a ISO mais recente; não publique assets experimentais no GitHub. Preserve as ISOs-base. Depois que uma instalação completar e iniciar KDE pelo disco instalado, a próxima release poderá receber título `beta_1.x`.
+Todas as alterações de código e os resultados de cada build devem ser versionados e documentados no Git. Preserve as ISOs-base e mantenha o total de ISOs abaixo de 10 GB. A primeira versão com login gráfico confirmado recebe o título alpha solicitado pelo usuário; as versões beta começam quando ele considerar o sistema do seu gosto e seguro.
 
-## ISO experimental mais recente: r36 (28/10/2026)
+## ISO alpha_1.37: correção da sessão Plasma (28/10/2026)
+
+- Arquivo local: `.build/Brasa-live-r37-plasma-session-2026-10-28.iso`
+- Tamanho: 1.284.982.784 bytes
+- SHA-256: `FF215E6CAD3AE4998A9865CEEFCFBB1F369971E84A13EB9C3DC3DC6635849084`
+- Código de instalação: usa o meta pacote `plasma6-plasma` e inclui explicitamente o gerenciador de atividades, o widget de áudio e o serviço de atalhos; garante que `/home/<usuário>/.config` pertence à conta gráfica.
+- r37 foi reconstruída e validada pelo construtor; ISO local acumulada (incluindo imagens-base) ocupa 3.662.972.928 bytes, abaixo do limite de 10 GB.
+- Na VM instalada pela r36, após aplicar manualmente os pacotes e a correção de propriedade, o painel KDE e o Konsole foram abertos. O rótulo da tela SDDM era `mateus`; o login efetivo é `brasa`. A instalação limpa da r37 ainda não foi repetida, portanto a correção reproduzível pelo instalador permanece por confirmar.
+- Áudio USB class-compliant em interface física e instalação em hardware real seguem sem validação.
+
+### Primeiro login KDE confirmado no QCOW r36 (28/10/2026)
+
+- O instalador r36 concluiu em cerca de 7 minutos em QEMU/WHPX e gravou base, kernel, usuário, KDE, áudio e Wine no disco de 40 GiB.
+- No primeiro boot, SDDM autenticou o usuário `brasa`; o rótulo exibido para a conta era `mateus`. No disco de teste, instalaram-se `plasma6-plasma`, `plasma6-kactivitymanagerd`, `plasma6-plasma-pa` e `plasma6-kglobalacceld`, e corrigiu-se a propriedade de `/home/brasa/.config`.
+- Após essas alterações manuais, o desktop KDE carregou com painel e Konsole. Isso confirma que o bloqueio estava no conjunto/configuração dos componentes da sessão, e que QEMU/VGA consegue exibir Plasma; não prova ainda uma instalação limpa pela ISO.
+- As correções foram incorporadas ao bootstrap da r37. A instalação limpa dessa ISO em um QCOW novo ainda será necessária para confirmar que o instalador aplica o conjunto completo sem intervenção manual. Áudio USB físico e instalação em hardware real continuam sem teste.
+
+## ISO de referência: r36 (28/10/2026)
 
 - Arquivo local: `.build/Brasa-live-r36-install-progress-2026-10-28.iso`
 - Tamanho: 1.285.017.600 bytes
@@ -10,8 +27,8 @@ Todas as alterações de código e os resultados de cada build devem ser version
 - Mudanças: preserva a correção de DNS da r35 e transmite para a janela de progresso a linha atual do script pós-instalação. A saída serial de diagnóstico foi removida.
 - Build validado pelo construtor. Em QEMU/WHPX com 8 GiB RAM, 4 vCPUs e VirtIO GPU de 128 MiB, o assistente abriu, mostrou somente `vtbd0` de 40 GiB e instalou a base/kernel, conta, KDE, componentes de áudio e Wine. A confirmação de sucesso apareceu após cerca de 7 minutos.
 - A linha da interface acompanhou as etapas de pacote, inclusive a extração de KDE e instalação de Wine; o disco recebeu gravações durante a instalação.
-- Primeiro boot do QCOW sem ISO não chegou à tela gráfica: após mensagens iniciais do kernel, a tela ficou preta e QEMU permaneceu ativo. Repetir com VGA padrão também ficou preto, então o problema não parece exclusivo do driver VirtIO. O QCOW permanece aberto em `%TEMP%\Brasa-r36-test.qcow2` para inspeção.
-- Nenhuma unidade física foi conectada. KDE está instalado, mas login/desktop em execução, Wine funcional e áudio USB físico ainda não foram validados. r36 é a única ISO Brasa local; as imagens-base foram preservadas e nenhum asset ISO foi publicado no GitHub.
+- Primeiro boot exibiu o wallpaper sem painel e sem os serviços essenciais da sessão. No QCOW, a instalação manual dos componentes indicados acima e a correção da propriedade de `~/.config` permitiram iniciar painel e Konsole.
+- Nenhuma unidade física foi conectada. Instalação limpa corrigida, Wine funcional e áudio USB físico ainda não foram validados. r36 permanece como ISO de referência até a próxima imagem; as imagens-base foram preservadas.
 
 ### r29–r35: correções do fluxo pós-instalação (28/10/2026)
 
