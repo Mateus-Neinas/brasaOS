@@ -31,7 +31,7 @@ O protótipo usa o driver nativo do FreeBSD e oferece lista de dispositivos `pcm
 
 ## Estado verificável
 
-O workspace possui uma ISO Brasa baseada no FreeBSD 15.1 `bootonly`, bootstrap, tema KDE, utilitários de áudio, importador Wine e um fluxo visual de instalação em desenvolvimento. A ISO experimental mais recente inicia um ambiente live JWM e o assistente gráfico. Em QEMU/WHPX com 8 GB, a variante pkgbase confirmou o QCOW2 descartável, instalou os componentes live via fallback pela internet e particionou o disco de teste. A instalação da base falhou antes do download de pacotes por uma falha de resolução DNS no repositório FreeBSD-base. A imagem está publicada como experimento e não deve ser usada em disco com dados. O sistema instalado, sessão KDE, áudio USB e Wine ainda não foram validados. `scripts/self-check.sh` usa comandos simulados e não substitui esses testes. Veja [docs/PROTOTYPE.md](PROTOTYPE.md).
+O workspace possui uma ISO Brasa baseada no FreeBSD 15.1 `bootonly`, bootstrap, tema KDE, utilitários de áudio, importador Wine e um fluxo visual de instalação em desenvolvimento. A release r7 inicia o ambiente live JWM e o assistente gráfico, particiona um QCOW descartável e extrai os conjuntos locais `base`/`kernel`, mas a configuração do KDE não terminou. O próximo perfil reduz o conjunto KDE para Plasma Desktop/KWin X11 e agrupa os pacotes numa transação, preservando o caminho de download pela rede. A redução estimada usa o catálogo embutido numa ISO de referência e ainda não mede a duração real. O sistema instalado, sessão KDE, áudio USB e Wine seguem sem validação. `scripts/self-check.sh` usa comandos simulados e não substitui esses testes. Veja [docs/PROTOTYPE.md](PROTOTYPE.md).
 
 ## Referências
 

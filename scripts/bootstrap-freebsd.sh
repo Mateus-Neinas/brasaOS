@@ -16,6 +16,8 @@ ask() {
 [ "$(id -u)" -eq 0 ] || fail "run as root."
 [ "$(uname -s)" = "FreeBSD" ] || fail "this installer requires FreeBSD."
 [ "$(uname -m)" = "amd64" ] || fail "only FreeBSD amd64 is supported."
+installing_from_live=no
+[ "${1-}" = --installing-from-live ] && installing_from_live=yes
 release=$(freebsd-version -u | cut -d- -f1)
 case "$release" in
   14.4|14.5|15.1) ;;
@@ -93,36 +95,53 @@ install_packages() {
   pkg install -y "$@"
 }
 
-msg "Instalando o desktop KDE Plasma e os aplicativos essenciais."
-install_packages plasma6-plasma konsole dolphin ark sddm xorg drm-kmod zenity
+if [ "$repo_catalog_ready" != yes ]; then
+  msg "Atualizando o catálogo de pacotes uma vez para conferir os componentes disponíveis."
+  pkg update -f
+  repo_catalog_ready=yes
+  export REPO_AUTOUPDATE=no
+fi
 
-install_optional() {
-  if pkg rquery '%n' "$1" 2>/dev/null | grep -qx "$1"; then
-    msg "Instalando o componente opcional $1."
-    install_packages "$1"
-  else
-    echo "brasa: optional package '$1' is unavailable; skipped."
-  fi
-}
-install_optional kf6-kdesu
-install_optional sox
+msg "Preparando o desktop KDE Plasma e os aplicativos essenciais."
+# Install the X11 Plasma desktop directly instead of the full plasma6-plasma
+# meta port, which also pulls hundreds of optional KDE applications. KWin and
+# Breeze are explicit so the smaller set still starts as a familiar Plasma
+# desktop under SDDM.
+set -- plasma6-plasma-desktop plasma6-kwin-x11 plasma6-breeze konsole dolphin ark \
+  sddm xorg-minimal drm-kmod
 # Prefer the FreeBSD-native OSS backend with its rate servo. Keep OSS/kernel
 # audio available as a fallback if the newer optional packages are missing.
-for audio_pkg in pipewire wireplumber; do
-  install_optional "$audio_pkg"
+for package in kf6-kdesu sox pipewire wireplumber; do
+  if pkg rquery '%n' "$package" 2>/dev/null | grep -qx "$package"; then
+    set -- "$@" "$package"
+  else
+    echo "brasa: optional package '$package' is unavailable; skipped."
+  fi
 done
 if pkg info -e pipewire-spa-oss >/dev/null 2>&1; then
-  echo "brasa: pipewire-spa-oss is installed and conflicts with pipewire-spa-oss-ng; remove it before enabling the Brasa PipeWire backend."
+  echo "brasa: pipewire-spa-oss is installed and conflicts with pipewire-spa-oss-ng; keeping the OSS/kernel audio fallback."
 else
-  install_optional pipewire-spa-oss-ng
+  package=pipewire-spa-oss-ng
+  if pkg rquery '%n' "$package" 2>/dev/null | grep -qx "$package"; then
+    set -- "$@" "$package"
+  else
+    echo "brasa: optional package '$package' is unavailable; skipped."
+  fi
 fi
 if pkg rquery '%n' wine 2>/dev/null | grep -qx wine; then
-  install_packages wine
-  install_optional wine-gecko
-  install_optional wine-mono
+  set -- "$@" wine
+  for package in wine-gecko wine-mono; do
+    if pkg rquery '%n' "$package" 2>/dev/null | grep -qx "$package"; then
+      set -- "$@" "$package"
+    else
+      echo "brasa: optional package '$package' is unavailable; skipped."
+    fi
+  done
 else
   echo "brasa: Wine is unavailable in this repository; install it later if supported."
 fi
+msg "Instalando KDE, áudio USB e compatibilidade Windows em uma única etapa."
+install_packages "$@"
 
 install -d -o root -g wheel -m 0755 /usr/local/bin /usr/local/share/applications /usr/local/share/color-schemes
 install -m 0755 scripts/brasa-run-windows /usr/local/bin/brasa-run-windows
@@ -154,7 +173,7 @@ X-KDE-autostart-after=panel
 EOF
   chown "$brasa_user:$brasa_group" "$brasa_home/.config/autostart/brasa-pipewire.desktop"
 fi
-if [ "${1-}" = --installing-from-live ]; then
+if [ "$installing_from_live" = yes ]; then
   rm -f /var/db/brasa-live-repo-catalog-ready
   msg "Desktop Brasa configurado para $brasa_user."
 else
