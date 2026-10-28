@@ -4,9 +4,18 @@ Toda imagem ISO criada deve receber uma release própria no GitHub, inclusive qu
 
 Para publicar manualmente pelo GitHub, crie uma release em `https://github.com/Mateus-Neinas/brasaOS/releases/new`, informe a tag correspondente, copie as notas documentadas e anexe a ISO. A release não substitui o histórico de código: faça commits e push dos fontes e documentação separadamente.
 
+## ISO r9: KDE reduzido e cache live restaurado (27/10/2026)
+
+- Tag da release: [`brasa-r9-kde-reduced-cache-fallback-2026-10-27`](https://github.com/Mateus-Neinas/brasaOS/releases/tag/brasa-r9-kde-reduced-cache-fallback-2026-10-27)
+- Arquivo: `Brasa-live-graphical-firstboot-audio-r9-kde-cache-2026-10-27.iso`
+- Tamanho: 1.284.970.496 bytes
+- SHA-256: `f80389c31c65b4f3db4679970733a79c0555e6d9ded1e2cfcc8743a4f1989f57`
+- QEMU 11.1/TCG, 8 GiB RAM, 8 vCPUs, VGA 128 MiB e QCOW2 de 40 GiB: o cache live da r7 instalou 133 dependências locais e buscou 11 pacotes restantes pela rede. O assistente abriu, aceitou a criação da conta pelo teclado e mostrou apenas `ada0` QEMU HARDDISK, 40 GB, `QM00001`. Depois da confirmação destrutiva do disco virtual, particionou e extraiu base/kernel. Com 10 minutos, estava na configuração de KDE; o QCOW chegou a 1.259.208.704 bytes e ficou sem mudança por pelo menos 55 segundos, com o contador em cerca de dois minutos nessa etapa. A VM foi fechada via QMP pelo limite; QCOW parcial preservado.
+- Inclui `snd_uaudio.ko`, base/kernel locais e cache de pacotes live com fallback online. O conjunto KDE reduzido estima 683 pacotes/1.378 MiB no catálogo da r6, contra 960/2.358,5 MiB na configuração anterior; o tempo real e a transação KDE ainda não foram validados. Não validado: instalação completa, primeiro boot, KDE, Wine e interfaces USB físicas.
+
 ## ISO r8: KDE menor, boot gráfico falhou sem cache (27/10/2026)
 
-- Tag: `brasa-r8-minimal-kde-no-cache-boot-failed-2026-10-27`
+- Tag da release: [`brasa-r8-minimal-kde-no-cache-boot-failed-2026-10-27`](https://github.com/Mateus-Neinas/brasaOS/releases/tag/brasa-r8-minimal-kde-no-cache-boot-failed-2026-10-27)
 - Arquivo: `Brasa-live-graphical-firstboot-audio-r8-minimal-kde-2026-10-27.iso`
 - Tamanho: 756.109.312 bytes
 - SHA-256: `dbddae317ec8345e997dd9b89bf5da3804ff7a66df86b8e46bed206f31bb2a8f`
