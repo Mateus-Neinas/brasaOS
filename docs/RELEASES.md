@@ -9,7 +9,9 @@ Todas as alterações de código e os resultados de cada build devem ser version
 - SHA-256: `FF215E6CAD3AE4998A9865CEEFCFBB1F369971E84A13EB9C3DC3DC6635849084`
 - Código de instalação: usa o meta pacote `plasma6-plasma` e inclui explicitamente o gerenciador de atividades, o widget de áudio e o serviço de atalhos; garante que `/home/<usuário>/.config` pertence à conta gráfica.
 - r37 foi reconstruída e validada pelo construtor; ISO local acumulada (incluindo imagens-base) ocupa 3.662.972.928 bytes, abaixo do limite de 10 GB.
-- Na VM instalada pela r36, após aplicar manualmente os pacotes e a correção de propriedade, o painel KDE e o Konsole foram abertos. O rótulo da tela SDDM era `mateus`; o login efetivo é `brasa`. A instalação limpa da r37 ainda não foi repetida, portanto a correção reproduzível pelo instalador permanece por confirmar.
+- Teste limpo r37: QEMU TCG com 8 GiB RAM, 4 vCPUs, vídeo std/128 MiB e QCOW novo de 40 GiB. O instalador mostrou somente o disco virtual `vtbd0`, extraiu os 860 pacotes, concluiu as configurações adicionais e mostrou a confirmação de sucesso.
+- O primeiro boot foi feito pelo QCOW, com a ISO ejetada e a ordem de boot alterada para disco. O FreeBSD 15.1 iniciou, SDDM apareceu e autenticou com sucesso a conta `brasa` (nome visível `mateus`). Porém, a sessão `startplasma-x11` encerrou cerca de dois segundos após iniciar; a tela permaneceu preta e painel/Konsole não apareceram. O log `/home/brasa/.local/share/sddm/xorg-session.log` contém avisos de portal DBus, KWin e PulseAudio; o log do SDDM confirma autenticação bem-sucedida e encerramento precoce da sessão. A instalação r37 não está funcionalmente aprovada.
+- O defeito ainda precisa ser identificado e corrigido no código e confirmado em um QCOW limpo. Não desligar o host enquanto a condição de sucesso do teste não for atendida.
 - Áudio USB class-compliant em interface física e instalação em hardware real seguem sem validação.
 
 ### Primeiro login KDE confirmado no QCOW r36 (28/10/2026)
