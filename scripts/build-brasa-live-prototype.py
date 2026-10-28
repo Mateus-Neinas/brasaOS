@@ -520,6 +520,17 @@ def main():
                        b'bsdinstall-postinstall-start)', b'bsdinstall-postinstall-returned)'):
             if marker not in assistant:
                 raise RuntimeError('O progresso precisa traduzir as subetapas do bsdinstall config.')
+        if b"bsdinstall-postinstall-start)\n        case \"$output_line\" in" not in assistant:
+            raise RuntimeError('O progresso deve preservar a saída real do script pós-instalação.')
+        if b'report_install_processes() {' not in assistant or \
+                b'ps -ax -o pid,ppid,stat,etime,pcpu,command' not in assistant:
+            raise RuntimeError('A ISO precisa registrar os processos ativos do instalador durante esperas longas.')
+        for marker in (b'Brasa: Inicializando as configura\xc3\xa7\xc3\xb5es do sistema instalado.',
+                       b'Brasa: Dados da conta recebidos.',
+                       b'Brasa: Arquivos de configura\xc3\xa7\xc3\xa3o extra\xc3\xaddos.',
+                       b'Brasa: Conta de usu\xc3\xa1rio criada.'):
+            if marker not in assistant:
+                raise RuntimeError('A ISO precisa mostrar o progresso interno do script pos-instalacao.')
         required_paths = ['/etc/rc.local', '/brasa/brasa-live-start', '/brasa/BRASA_PROJECT_TAR_GZ',
                           '/brasa/freebsd-dist/MANIFEST', '/brasa/freebsd-dist/base.txz',
                           '/brasa/freebsd-dist/kernel.txz']

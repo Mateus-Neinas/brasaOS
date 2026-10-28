@@ -2,14 +2,31 @@
 
 Todas as alterações de código e os resultados de cada build devem ser versionados e documentados no Git. Enquanto as imagens forem instáveis, mantenha localmente somente a ISO mais recente; não publique assets experimentais no GitHub. Preserve as ISOs-base. Depois que uma instalação completar e iniciar KDE pelo disco instalado, a próxima release poderá receber título `beta_1.x`.
 
-## ISO experimental mais recente: r17 (28/10/2026)
+## ISO experimental mais recente: r21 (28/10/2026)
 
-- Arquivo local: `.build/Brasa-live-r17-postinstall-phase-trace-2026-10-28.iso`
+- Arquivo local: `.build/Brasa-live-r21-shebang-fix-2026-10-28.iso`
+- Tamanho: 1.285.013.504 bytes
+- SHA-256: `5E13F4793C72A6EC2BA0714A06EADFBD5662BCBE6B29B1C184CA638E1A96352C`
+- Mudanças: move `#!/bin/sh` para a primeira linha do script temporário executado diretamente por `chroot`; captura no log da interface as últimas linhas do `bsdinstall.log` se surgir o diálogo `Installation Error!`.
+- Build validado; o live e o assistente gráfico abriram no QEMU (8 GiB, 4 vCPUs, VirtIO GPU 128 MiB). O ensaio foi cancelado antes da confirmação de apagamento do QCOW. A instalação e a correção do shebang ainda não foram validadas no disco. O QCOW foi encerrado/removido. KDE, primeiro boot, Wine, áudio USB físico e hardware real não testados.
+- É a única ISO experimental Brasa mantida localmente; imagens-base preservadas. Nenhum asset experimental foi publicado como release.
+
+### Resultado do r20: erro do bsdinstall oculto (28/10/2026)
+
+A inspeção de processos encontrou `bsddialog --title "Installation Error!"` ativo dentro de `bsdinstall`, atrás da janela Brasa de progresso. Ao sair da janela de progresso, o assistente informou que a instalação não terminou. O log visível confirmou a conclusão de `bsdinstall config` e parou em “preparando o script de instalação no sistema-alvo”. A mensagem exata do diálogo não foi recuperada, pois o arquivo temporário foi removido na saída. Isso confirma falha explícita, não espera normal do `bsdconfig`. A r21 contém a correção provável do shebang e instrumentação para preservar o log numa nova tentativa.
+
+## ISO experimental r18 (28/10/2026)
+
+- Arquivo local: `.build/Brasa-live-r18-bootstrap-output-2026-10-28.iso`
 - Tamanho: 1.285.011.456 bytes
-- SHA-256: `952395B6A907E41E342ED2911F497ABDF6B772E4661CF40F54B7A7BA1E896331`
-- Mudança: inclui marcadores para rastrear cópia, permissões, execução e limpeza do script pós-instalação.
-- Teste: QEMU 11.1/WHPX, 8 GiB RAM, 4 vCPUs, VirtIO GPU 128 MiB e QCOW2 descartável de 40 GiB. Confirmou somente `vtbd0`, extraiu a base/kernel e avançou da mensagem `bsdconfig` para “Iniciando a configuração do Brasa no sistema instalado”. A tela ficou nessa etapa por 624 s sem novas gravações no QCOW. Nenhum dos marcadores do script pós-instalação apareceu; o processo QEMU chegou a cerca de 6,3 GiB de RAM. Instalação incompleta; KDE, primeiro boot, Wine, áudio USB físico e hardware real não testados.
-- O processo QEMU foi encerrado e o QCOW de teste removido. A ISO r17 é a única ISO experimental Brasa mantida no diretório `.build`; as imagens-base foram preservadas. Nenhum asset experimental foi publicado como release.
+- SHA-256: `4F4F51A778D93B6E861D49CB458CE18654EDB8400B17BE080C79970A93B345A4`
+- Mudança: preserva no progresso gráfico as linhas do instalador e do `pkg` enquanto o script pós-instalação roda, em vez de manter a mensagem inicial fixa.
+- Teste: QEMU 11.1/WHPX, 8 GiB RAM, 4 vCPUs, VirtIO GPU 128 MiB e QCOW2 descartável de 40 GiB. O assistente abriu, aceitou os dados de conta, confirmou somente `vtbd0` e instalou base/kernel locais em cerca de um minuto. Depois permaneceu em `bsdconfig` por 632 s, sem novas gravações no QCOW; QEMU usou cerca de 6,3 GiB de RAM. A etapa do bootstrap em que o novo texto preserva a saída não foi alcançada nesse reteste. Instalação incompleta; KDE, primeiro boot, Wine, áudio USB físico e hardware real não testados.
+- O processo QEMU foi encerrado e o QCOW de teste removido. A ISO r18 é a única ISO experimental Brasa mantida no diretório `.build`; as imagens-base foram preservadas. Nenhum asset experimental foi publicado como release.
+
+### Resultado do r17
+
+A r17 mostrou a mensagem da subetapa `bsdinstall-postinstall-start`, indicando que a chamada do script pós-instalação começou. Essa mensagem permaneceu por 624 s sem novas gravações no QCOW; os marcadores de retorno/limpeza não apareceram. O novo r18 muda a tela para refletir a última linha de saída do script quando essa fase for alcançada.
 
 As entradas abaixo são registros históricos de builds e testes. A prioridade de versionamento é o código-fonte e a documentação no Git; uma ISO para download público só será publicada depois de passar pela instalação e pelo boot KDE previstos.
 

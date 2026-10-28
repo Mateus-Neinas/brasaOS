@@ -225,18 +225,21 @@ printf '%s\n' "$full_name" > "$name_file"
 unset password
 
 cat > "$install_script" <<EOF
+#!/bin/sh
 PARTITIONS="$selected_disk"
 DISTRIBUTIONS="base.txz kernel.txz"
 export DISTRIBUTIONS
 BRASA_REPO_CATALOG_AVAILABLE="$brasa_repo_catalog_available"
 export BRASA_REPO_CATALOG_AVAILABLE
 
-#!/bin/sh
 set -eu
 username="$username"
 EOF
 cat >> "$install_script" <<'EOF'
+printf '\nBrasa: Inicializando as configurações do sistema instalado.\n'
+printf '\nBrasa: Recebendo o nome da conta criada no assistente.\n'
 IFS= read -r full_name <&6
+printf '\nBrasa: Dados da conta recebidos.\n'
 printf '\nBrasa: Copiando o catálogo do repositório para o sistema instalado.\n'
 if [ "$BRASA_REPO_CATALOG_AVAILABLE" = yes ]; then
   mkdir -p /var/db/pkg/repos/FreeBSD-ports
@@ -247,15 +250,19 @@ fi
 mkdir -p /tmp/brasa-source
 printf '\nBrasa: Extraindo os arquivos de configuração do Brasa.\n'
 tar -xzf - -C /tmp/brasa-source <&7
+printf '\nBrasa: Arquivos de configuração extraídos.\n'
 printf '\nBrasa: Criando a conta de usuário.\n'
 pw useradd -n "$username" -m -d "/home/$username" -s /bin/sh -G wheel,video,operator -c "$full_name"
+printf '\nBrasa: Conta de usuário criada.\n'
 printf '\nBrasa: Definindo as senhas da conta e de administrador.\n'
 pw usermod root -h 8
 pw usermod "$username" -h 9
 printf '%s|%s\n' "$username" "$full_name" > /var/db/brasa-live-user
 : > /var/db/brasa-password-ready
+printf '\nBrasa: Contas configuradas.\n'
 printf '\nBrasa: Configurando a rede do sistema instalado.\n'
 sysrc ifconfig_DEFAULT="DHCP"
+printf '\nBrasa: Rede do sistema instalada configurada.\n'
 cd /tmp/brasa-source
 printf '\nBrasa: Iniciando o bootstrap do desktop e dos componentes.\n'
 sh scripts/bootstrap-freebsd.sh --installing-from-live
@@ -278,6 +285,22 @@ process_is_running() {
   process_state=$(ps -o stat= -p "$1" 2>/dev/null || true)
   case "$process_state" in ''|Z*) return 1 ;; *) return 0 ;; esac
 }
+report_install_processes() {
+  printf '\nBrasa diagnóstico: pid=%s; fase=%s; etapa=%ss; mensagem=%s\n' \
+    "$bsdinstall_pid" "$install_phase" "$elapsed_seconds" "$progress_message" > /dev/ttyu0 2>/dev/null || true
+  ps -ax -o pid,ppid,stat,etime,pcpu,command 2>/dev/null | \
+    sort -k 5,5nr | head -n 20 | sed 's/^/Brasa processo: /' \
+    > /dev/ttyu0 2>/dev/null || true
+  dialog_pid=$(ps -ax -o pid= -o command= 2>/dev/null | \
+    awk '$0 ~ /bsddialog --title Installation Error!/ { print $1; exit }')
+  if [ -n "$dialog_pid" ]; then
+    printf '\nBrasa: erro do bsdinstall detectado; detalhes do log:\n' >> "$install_log"
+    tail -n 80 "$bsdinstall_log" >> "$install_log" 2>/dev/null || true
+    tail -n 80 "$bsdinstall_log" | sed 's/^/Brasa bsdinstall: /' \
+      > /dev/ttyu0 2>/dev/null || true
+    kill "$dialog_pid" 2>/dev/null || true
+  fi
+}
 (
   set -e
   export BSDINSTALL_DISTDIR="$freebsd_dist_dir"
@@ -299,6 +322,7 @@ process_is_running() {
   last_reported_message=''
   last_serial_message=''
   elapsed_seconds=0
+  diagnostic_ticks=0
   base_install_done=no
   while process_is_running "$bsdinstall_pid"; do
     bsd_line=$(tail -n 1 "$bsdinstall_log" 2>/dev/null || true)
@@ -400,7 +424,13 @@ process_is_running() {
         progress_message='Ajustando as permissões do script de instalação...'
         ;;
       bsdinstall-postinstall-start)
-        progress_message='Iniciando a configuração do Brasa no sistema instalado...'
+        case "$output_line" in
+          ''|DEBUG:*|*'FreeBSD Installer'*|*bsdconfig*|*'bsdinstall config'*)
+            progress_message='Iniciando a configuração do Brasa no sistema instalado...'
+            ;;
+          *) progress_message=$output_line ;;
+        esac
+        [ "$last_percentage" -lt 92 ] && last_percentage=92
         ;;
       bsdinstall-postinstall-returned)
         progress_message='Configuração do Brasa concluída; finalizando a instalação...'
@@ -442,6 +472,11 @@ process_is_running() {
       elapsed_seconds=0
     fi
     report_progress "$last_percentage" "$progress_message"
+    diagnostic_ticks=$((diagnostic_ticks + 1))
+    if [ "$diagnostic_ticks" -ge 5 ]; then
+      report_install_processes
+      diagnostic_ticks=0
+    fi
     sleep 2
   done
   if wait "$bsdinstall_pid"; then
