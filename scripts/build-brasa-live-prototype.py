@@ -335,6 +335,29 @@ def main():
             if bsdinstall_script.count(anchor) != 1:
                 raise RuntimeError('Não foi possível localizar uma etapa bsdinstall para exibir o progresso.')
             bsdinstall_script = bsdinstall_script.replace(anchor, replacement)
+        postinstall_markers = (
+            (b'if [ -f $TMPDIR/bsdinstall-installscript-setup ]; then\n',
+             b'brasa_phase bsdinstall-postinstall-copy\n'
+             b'printf "Brasa: preparando o script de instalacao no sistema-alvo.\\n"\n'
+             b'if [ -f $TMPDIR/bsdinstall-installscript-setup ]; then\n'),
+            (b'\tcp $TMPDIR/bsdinstall-installscript-setup \\\n\t    $BSDINSTALL_CHROOT/tmp/installscript\n',
+             b'\tbrasa_phase bsdinstall-postinstall-copy\n'
+             b'\tcp $TMPDIR/bsdinstall-installscript-setup \\\n\t    $BSDINSTALL_CHROOT/tmp/installscript\n'),
+            (b'\tchmod a+x $BSDINSTALL_CHROOT/tmp/installscript\n',
+             b'\tbrasa_phase bsdinstall-postinstall-chmod\n'
+             b'\tchmod a+x $BSDINSTALL_CHROOT/tmp/installscript\n'),
+            (b'\tchroot $BSDINSTALL_CHROOT /tmp/installscript $@ 2>&1\n',
+             b'\tbrasa_phase bsdinstall-postinstall-start\n'
+             b'\tchroot $BSDINSTALL_CHROOT /tmp/installscript $@ 2>&1\n'
+             b'\tbrasa_phase bsdinstall-postinstall-returned\n'),
+            (b'\trm $BSDINSTALL_CHROOT/tmp/installscript\n',
+             b'\tbrasa_phase bsdinstall-postinstall-cleanup\n'
+             b'\trm $BSDINSTALL_CHROOT/tmp/installscript\n'),
+        )
+        for anchor, replacement in postinstall_markers:
+            if bsdinstall_script.count(anchor) != 1:
+                raise RuntimeError('Nao foi possivel instrumentar o inicio do script pos-instalacao.')
+            bsdinstall_script = bsdinstall_script.replace(anchor, replacement)
         anchor = b'mkdir /tmp/bsdinstall_etc\n'
         if old_rc.count(anchor) != 1:
             raise RuntimeError('O arquivo de inicialização da mídia não é o esperado.')
@@ -480,7 +503,9 @@ def main():
                 b'Verificando a disponibilidade do Wine.' not in bootstrap):
             raise RuntimeError('A ISO precisa exibir a saída do instalador e as consultas de pacotes.')
         bsd_script_payload = read_rr(check, '/usr/libexec/bsdinstall/script')
-        for marker in (b'bsdinstall-config-start', b'bsdinstall-config-returned'):
+        for marker in (b'bsdinstall-config-start', b'bsdinstall-config-returned',
+                       b'bsdinstall-postinstall-copy', b'bsdinstall-postinstall-chmod',
+                       b'bsdinstall-postinstall-start', b'bsdinstall-postinstall-returned'):
             if marker not in bsd_script_payload:
                 raise RuntimeError('A ISO precisa identificar a entrada e a saida de bsdinstall config.')
         config_payload = read_rr(check, '/usr/libexec/bsdinstall/config')
@@ -490,7 +515,9 @@ def main():
             if marker not in config_payload:
                 raise RuntimeError('A ISO precisa identificar cada subetapa do bsdinstall config.')
         for marker in (b'bsdinstall-config-start)', b'bsdinstall-config-returned)',
-                       b'bsdinstall-config-rcconf)', b'bsdinstall-config-newaliases)'):
+                       b'bsdinstall-config-rcconf)', b'bsdinstall-config-newaliases)',
+                       b'bsdinstall-postinstall-copy)', b'bsdinstall-postinstall-chmod)',
+                       b'bsdinstall-postinstall-start)', b'bsdinstall-postinstall-returned)'):
             if marker not in assistant:
                 raise RuntimeError('O progresso precisa traduzir as subetapas do bsdinstall config.')
         required_paths = ['/etc/rc.local', '/brasa/brasa-live-start', '/brasa/BRASA_PROJECT_TAR_GZ',

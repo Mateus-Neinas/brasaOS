@@ -393,6 +393,21 @@ process_is_running() {
       bsdinstall-config-complete)
         progress_message='Configuração da base FreeBSD concluída...'
         ;;
+      bsdinstall-postinstall-copy)
+        progress_message='Preparando o script de instalação no sistema-alvo...'
+        ;;
+      bsdinstall-postinstall-chmod)
+        progress_message='Ajustando as permissões do script de instalação...'
+        ;;
+      bsdinstall-postinstall-start)
+        progress_message='Iniciando a configuração do Brasa no sistema instalado...'
+        ;;
+      bsdinstall-postinstall-returned)
+        progress_message='Configuração do Brasa concluída; finalizando a instalação...'
+        ;;
+      bsdinstall-postinstall-cleanup)
+        progress_message='Limpando os arquivos temporários da instalação...'
+        ;;
       configurando-brasa)
         case "$output_line" in
           ''|DEBUG:*) progress_message='Preparando KDE, áudio USB e suporte do computador...' ;;

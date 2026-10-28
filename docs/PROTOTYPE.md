@@ -18,6 +18,14 @@ O instalador gráfico seleciona o disco em uma janela e apresenta modelo, capaci
 
 A ISO permanece experimental: KDE, instalação no disco, primeiro login, Wine e interfaces USB de áudio ainda não foram validados. Não instale em um disco real.
 
+### r17: rastreio do script pós-instalação (28/10/2026)
+
+A imagem acrescenta marcadores antes/depois das operações de cópia, permissão, execução e limpeza do script pós-instalação. No QEMU 11.1/WHPX (8 GiB, 4 vCPUs, VirtIO GPU 128 MiB), com somente um QCOW2 descartável de 40 GiB, a instalação gráfica abriu, aceitou conta/senha e confirmou `vtbd0`. A instalação local da base e do kernel terminou. A tela saiu de `bsdconfig` e mudou para “Iniciando a configuração do Brasa no sistema instalado”. Ficou nessa etapa por 624 s; os marcadores seguintes não apareceram na tela nem no log serial. O QCOW não teve novas gravações durante a etapa (contador final de escrita QMP: 1.266.222.592 bytes). QEMU chegou a cerca de 6,3 GiB de RAM e foi encerrado; o QCOW descartável foi removido. O teste não concluiu o sistema nem iniciou o KDE.
+
+Essa medição mostra que a demora não ficou restrita à tela rotulada `bsdconfig`: a interface avançou para a configuração pós-instalação, mas ainda não identifica qual comando está consumindo tempo. As fontes oficiais consultadas descrevem que o tempo de instalação varia com componentes, mídia e computador, e que `bsdconfig` é uma biblioteca de rotinas shell chamada por `bsdinstall`; não documentam uma espera normal de vários minutos nessa subetapa. Não encontrei relato verificável de que essa etapa costume demorar tanto. Isso não prova que a demora seja anormal em todas as máquinas, mas não há evidência para tratá-la como normal. Próxima investigação: capturar processos e conteúdo de `/tmp/brasa-install-phase` dentro do live durante essa espera, e verificar se a chamada do script pós-instalação foi alcançada.
+
+Fontes: [FreeBSD Handbook — Installing FreeBSD](https://docs.freebsd.org/en/books/handbook/bsdinstall/) e [FreeBSD Foundation — Installer Usability](https://freebsdfoundation.org/our-work/journal/browser-based-edition/networking-3/installer-usability/).
+
 ### Progresso de extração de pacotes e reteste da base (27/10/2026)
 
 O bootstrap do sistema instalado foi reduzido para o conjunto essencial do KDE Plasma (`plasma6-plasma`, Konsole, Dolphin e Ark), mantendo o KDE, SDDM, Xorg, `drm-kmod` e Zenity. O leitor de progresso também interpreta os contadores `[atual/total]` emitidos por `pkg` durante instalação e extração; a saída de serial mostrou esses contadores nos 133 componentes gráficos do ambiente live.

@@ -2,6 +2,15 @@
 
 Todas as alterações de código e os resultados de cada build devem ser versionados e documentados no Git. Enquanto as imagens forem instáveis, mantenha localmente somente a ISO mais recente; não publique assets experimentais no GitHub. Preserve as ISOs-base. Depois que uma instalação completar e iniciar KDE pelo disco instalado, a próxima release poderá receber título `beta_1.x`.
 
+## ISO experimental mais recente: r17 (28/10/2026)
+
+- Arquivo local: `.build/Brasa-live-r17-postinstall-phase-trace-2026-10-28.iso`
+- Tamanho: 1.285.011.456 bytes
+- SHA-256: `952395B6A907E41E342ED2911F497ABDF6B772E4661CF40F54B7A7BA1E896331`
+- Mudança: inclui marcadores para rastrear cópia, permissões, execução e limpeza do script pós-instalação.
+- Teste: QEMU 11.1/WHPX, 8 GiB RAM, 4 vCPUs, VirtIO GPU 128 MiB e QCOW2 descartável de 40 GiB. Confirmou somente `vtbd0`, extraiu a base/kernel e avançou da mensagem `bsdconfig` para “Iniciando a configuração do Brasa no sistema instalado”. A tela ficou nessa etapa por 624 s sem novas gravações no QCOW. Nenhum dos marcadores do script pós-instalação apareceu; o processo QEMU chegou a cerca de 6,3 GiB de RAM. Instalação incompleta; KDE, primeiro boot, Wine, áudio USB físico e hardware real não testados.
+- O processo QEMU foi encerrado e o QCOW de teste removido. A ISO r17 é a única ISO experimental Brasa mantida no diretório `.build`; as imagens-base foram preservadas. Nenhum asset experimental foi publicado como release.
+
 As entradas abaixo são registros históricos de builds e testes. A prioridade de versionamento é o código-fonte e a documentação no Git; uma ISO para download público só será publicada depois de passar pela instalação e pelo boot KDE previstos.
 
 Em 27/10/2026, as 23 releases alpha/experimentais e seus 23 assets ISO foram removidos do GitHub a pedido do usuário para liberar armazenamento (26.319.869.952 bytes de assets). Os commits e tags Git foram mantidos. O histórico abaixo documenta os builds, mas os objetos de release e links de download já não existem.
