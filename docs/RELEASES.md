@@ -36,6 +36,15 @@ Em 27/10/2026, as 23 releases alpha/experimentais e seus 23 assets ISO foram rem
 - Pesquisa: documentação oficial descreve busca de arquivos de mapa de teclado no `bsdconfig`, sem indicar espera de vários minutos. Há relatos de atualização lenta do catálogo `pkg` (4–6 minutos), mas essa atividade distinta não explica a espera observada. KDE instalado, primeiro boot, Wine e USB Audio físico continuam sem validação.
 - Nenhuma release/asset experimental foi publicada. As ISOs antigas foram removidas localmente; r15 é a única ISO Brasa experimental mantida junto das imagens-base.
 
+## ISO r16: estado por subetapa do `bsdinstall config` (28/10/2026)
+
+- Título de versão interno: `alpha_1.25` (sem release/asset no GitHub).
+- Arquivo local mais recente: `.build/Brasa-live-r16-bsdconfig-state-trace-2026-10-28.iso`.
+- Tamanho: 1.285.011.456 bytes; SHA-256 `8DC301EB6B80D56A33B0E7B5D1488F93006D3A7CD7CD7922D73C07A1D7AF3168`.
+- Mudanças: o instalador acompanha subfases de `bsdinstall config` pelo arquivo de estado compartilhado e troca a mensagem de progresso conforme cada marcador.
+- QEMU 11.1/WHPX, `core2duo`, 8 GiB, 4 vCPUs, VirtIO GPU 128 MiB e QCOW2 descartável de 40 GiB: boot, assistente, senha e confirmação do único disco `vtbd0` passaram; base/kernel locais foram extraídos. A tela permaneceu em `bsdconfig` por 10 minutos. O QCOW não recebeu gravações desde 00:28:03; QEMU manteve uso alto de CPU e chegou a cerca de 6,4 GiB de RAM. Nenhuma nova mensagem de subetapa apareceu; a instrumentação ainda não localizou o comando parado. VM encerrada por QMP e QCOW removido.
+- r16 é a única ISO Brasa experimental local, além das imagens-base. Não foi publicada release; as alterações de código e documentação seguem no Git. Instalação completa, boot do disco, KDE, Wine e áudio USB real continuam sem validação.
+
 
 ## ISO r9: KDE reduzido e cache live restaurado (27/10/2026)
 

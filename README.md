@@ -4,11 +4,11 @@ Brasa é um protótipo x86-64 baseado em FreeBSD. O objetivo é oferecer uma ins
 
 ## Estado da imagem experimental mais recente
 
-A ISO local mais recente é r15, com marcadores extras para descobrir onde para `bsdinstall config`. Em QEMU/WHPX com 8 GiB, 4 vCPUs e VirtIO GPU 128 MiB, o assistente gráfico chegou à confirmação de um QCOW2 descartável de 40 GiB e extraiu base/kernel; depois ficou em `bsdconfig` sem gravações no disco por cerca de 8 minutos. A instalação não concluiu. A r14 teve parada parecida. KDE após instalação, primeiro boot, Wine e áudio USB em hardware real não foram validados. Consulte `docs/RELEASES.md` para hashes e resultados. As imagens são experimentais; não use num computador com dados importantes. JWM é somente o ambiente temporário do instalador; KDE continua sendo o desktop pretendido no sistema instalado. Consulte `docs/PROTOTYPE.md` antes de testar.
+A ISO local mais recente é r16, com marcadores de subetapas em `bsdinstall config`. Em QEMU/WHPX com 8 GiB, 4 vCPUs e VirtIO GPU 128 MiB, o assistente gráfico confirmou um QCOW2 descartável de 40 GiB e extraiu base/kernel; depois ficou em `bsdconfig` por 10 minutos, sem gravações no disco desde 00:28. Os novos marcadores não apareceram e a instalação não concluiu. KDE após instalação, primeiro boot, Wine e áudio USB em hardware real não foram validados. Consulte `docs/RELEASES.md` para hash e resultado. As imagens são experimentais; não use num computador com dados importantes. JWM é somente o ambiente temporário do instalador; KDE continua sendo o desktop pretendido no sistema instalado. Consulte `docs/PROTOTYPE.md` antes de testar.
 
 ## O que funciona nesta mídia
 
-- A r15 inicia o assistente gráfico, confirma o disco virtual de teste e extrai base/kernel; a instalação não chegou ao fim.
+- A r16 inicia o assistente gráfico, confirma o disco virtual de teste e extrai base/kernel; a instalação não chegou ao fim.
 - Inclui o pacote Brasa em `/BRASA/BRASA_PROJECT_TAR_GZ` e `snd_uaudio.ko` no kernel.
 - KDE instalado, Wine, áudio USB físico e primeiro boot continuam sem validação.
 

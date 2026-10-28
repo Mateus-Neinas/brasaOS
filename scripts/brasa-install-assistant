@@ -369,6 +369,30 @@ process_is_running() {
         progress_message='Configurando contas e serviços do sistema...'
         [ "$last_percentage" -lt 88 ] && last_percentage=88
         ;;
+      bsdinstall-config-start)
+        progress_message='Finalizando a configuração do FreeBSD...'
+        ;;
+      bsdinstall-config-returned)
+        progress_message='Configuração do FreeBSD concluída; preparando o Brasa...'
+        ;;
+      bsdinstall-config-rcconf)
+        progress_message='Configurando a rede e os serviços do sistema...'
+        ;;
+      bsdinstall-config-etc)
+        progress_message='Copiando os arquivos de configuração do sistema...'
+        ;;
+      bsdinstall-config-boot)
+        progress_message='Configurando os arquivos de inicialização...'
+        ;;
+      bsdinstall-config-newaliases)
+        progress_message='Configurando os aliases do sistema...'
+        ;;
+      bsdinstall-config-newaliases-done)
+        progress_message='Finalizando os aliases do sistema...'
+        ;;
+      bsdinstall-config-complete)
+        progress_message='Configuração da base FreeBSD concluída...'
+        ;;
       configurando-brasa)
         case "$output_line" in
           ''|DEBUG:*) progress_message='Preparando KDE, áudio USB e suporte do computador...' ;;
