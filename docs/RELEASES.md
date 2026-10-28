@@ -4,6 +4,15 @@ Toda imagem ISO criada deve receber uma release própria no GitHub, inclusive qu
 
 Para publicar manualmente pelo GitHub, crie uma release em `https://github.com/Mateus-Neinas/brasaOS/releases/new`, informe a tag correspondente, copie as notas documentadas e anexe a ISO. A release não substitui o histórico de código: faça commits e push dos fontes e documentação separadamente.
 
+## ISO r7: permissão do instalador corrigida (27/10/2026)
+
+- Tag: `brasa-install-permission-2026-10-27`
+- Arquivo: `Brasa-live-graphical-firstboot-audio-r7-install-permission-2026-10-27.iso`
+- Tamanho: 1.284.968.448 bytes
+- SHA-256: `B41AC6D49AD17EB853A009762FEE6089E7FFB2AC76EEFEC723873D1ABFEB2AAD`
+- Estado: experimental. No QEMU TCG (8 GiB, 4 vCPUs, VGA 128 MiB, QCOW2 de 40 GiB), iniciou direto no assistente gráfico, permitiu criar a conta, selecionar `ada0` e confirmar o disco virtual. A correção dos modos ISO removeu o erro `Permission denied`; o particionamento e a extração local de base/kernel avançaram até a configuração do KDE. O QCOW chegou a 1.259.339.776 bytes, depois ficou sem novas gravações por mais de cinco minutos na configuração de desktop; a VM foi encerrada a pedido do usuário. Instalação completa, primeiro boot, KDE, Wine, áudio USB funcional e hardware real não foram validados.
+- A imagem contém `snd_uaudio.ko` (133.368 bytes) e os conjuntos oficiais FreeBSD locais. O fallback de rede permaneceu ativo; foi removida uma segunda atualização redundante do catálogo. O código atual inclui a correção do helper executável; a próxima etapa investiga a rede/DNS usada ao instalar KDE dentro do sistema-alvo.
+
 ## ISO local-package-cache experimental (27/10/2026)
 
 - Tag: `brasa-local-pkg-cache-failed-2026-10-27`

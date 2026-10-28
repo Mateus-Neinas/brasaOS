@@ -103,7 +103,7 @@ if [ -r /brasa/BRASA_PKG_CACHE_TAR ]; then
   else
     say 'O cache local está incompleto; vou atualizar o catálogo e completar pela internet.'
     run_logged 'Atualizando o catálogo de pacotes...' pkg update -f || failed
-    run_logged 'Completando os componentes gráficos pela internet...' pkg install -y \
+    run_logged 'Completando os componentes gráficos pela internet...' pkg install -U -y \
       xorg-minimal xinit jwm zenity dejavu xf86-video-vesa xf86-video-scfb || failed
   fi
 else

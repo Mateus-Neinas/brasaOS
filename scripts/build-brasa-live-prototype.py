@@ -386,10 +386,10 @@ def main():
             image.add_file(str(temp / 'rc.conf'), iso_path='/ETC/RC.CONF;1', rr_name='rc.conf')
             image.add_file(str(temp / 'bsdinstall-pkgbase'),
                            iso_path='/USR/LIBEXEC/BSDINSTALL/PKGBASE.;1',
-                           rr_name='pkgbase', file_mode=0o555)
+                           rr_name='pkgbase', file_mode=0o100555)
             image.add_file(str(temp / 'bsdinstall-script'),
                            iso_path='/USR/LIBEXEC/BSDINSTALL/SCRIPT.;1',
-                           rr_name='script', file_mode=0o555)
+                           rr_name='script', file_mode=0o100555)
             image.add_file(str(package), iso_path='/BRASA/BRASA_PROJECT_TAR_GZ;1', rr_name='BRASA_PROJECT_TAR_GZ')
             image.add_directory(iso_path='/BRASA/FREEBSD_DIST', rr_name='freebsd-dist')
             for name, path in freebsd_dist_files.items():
