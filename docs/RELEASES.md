@@ -4,6 +4,15 @@ Toda imagem ISO criada deve receber uma release própria no GitHub, inclusive qu
 
 Para publicar manualmente pelo GitHub, crie uma release em `https://github.com/Mateus-Neinas/brasaOS/releases/new`, informe a tag correspondente, copie as notas documentadas e anexe a ISO. A release não substitui o histórico de código: faça commits e push dos fontes e documentação separadamente.
 
+## ISO r8: KDE menor, boot gráfico falhou sem cache (27/10/2026)
+
+- Tag: `brasa-r8-minimal-kde-no-cache-boot-failed-2026-10-27`
+- Arquivo: `Brasa-live-graphical-firstboot-audio-r8-minimal-kde-2026-10-27.iso`
+- Tamanho: 756.109.312 bytes
+- SHA-256: `dbddae317ec8345e997dd9b89bf5da3804ff7a66df86b8e46bed206f31bb2a8f`
+- Estado: experimental e defeituosa. Em QEMU/TCG com 8 GiB, 8 vCPUs, VGA de 128 MiB e QCOW2 descartável de 40 GiB, não abriu o assistente gráfico. O log identificou uma cópia de `/usr/local` para o mesmo diretório no caminho sem cache. O QCOW2 permaneceu em 197.632 bytes; nenhum disco foi particionado nem alterado. A sessão foi encerrada e o QCOW mantido em `%TEMP%`.
+- A ISO contém `base.txz`, `kernel.txz` e o driver `snd_uaudio.ko`. Seu bootstrap Brasa usa um conjunto Plasma Desktop/KWin X11 menor e uma única transação, mas o instalador nem chegou a essa etapa. Primeiro boot, KDE, Wine, áudio USB real e instalação completa não foram testados. O próximo build volta a usar o cache live da r7 com fallback pela internet.
+
 ## ISO r7: permissão do instalador corrigida (27/10/2026)
 
 - Tag: `brasa-install-permission-2026-10-27`

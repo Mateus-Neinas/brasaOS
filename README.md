@@ -4,11 +4,11 @@ Brasa é um protótipo x86-64 baseado em FreeBSD. O objetivo é oferecer uma ins
 
 ## Estado da imagem experimental mais recente
 
-A release r7 abre o assistente gráfico e extrai a base/kernel locais, mas o teste parou ao configurar o desktop. Esta revisão reduz o conjunto KDE instalado: usa Plasma Desktop com KWin X11 e Breeze, em vez do pacote meta completo, preservando SDDM, Dolphin, Konsole, Ark, áudio USB e Wine. Também junta os pacotes numa única transação. Na base de pacotes incluída numa ISO experimental anterior, a dependência estimada cai de 960 para 683 pacotes e de 2.359 para 1.378 MiB de downloads; isso ainda é uma estimativa, não um tempo medido. A nova ISO experimental e esse fluxo precisam ser retestados em QEMU. A instalação completa, o primeiro boot, KDE, Wine e interfaces USB físicas ainda não foram validados. Consulte `docs/RELEASES.md` para hashes e resultados. As imagens são experimentais; não use num computador com dados importantes. JWM é somente o ambiente temporário do instalador; KDE continua sendo o desktop pretendido no sistema instalado. Consulte `docs/PROTOTYPE.md` antes de testar.
+A r7 é a ISO mais recente que chegou ao assistente gráfico e à extração local da base/kernel. A experiência r8 sem cache falhou antes de abrir a interface: o início do live tentou copiar `/usr/local` para ele mesmo. Nenhum disco foi alterado. A r8 fica registrada no histórico, mas a r7 segue como a melhor base de teste. O próximo build usa o cache live comprovado da r7 e mantém o fallback de rede. O conjunto do desktop instalado foi reduzido para Plasma Desktop com KWin X11 e Breeze, SDDM, Dolphin, Konsole, Ark, áudio USB e Wine. No catálogo anterior, a estimativa cai de 960 para 683 pacotes e de 2.359 para 1.378 MiB; isso não é uma medição do download ou do tempo de instalação. Instalação completa, primeiro boot, KDE, Wine e interfaces USB físicas não foram validados. Consulte `docs/RELEASES.md` para hashes e resultados. As imagens são experimentais; não use num computador com dados importantes. JWM é somente o ambiente temporário do instalador; KDE continua sendo o desktop pretendido no sistema instalado. Consulte `docs/PROTOTYPE.md` antes de testar.
 
 ## O que funciona nesta mídia
 
-- Inicia o assistente gráfico experimental automaticamente, com o instalador FreeBSD como fallback.
+- A r7 iniciou o assistente gráfico automaticamente; a r8 falhou antes da interface gráfica.
 - Permite testar a base FreeBSD e consultar o pacote Brasa em `/BRASA/BRASA_PROJECT_TAR_GZ`.
 - Inclui o assistente gráfico Brasa e tenta iniciá-lo no ambiente live.
 - O KDE, Wine e os aplicativos de áudio pertencem ao sistema instalado e ainda não foram validados nesta ISO.
