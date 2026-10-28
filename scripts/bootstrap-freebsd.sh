@@ -27,6 +27,13 @@ msg "Bem-vindo à configuração do Brasa. Vamos preparar a conta e o desktop."
 if [ ! -x /usr/local/sbin/pkg ]; then
   env ASSUME_ALWAYS_YES=yes /usr/sbin/pkg bootstrap -f
 fi
+# Bound network stalls for repository metadata and missing packages. pkg.conf
+# uses UCL syntax; each individual file fetch already defaults to 30 seconds.
+install -d -m 0755 /usr/local/etc
+cat > /usr/local/etc/pkg.conf <<'EOF'
+fetch_timeout: 30
+fetch_retry: 1
+EOF
 if [ -f /var/db/brasa-live-user ]; then
   IFS='|' read -r brasa_user full_name < /var/db/brasa-live-user
   case "$brasa_user" in ''|*[!a-z0-9_-]*) fail "nome de usuário inválido enviado pelo instalador." ;; esac
@@ -109,9 +116,21 @@ msg "Preparando o desktop KDE Plasma e os aplicativos essenciais."
 # desktop under SDDM.
 set -- plasma6-plasma-desktop plasma6-kwin-x11 plasma6-breeze konsole dolphin ark \
   sddm xorg-minimal drm-kmod
+if pkg rquery '%n' kf6-kdesu 2>/dev/null | grep -qx kf6-kdesu; then
+  set -- "$@" kf6-kdesu
+else
+  echo "brasa: optional package 'kf6-kdesu' is unavailable; skipped."
+fi
+msg "Etapa 1/3: instalando o desktop KDE Plasma e os aplicativos essenciais."
+install_packages "$@"
+
+# Keep independent package transactions small so the GUI can identify which
+# feature is currently being configured and a slow optional download does not
+# hide progress for the core desktop.
+set --
 # Prefer the FreeBSD-native OSS backend with its rate servo. Keep OSS/kernel
 # audio available as a fallback if the newer optional packages are missing.
-for package in kf6-kdesu sox pipewire wireplumber; do
+for package in sox pipewire wireplumber; do
   if pkg rquery '%n' "$package" 2>/dev/null | grep -qx "$package"; then
     set -- "$@" "$package"
   else
@@ -128,8 +147,16 @@ else
     echo "brasa: optional package '$package' is unavailable; skipped."
   fi
 fi
+if [ "$#" -gt 0 ]; then
+  msg "Etapa 2/3: instalando os componentes opcionais de áudio; snd_uaudio já está habilitado no kernel."
+  install_packages "$@"
+else
+  msg "Etapa 2/3: componentes PipeWire opcionais indisponíveis; áudio USB class compliant continua pelo snd_uaudio/OSS."
+fi
+
+set --
 if pkg rquery '%n' wine 2>/dev/null | grep -qx wine; then
-  set -- "$@" wine
+  set -- wine
   for package in wine-gecko wine-mono; do
     if pkg rquery '%n' "$package" 2>/dev/null | grep -qx "$package"; then
       set -- "$@" "$package"
@@ -137,11 +164,11 @@ if pkg rquery '%n' wine 2>/dev/null | grep -qx wine; then
       echo "brasa: optional package '$package' is unavailable; skipped."
     fi
   done
+  msg "Etapa 3/3: instalando Wine e os componentes de compatibilidade disponíveis."
+  install_packages "$@"
 else
-  echo "brasa: Wine is unavailable in this repository; install it later if supported."
+  msg "Etapa 3/3: Wine não está disponível neste repositório; o desktop está pronto sem ele."
 fi
-msg "Instalando KDE, áudio USB e compatibilidade Windows em uma única etapa."
-install_packages "$@"
 
 install -d -o root -g wheel -m 0755 /usr/local/bin /usr/local/share/applications /usr/local/share/color-schemes
 install -m 0755 scripts/brasa-run-windows /usr/local/bin/brasa-run-windows

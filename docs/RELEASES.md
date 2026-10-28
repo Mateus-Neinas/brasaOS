@@ -211,3 +211,13 @@ O teste com a ISO publicada chegou à confirmação explícita e iniciou no disc
 - Mudanças: auto-inicia o live Brasa e a interface gráfica, normaliza scripts empacotados para LF para evitar falha de shell no FreeBSD e completa cinco arquivos ausentes do cache gráfico no momento da construção. Mantém os conjuntos base/kernel locais e `snd_uaudio.ko`.
 - Teste QEMU/TCG: 8 GiB RAM, 4 vCPUs, VGA 128 MiB, disco SATA/QCOW2 descartável. A janela de boas-vindas Brasa abriu automaticamente. O teste ainda atualizou catálogos e baixou 11 componentes gráficos; não houve instalação nem gravação no QCOW. A sessão foi deixada aberta na tela inicial.
 - WHPX parou em `random: unblocking device.` em duas combinações de vídeo. KDE pós-instalação, Wine/Proton, áudio USB em hardware e instalação em disco continuam sem validação. Release experimental.
+
+## ISO Brasa staged install r10 (27/10/2026)
+
+- Tag: [`brasa-r10-staged-install-2026-10-27`](https://github.com/Mateus-Neinas/brasaOS/releases/tag/brasa-r10-staged-install-2026-10-27)
+- Arquivo: `Brasa-live-staged-install-r10-2026-10-27.iso`
+- Tamanho: 1.284.970.496 bytes
+- SHA-256: `D82808D8951835D5CDB15237F81BA5D7D54792DBA2A598BF06D052A47BFCAAB3`
+- Mudanças: limita os downloads do `pkg` a 30 segundos por arquivo e uma repetição; separa a configuração pós-instalação em KDE/aplicativos essenciais, áudio USB/PipeWire e Wine/Gecko/Mono, com mensagens de etapa. Mantém `snd_uaudio` habilitado e usa o cache gráfico r7 como base do ambiente live, preservando fallback online.
+- Teste QEMU/TCG com 8 GiB RAM, 4 vCPUs, VGA 128 MiB e QCOW2 descartável de 40 GB: o live processou o catálogo de 38.288 pacotes, extraiu os componentes gráficos locais e completou 11 dependências restantes pela rede; o assistente gráfico abriu e o menu Installer do FreeBSD foi alcançado. A sessão foi interrompida antes de escolher ou alterar o disco. WHPX parou em `random: unblocking device.` nesta máquina.
+- As três transações novas de pós-instalação, a instalação completa, primeiro boot, KDE instalado, Wine, áudio USB em hardware e estabilidade em máquina real não foram validados. Release experimental; não use num disco com dados importantes. A imagem base foi preservada.
