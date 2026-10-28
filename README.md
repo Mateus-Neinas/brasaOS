@@ -4,9 +4,11 @@ Brasa é um protótipo x86-64 baseado em FreeBSD. O objetivo é oferecer instala
 
 ## Estado da ISO
 
-A ISO mais recente é `.build/Brasa-live-r37-plasma-session-2026-10-28.iso` (SHA-256 `FF215E6CAD3AE4998A9865CEEFCFBB1F369971E84A13EB9C3DC3DC6635849084`). A instalação limpa da r37 terminou em um QCOW de 40 GiB e iniciou pelo disco. O login `brasa`, o painel Plasma e o Konsole foram confirmados. A imagem está publicada como `alpha_1.37`; áudio USB físico e instalação em hardware real ainda não foram testados.
+A versão mais recente é `alpha_1.37b`, disponível como `Brasa-live-alpha_1.37b.iso` na página de Releases. SHA-256: `36B53E173EEBE74FA4DA0395A469350BD632A6ADACE11573F05DBC0C9F1A6CC3`. Ela mantém a r37 e adiciona estrutura híbrida PMBR/GPT para gravação bruta em pendrive. No Rufus, use modo DD/raw; `Alt+I` força esse modo.
 
-Não use esta imagem num disco físico. A base FreeBSD e o kernel vêm na ISO; KDE, Wine e componentes opcionais são instalados pela rede durante a instalação. O módulo `snd_uaudio` está habilitado, mas áudio USB em dispositivo físico ainda não foi testado.
+O boot BIOS por USB foi confirmado no QEMU até o ambiente live gráfico. A instalação limpa desta imagem falhou no QEMU durante a extração da base FreeBSD; não instale em disco físico até essa falha ser corrigida. Use apenas para testar o boot live. A gravação física com Rufus, boot UEFI e áudio USB real ainda não foram testados.
+
+O desktop KDE Plasma continua sendo o desktop instalado pretendido. O módulo `snd_uaudio` está habilitado, mas dispositivos USB Audio Class ainda não foram testados em equipamento físico.
 
 ## Objetivos e limitações
 

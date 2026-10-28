@@ -2,6 +2,16 @@
 
 Todas as alterações de código e os resultados de cada build devem ser versionados e documentados no Git. Preserve as ISOs-base e mantenha o total de ISOs abaixo de 10 GB. A primeira versão com login gráfico confirmado recebe o título alpha solicitado pelo usuário; as versões beta começam quando ele considerar o sistema do seu gosto e seguro.
 
+## ISO alpha_1.37b: imagem híbrida gravável em USB (28/10/2026)
+
+- Arquivo: `Brasa-live-alpha_1.37b.iso` (imagem local em `.build/Brasa-live-alpha_1.37b.iso`).
+- Tamanho: 1.284.999.680 bytes. SHA-256: `36B53E173EEBE74FA4DA0395A469350BD632A6ADACE11573F05DBC0C9F1A6CC3`.
+- Baseada na r37 alpha_1.37. A imagem mantém o sistema ISO9660 e o boot El Torito, acrescenta PMBR/GPT e reutiliza o carregador UEFI da mídia original para gravação bruta em pendrive.
+- QEMU TCG, 8 GiB RAM, 4 vCPUs, VGA std/128 MiB: iniciou como dispositivo USB em BIOS, exibiu o menu “Boot Brasa” e chegou ao ambiente live gráfico. A conversão foi estruturalmente validada.
+- Uma instalação de diagnóstico em QCOW descartável de 40 GiB, conectado como USB, falhou durante a extração da base FreeBSD. Não houve instalação concluída. A segunda VM visível foi iniciada com disco VirtIO, mas não foi instalada.
+- O arquivo pode ser gravado em modo DD/raw no Rufus; use `Alt+I` para forçar esse modo caso o Rufus abra o fluxo de extração ISO. A interface do Rufus e a gravação física não foram testadas nesta sessão.
+- BIOS QEMU validado; UEFI QEMU, gravação em pendrive físico, instalação em hardware e áudio USB em equipamento real ainda não foram validados. Para teste físico, use somente o boot live e não inicie a instalação em disco até a falha de extração ser corrigida.
+
 ## ISO alpha_1.37: correção da sessão Plasma (28/10/2026)
 
 - Arquivo local: `.build/Brasa-live-r37-plasma-session-2026-10-28.iso`
