@@ -10,7 +10,7 @@ Iniciar por uma mídia x86-64, escolher idioma, informar o nome e a senha da con
 
 A ISO `.build/Brasa-live-r36-install-progress-2026-10-28.iso` concluiu a instalação em QCOW2 de 40 GiB no QEMU com WHPX, 8 GiB de RAM, 4 vCPUs e VirtIO GPU de 128 MiB. Base/kernel local, conta, KDE Plasma, componentes de áudio e Wine foram instalados. A confirmação do assistente apareceu após cerca de 7 minutos. A barra e o texto acompanharam a extração de pacotes KDE e a instalação de Wine.
 
-O primeiro boot pelo QCOW não chegou à tela de login gráfica. Após mensagens iniciais do kernel, a captura ficou preta e QEMU continuou ativo; a saída serial não trouxe dados. Causa ainda desconhecida. O QCOW fica em `%TEMP%\Brasa-r36-test.qcow2`, e a janela QEMU permanece aberta sem a ISO conectada. Nenhuma unidade física foi usada. KDE está instalado no destino, mas início de sessão, Wine funcional e áudio USB físico seguem sem validação.
+O primeiro boot pelo QCOW não chegou à tela de login gráfica. Após mensagens iniciais do kernel, a captura ficou preta e QEMU continuou ativo; a saída serial não trouxe dados. VGA padrão repetiu o mesmo resultado, então o problema não parece exclusivo do driver VirtIO. Causa ainda desconhecida. O QCOW fica em `%TEMP%\Brasa-r36-test.qcow2`, e a janela QEMU permanece aberta sem a ISO conectada. Nenhuma unidade física foi usada. KDE está instalado no destino, mas início de sessão, Wine funcional e áudio USB físico seguem sem validação.
 
 A r36 também transmite a linha mais recente do script de pós-instalação para o progresso gráfico enquanto ele roda e remove diagnósticos seriais temporários. O instalador completo e a atualização da linha foram validados em QEMU; o primeiro boot continua sendo o bloqueio atual.
 
