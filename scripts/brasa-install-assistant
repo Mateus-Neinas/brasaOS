@@ -169,8 +169,9 @@ case "$current_bytes" in ''|*[!0-9]*) unset password; fail 'Não foi possível c
   { unset password; fail 'O disco mudou desde a seleção. Nenhuma instalação foi iniciada.'; }
 }
 
-# Establish connectivity before touching the selected disk. Prefer already
-# configured networking; otherwise try DHCP on wired interfaces only.
+# Best-effort DHCP for optional hardware packages after the base install. The
+# FreeBSD base and generic kernel are shipped on the ISO, so no network is
+# required to install or boot the selected machine.
 if ! route -n get default >/dev/null 2>&1; then
   printf 'timeout 20;\nretry 10;\n' > /tmp/brasa-dhclient.conf
   for interface in $(ifconfig -l); do
@@ -181,10 +182,6 @@ if ! route -n get default >/dev/null 2>&1; then
     route -n get default >/dev/null 2>&1 && break
   done
 fi
-route -n get default >/dev/null 2>&1 || {
-  unset password
-  fail 'Conecte o computador à internet por cabo de rede e abra o instalador novamente. O disco ainda não foi alterado.'
-}
 validate_selected_disk
 
 password_file=$(mktemp /tmp/brasa-password.XXXXXX)
@@ -195,6 +192,15 @@ progress_dir=$(mktemp -d /tmp/brasa-progress.XXXXXX)
 progress_pipe=$progress_dir/progress
 dist_dir=$(mktemp -d /tmp/brasa-distributions.XXXXXX)
 bsdinstall_log=$dist_dir/bsdinstall.log
+install_phase_file=/tmp/brasa-install-phase
+rm -f "$install_phase_file"
+freebsd_dist_dir=/brasa/freebsd-dist
+for distribution in base.txz kernel.txz MANIFEST; do
+  [ -r "$freebsd_dist_dir/$distribution" ] || {
+    unset password
+    fail "A mídia está sem o conjunto local $distribution. Nenhum disco foi alterado."
+  }
+done
 brasa_repo_db=/dev/null
 brasa_repo_meta=/dev/null
 brasa_repo_catalog_available=no
@@ -208,6 +214,7 @@ chmod 600 "$password_file" "$name_file" "$install_script" "$install_log"
 cleanup() {
   unset password
   rm -f "$password_file" "$name_file" "$install_script" "$progress_pipe"
+  rm -f "$install_phase_file"
   rmdir "$progress_dir" 2>/dev/null || true
   rm -f "$bsdinstall_log"
   rmdir "$dist_dir" 2>/dev/null || true
@@ -219,13 +226,8 @@ unset password
 
 cat > "$install_script" <<EOF
 PARTITIONS="$selected_disk"
-unset DISTRIBUTIONS
-# The FreeBSD "base" component includes devel and optional package sets.
-# Brasa only needs the bootable minimal userland here; desktop and app packages
-# are installed separately by bootstrap-freebsd.sh. Avoid resolving/fetching
-# the hundreds of unnecessary base packages during the interactive install.
-COMPONENTS="minimal"
-export COMPONENTS
+DISTRIBUTIONS="base.txz kernel.txz"
+export DISTRIBUTIONS
 BRASA_REPO_CATALOG_AVAILABLE="$brasa_repo_catalog_available"
 export BRASA_REPO_CATALOG_AVAILABLE
 
@@ -271,15 +273,16 @@ process_is_running() {
 }
 (
   set -e
-  export BSDINSTALL_DISTDIR="$dist_dir"
+  export BSDINSTALL_DISTDIR="$freebsd_dist_dir"
   export BSDINSTALL_LOG="$bsdinstall_log"
   report_progress 2 'Preparando os componentes oficiais do FreeBSD...'
-  printf '%s\n' 'Brasa: Instalando o sistema base pelo pkgbase do FreeBSD 15.1.' >> "$install_log"
-  report_progress 5 'Baixando e instalando o sistema base do FreeBSD...'
+  printf '%s\n' 'Brasa: Instalando a base e o kernel locais do FreeBSD 15.1.' >> "$install_log"
+  report_progress 5 'Usando a base e o kernel incluídos na ISO...'
   validate_selected_disk
   report_progress 8 'Preparando as partições e iniciando a instalação do FreeBSD...'
-  # With DISTRIBUTIONS unset, FreeBSD 15.1 bsdinstall script uses its pkgbase
-  # installer instead of unpacking the large base.txz and kernel.txz archives.
+  # Extract the checked, local FreeBSD base and generic kernel archives from
+  # the ISO. bsdinstall's fetchmissingdists sees both sets locally and does not
+  # prompt for a mirror or download the operating system over the network.
   bsdinstall script "$install_script" 6< "$name_file" 7< "$brasa_payload" \
     8< "$password_file" 9< "$password_file" 10< "$brasa_repo_db" 11< "$brasa_repo_meta" \
     < /dev/null >> "$install_log" 2>&1 &
@@ -293,6 +296,7 @@ process_is_running() {
   while process_is_running "$bsdinstall_pid"; do
     bsd_line=$(tail -n 1 "$bsdinstall_log" 2>/dev/null || true)
     output_line=$(tail -n 1 "$install_log" 2>/dev/null || true)
+    install_phase=$(cat "$install_phase_file" 2>/dev/null || true)
     progress_source="$bsd_line $output_line"
     progress_message=${output_line:-$bsd_line}
     # bsdinstall writes its verbose BSDCONFIG trace to BSDINSTALL_LOG while
@@ -327,9 +331,42 @@ process_is_running() {
         [ "$package_percentage" -le 99 ] || package_percentage=99
         [ "$package_percentage" -gt "$last_percentage" ] && last_percentage=$package_percentage
       fi
-    elif [ "$last_percentage" -lt 94 ] && [ -n "$output_line" ]; then
-      case "$output_line" in *Installing*|*Fetching*|*pkg*) last_percentage=94 ;; esac
+    elif [ "$last_percentage" -lt 90 ] && [ -n "$output_line" ]; then
+      case "$output_line" in
+        *'bsdinstall config'*) last_percentage=82 ;;
+        *'pkgbase'*|*'FreeBSD-base'*) [ "$last_percentage" -lt 12 ] && last_percentage=12 ;;
+      esac
     fi
+    case "$install_phase" in
+      particionando)
+        progress_message='Preparando as partições do disco escolhido...'
+        [ "$last_percentage" -lt 9 ] && last_percentage=9
+        ;;
+      verificando-distribuicoes)
+        progress_message='Conferindo a base e o kernel incluídos na ISO...'
+        [ "$last_percentage" -lt 12 ] && last_percentage=12
+        ;;
+      extraindo-base)
+        progress_message='Instalando os arquivos-base do FreeBSD pelo disco local...'
+        [ "$last_percentage" -lt 18 ] && last_percentage=18
+        ;;
+      extraindo-kernel)
+        progress_message='Instalando o kernel e os drivers incluídos na ISO...'
+        [ "$last_percentage" -lt 68 ] && last_percentage=68
+        ;;
+      configurando-boot)
+        progress_message='Configurando a inicialização do Brasa...'
+        [ "$last_percentage" -lt 82 ] && last_percentage=82
+        ;;
+      configurando-sistema)
+        progress_message='Configurando contas e serviços do sistema...'
+        [ "$last_percentage" -lt 88 ] && last_percentage=88
+        ;;
+      configurando-brasa)
+        progress_message='Configurando KDE, áudio USB e suporte do computador...'
+        [ "$last_percentage" -lt 92 ] && last_percentage=92
+        ;;
+    esac
     progress_message=$(printf '%s' "$progress_message" | tr '\t\r\n' '   ' | \
       sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//' | cut -c 1-180)
     if [ -z "$progress_message" ] || [ "${progress_message#DEBUG:}" != "$progress_message" ]; then

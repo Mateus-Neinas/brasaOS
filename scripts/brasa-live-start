@@ -89,8 +89,16 @@ if [ -r /brasa/BRASA_PKG_CACHE_TAR ]; then
     cp /brasa/BRASA_PKG_REPOSITORY_META /var/db/pkg/repos/FreeBSD-ports/meta >> "$log" 2>&1 || failed
     say 'Catálogo de pacotes pronto na mídia.'
   fi
-  if run_logged 'Instalando os componentes gráficos locais...' pkg install -l -y \
-    xorg-minimal xinit jwm zenity dejavu xf86-video-vesa xf86-video-scfb; then
+  set --
+  if [ -r /brasa/BRASA_LIVE_PKG_ROOTS ]; then
+    while IFS= read -r package; do
+      case "$package" in ''|*/*) failed ;; esac
+      [ -r "/var/cache/pkg/$package" ] || failed
+      set -- "$@" "/var/cache/pkg/$package"
+    done < /brasa/BRASA_LIVE_PKG_ROOTS
+  fi
+  if [ "$#" -gt 0 ] && \
+    run_logged 'Instalando os componentes gráficos locais...' pkg add "$@"; then
     :
   else
     say 'O cache local está incompleto; vou atualizar o catálogo e completar pela internet.'
@@ -121,7 +129,9 @@ jwm >/tmp/brasa-jwm.log 2>&1 &
 EOF
 chmod 700 /tmp/brasa-xinitrc
 say 'Abrindo o instalador gráfico Brasa.'
-if xinit /bin/sh /tmp/brasa-xinitrc -- /usr/local/bin/Xorg :0 -nolisten tcp >> "$log" 2>&1; then
+# Pass the client and server arguments in xinit's documented order. The old
+# invocation treated -- as a server option, which made Xorg exit immediately.
+if xinit /bin/sh /tmp/brasa-xinitrc -- :0 -nolisten tcp >> "$log" 2>&1; then
   rm -f /var/run/brasa-live-environment
   exit 0
 fi

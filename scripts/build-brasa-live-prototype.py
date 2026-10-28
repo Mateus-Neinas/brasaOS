@@ -23,6 +23,7 @@ VIRTIO_GPU_KMOD_URL = (
     'https://pkg.freebsd.org/FreeBSD:15:amd64/quarterly/All/'
     'virtio-gpu-qemu-kmod-0.2.1501000_1.pkg'
 )
+FREEBSD_PKG_REPOSITORY_URL = 'https://pkg.freebsd.org/FreeBSD:15:amd64/quarterly/'
 VIRTIO_GPU_KMOD_SHA256 = '97f42fe414e1a254142bdefe94d03538abe12874707eea36e9161beec4eed6bf'
 VIRTIO_GPU_FILES = {
     '/boot/modules/virtio_gpu_qemu.ko': 'virtio_gpu_qemu.ko',
@@ -30,6 +31,12 @@ VIRTIO_GPU_FILES = {
 }
 PKG_REPO_DB_MEMBER = 'db/pkg/repos/FreeBSD-ports/db'
 PKG_REPO_META_MEMBER = 'db/pkg/repos/FreeBSD-ports/meta'
+FREEBSD_DIST_URL = 'https://download.freebsd.org/releases/amd64/amd64/15.1-RELEASE/'
+FREEBSD_DIST_FILES = {
+    'MANIFEST': '70ba0347054099662f22434797f1f33be289fc868ba58d6069a490b3e395d684',
+    'base.txz': '3768988b151c20f965679062b065c63a977d6bbb9f47fd83695ec2c40790c18f',
+    'kernel.txz': '49fea8ee25d0b1c523a02309efe4711d44a21ed0b36fb4191936a27a09324313',
+}
 
 def parse_args():
     output = ROOT / '.build/Brasa-live-experimental.iso'
@@ -90,10 +97,62 @@ def download_virtio_gpu_files(destination):
         extracted[member] = output
     return extracted
 
+def get_freebsd_distribution_files():
+    """Fetch official 15.1 base/kernel sets once and verify pinned hashes."""
+    directory = ROOT / '.build/freebsd-15.1-dist'
+    directory.mkdir(parents=True, exist_ok=True)
+    result = {}
+    for name, expected in FREEBSD_DIST_FILES.items():
+        path = directory / name
+        digest = hashlib.sha256()
+        if path.is_file():
+            with path.open('rb') as existing:
+                while block := existing.read(1024 * 1024):
+                    digest.update(block)
+        if not path.is_file() or digest.hexdigest() != expected:
+            partial = path.with_suffix(path.suffix + '.partial')
+            partial.unlink(missing_ok=True)
+            digest = hashlib.sha256()
+            with urllib.request.urlopen(FREEBSD_DIST_URL + name, timeout=120) as response, partial.open('wb') as output:
+                while block := response.read(1024 * 1024):
+                    digest.update(block)
+                    output.write(block)
+            if digest.hexdigest() != expected:
+                partial.unlink(missing_ok=True)
+                raise RuntimeError(f'O arquivo oficial FreeBSD {name} não corresponde ao SHA-256 fixado.')
+            partial.replace(path)
+        result[name] = path
+
+    # Keep the requested class-compliant USB audio module in the ISO kernel set.
+    with tarfile.open(result['kernel.txz'], 'r:xz') as kernel:
+        if not any(member.name.removeprefix('./') == 'boot/kernel/snd_uaudio.ko'
+                   for member in kernel.getmembers()):
+            raise RuntimeError('O kernel FreeBSD incluído não contém snd_uaudio.ko.')
+    return result
+
 def read_rr(image, path):
     data = io.BytesIO()
     image.get_file_from_iso_fp(data, rr_path=path)
     return data.getvalue()
+
+def add_normalized_project_tree(archive, source, arcname, exclude_release_notes=False):
+    """Embed project files with Unix newlines so FreeBSD shell scripts parse."""
+    source = Path(source)
+    archive.addfile(archive.gettarinfo(str(source), arcname=arcname))
+    for path in sorted(source.rglob('*')):
+        relative = path.relative_to(source).as_posix()
+        if exclude_release_notes and Path(relative).name == 'RELEASES.md':
+            continue
+        member_name = f'{arcname}/{relative}'
+        info = archive.gettarinfo(str(path), arcname=member_name)
+        if path.is_dir() or path.is_symlink():
+            archive.addfile(info)
+            continue
+        data = path.read_bytes()
+        if b'\0' not in data:
+            data = data.replace(b'\r\n', b'\n')
+        info.size = len(data)
+        archive.addfile(info, io.BytesIO(data))
 
 def prune_package_cache(source, destination, temporary_directory, catalog_fallback=None):
     """Keep cached packages needed by the live GUI dependency closure."""
@@ -118,7 +177,7 @@ def prune_package_cache(source, destination, temporary_directory, catalog_fallba
         database = sqlite3.connect(catalog_path)
         try:
             rows = database.execute(
-                'SELECT id, name, version, path FROM packages'
+                'SELECT id, name, version, path, pkgsize FROM packages'
             ).fetchall()
             by_name_version = {(row[1], row[2]): row for row in rows}
             by_name = {}
@@ -147,11 +206,33 @@ def prune_package_cache(source, destination, temporary_directory, catalog_fallba
                     pending.append(dependency)
 
             keep_paths = set()
-            for package_id, name, version, path in rows:
+            present_paths = {member.name for member in archive.getmembers()}
+            downloaded_packages = []
+            package_roots = []
+            for package_id, name, version, path, package_size in rows:
                 if package_id not in selected:
                     continue
-                keep_paths.add(f'cache/pkg/{name}-{version}.pkg')
-                keep_paths.add(f'cache/pkg/{os.path.basename(path)}')
+                regular_path = f'cache/pkg/{name}-{version}.pkg'
+                hashed_path = f'cache/pkg/{os.path.basename(path)}'
+                if regular_path in present_paths or hashed_path in present_paths:
+                    keep_paths.update((regular_path, hashed_path))
+                    if name in LIVE_PACKAGE_ROOTS:
+                        package_roots.append(os.path.basename(path) if hashed_path in present_paths
+                                             else os.path.basename(regular_path))
+                    continue
+                # A cache may have the dependency catalog but omit a handful
+                # of required GUI packages. Fetch only those absent archives
+                # while building the ISO so boot never waits for pkg update.
+                destination_path = temporary_directory / os.path.basename(path)
+                with urllib.request.urlopen(FREEBSD_PKG_REPOSITORY_URL + path, timeout=60) as response, destination_path.open('wb') as output:
+                    while block := response.read(1024 * 1024):
+                        output.write(block)
+                if destination_path.stat().st_size != package_size:
+                    raise RuntimeError(f'O pacote gráfico {name}-{version} veio incompleto do repositório FreeBSD.')
+                downloaded_packages.append((destination_path, hashed_path))
+                keep_paths.add(hashed_path)
+                if name in LIVE_PACKAGE_ROOTS:
+                    package_roots.append(os.path.basename(path))
 
             all_members = archive.getmembers()
             original_packages = sum(1 for member in all_members
@@ -167,11 +248,15 @@ def prune_package_cache(source, destination, temporary_directory, catalog_fallba
                         included_packages += 1
                     file_data = archive.extractfile(member) if member.isreg() else None
                     output.addfile(member, file_data)
+                for package_path, archive_path in downloaded_packages:
+                    output.add(package_path, arcname=archive_path)
             print(f'Cache gráfico reduzido: {len(selected)} dependências; '
-                  f'{included_packages}/{original_packages} arquivos de pacote preservados.')
+                  f'{included_packages} arquivos preservados e {len(downloaded_packages)} ausentes baixados.')
         finally:
             database.close()
-        return catalog_path, catalog_meta_path
+        roots_path = temporary_directory / 'brasa-live-package-roots'
+        roots_path.write_bytes(''.join(f'{name}\n' for name in package_roots).encode('ascii'))
+        return catalog_path, catalog_meta_path, roots_path
 
 def main():
     if not SOURCE.is_file():
@@ -181,84 +266,39 @@ def main():
     try:
         old_rc = read_rr(image, '/etc/rc.local')
         pkgbase_script = read_rr(image, '/usr/libexec/bsdinstall/pkgbase')
-        pkgbase_anchor = (
-            b'local chroot = assert(os.getenv("BSDINSTALL_CHROOT"))\n'
-            b'\tassert(os.execute("mkdir -p " .. chroot))\n')
-        if pkgbase_script.count(pkgbase_anchor) != 1:
-            raise RuntimeError('O script pkgbase do FreeBSD não corresponde à versão esperada.')
-        pkgbase_resolver_fix = (
-            pkgbase_anchor +
-            b'\t-- Brasa: pkg uses the target root while fetching base packages.\n'
-            b'\t-- Seed its resolver before the first repository update.\n'
-            b'\tassert(os.execute("mkdir -p " .. chroot .. "/etc"))\n'
-            b'\tif not os.execute("test -s " .. chroot .. "/etc/resolv.conf") then\n'
-            b'\t\tassert(os.execute("cp /etc/resolv.conf " .. chroot .. "/etc/resolv.conf"))\n'
-            b'\tend\n')
-        pkgbase_script = pkgbase_script.replace(pkgbase_anchor, pkgbase_resolver_fix)
-        retry_update = (
-            b'\twhile not os.execute(pkg .. "update") do\n'
-            b'\t\tif not prompt_yn("Updating repositories failed, try again?") then\n'
-            b'\t\t\tos.exit(1)\n'
-            b'\t\tend\n'
-            b'\tend\n')
-        retry_update_brasa = (
-            b'\twhile not os.execute(pkg .. "update") do\n'
-            b'\t\tif options.non_interactive then\n'
-            b'\t\t\tio.stderr:write("Brasa: nao foi possivel atualizar o catalogo FreeBSD-base.\\n")\n'
-            b'\t\t\tos.exit(1)\n'
-            b'\t\tend\n'
-            b'\t\tif not prompt_yn("Updating repositories failed, try again?") then\n'
-            b'\t\t\tos.exit(1)\n'
-            b'\t\tend\n'
-            b'\tend\n')
-        retry_fetch = (
-            b'\twhile not os.execute(pkg .. "install -U -F -y -r FreeBSD-base " .. packages) do\n'
-            b'\t\tif not prompt_yn("Fetching packages failed, try again?") then\n'
-            b'\t\t\tos.exit(1)\n'
-            b'\t\tend\n'
-            b'\tend\n')
-        retry_fetch_brasa = (
-            b'\twhile not os.execute(pkg .. "install -U -F -y -r FreeBSD-base " .. packages) do\n'
-            b'\t\tif options.non_interactive then\n'
-            b'\t\t\tio.stderr:write("Brasa: nao foi possivel baixar os pacotes FreeBSD-base.\\n")\n'
-            b'\t\t\tos.exit(1)\n'
-            b'\t\tend\n'
-            b'\t\tif not prompt_yn("Fetching packages failed, try again?") then\n'
-            b'\t\t\tos.exit(1)\n'
-            b'\t\tend\n'
-            b'\tend\n')
-        if pkgbase_script.count(retry_update) != 1 or pkgbase_script.count(retry_fetch) != 1:
-            raise RuntimeError('Os ciclos de repetição pkgbase do FreeBSD não correspondem à versão esperada.')
-        pkgbase_script = pkgbase_script.replace(retry_update, retry_update_brasa)
-        pkgbase_script = pkgbase_script.replace(retry_fetch, retry_fetch_brasa)
-        pkg_command = (
-            b'\tlocal pkg = "pkg --rootdir " .. chroot ..\n'
-            b'\t\t" --repo-conf-dir " .. repos_dir .. " -o IGNORE_OSVERSION=yes "\n')
-        pkg_command_brasa = (
-            b'\tlocal pkg = "pkg --rootdir " .. chroot ..\n'
-            b'\t\t" --repo-conf-dir " .. repos_dir ..\n'
-            b'\t\t" -o IGNORE_OSVERSION=yes -o FETCH_TIMEOUT=30 -o FETCH_RETRY=1 "\n')
-        if pkgbase_script.count(pkg_command) != 1:
-            raise RuntimeError('A configuração do cliente pkgbase não corresponde à versão esperada.')
-        pkgbase_script = pkgbase_script.replace(pkg_command, pkg_command_brasa)
+        bsdinstall_script = read_rr(image, '/usr/libexec/bsdinstall/script')
+        phase_anchor = b'set -e\ntrap error EXIT\n'
+        phase_helper = (
+            phase_anchor +
+            b'\nbrasa_phase() {\n'
+            b'\tprintf "%s\\n" "$1" > /tmp/brasa-install-phase\n'
+            b'}\n')
+        if bsdinstall_script.count(phase_anchor) != 1:
+            raise RuntimeError('Não foi possível localizar o início do fluxo bsdinstall para as fases Brasa.')
+        bsdinstall_script = bsdinstall_script.replace(phase_anchor, phase_helper)
         phase_markers = (
-            (b'\tlocal rquery = capture(pkg .. "rquery -U -r FreeBSD-base %n")\n',
-             b'\tio.stderr:write("Brasa pkgbase: consultando os componentes do sistema base.\\n")\n'
-             b'\tlocal rquery = capture(pkg .. "rquery -U -r FreeBSD-base %n")\n'),
-            (b'\twhile not os.execute(pkg .. "update") do\n',
-             b'\tio.stderr:write("Brasa pkgbase: atualizando o cat\xc3\xa1logo FreeBSD-base.\\n")\n'
-             b'\twhile not os.execute(pkg .. "update") do\n'),
-            (b'\twhile not os.execute(pkg .. "install -U -F -y -r FreeBSD-base " .. packages) do\n',
-             b'\tio.stderr:write("Brasa pkgbase: baixando os pacotes da base.\\n")\n'
-             b'\twhile not os.execute(pkg .. "install -U -F -y -r FreeBSD-base " .. packages) do\n'),
-            (b'\tif not os.execute(pkg .. "install -U -y -r FreeBSD-base " .. packages) then\n',
-             b'\tio.stderr:write("Brasa pkgbase: instalando os pacotes baixados no disco.\\n")\n'
-             b'\tif not os.execute(pkg .. "install -U -y -r FreeBSD-base " .. packages) then\n'),
+            (b'rm -f $PATH_FSTAB\ntouch $PATH_FSTAB\n',
+             b'rm -f $PATH_FSTAB\ntouch $PATH_FSTAB\nbrasa_phase particionando\n'),
+            (b'\tbsdinstall checksum\n',
+             b'\tbrasa_phase verificando-distribuicoes\n\tbsdinstall checksum\n'),
+            (b'\t\tfor set in $DISTRIBUTIONS; do\n',
+             b'\t\tfor set in $DISTRIBUTIONS; do\n'
+             b'\t\t\tcase "$set" in\n'
+             b'\t\t\t\tbase.txz) brasa_phase extraindo-base ;;\n'
+             b'\t\t\t\tkernel.txz) brasa_phase extraindo-kernel ;;\n'
+             b'\t\t\t\t*) brasa_phase extraindo-arquivos ;;\n'
+             b'\t\t\tesac\n'),
+            (b'\n# Configure bootloader if needed\n',
+             b'\nbrasa_phase configurando-boot\n# Configure bootloader if needed\n'),
+            (b'\n# Finalize install\n',
+             b'\nbrasa_phase configurando-sistema\n# Finalize install\n'),
+            (b'\n# Run post-install script\n',
+             b'\nbrasa_phase configurando-brasa\n# Run post-install script\n'),
         )
-        for marker, replacement in phase_markers:
-            if pkgbase_script.count(marker) != 1:
-                raise RuntimeError('Não foi possível localizar uma fase esperada do pkgbase para instrumentação.')
-            pkgbase_script = pkgbase_script.replace(marker, replacement)
+        for anchor, replacement in phase_markers:
+            if bsdinstall_script.count(anchor) != 1:
+                raise RuntimeError('Não foi possível localizar uma etapa bsdinstall para exibir o progresso.')
+            bsdinstall_script = bsdinstall_script.replace(anchor, replacement)
         anchor = b'mkdir /tmp/bsdinstall_etc\n'
         if old_rc.count(anchor) != 1:
             raise RuntimeError('O arquivo de inicialização da mídia não é o esperado.')
@@ -270,10 +310,12 @@ def main():
         rc_conf = read_rr(image, '/etc/rc.conf') + b'\ntmpsize="1g"\nvarsize="1g"\n'
         with tempfile.TemporaryDirectory(prefix='brasa-live-') as directory:
             temp = Path(directory)
+            freebsd_dist_files = get_freebsd_distribution_files()
             virtio_gpu_files = download_virtio_gpu_files(temp) if VIRTIO_GPU_QEMU else {}
             (temp / 'rc.local').write_bytes(rc)
             (temp / 'rc.conf').write_bytes(rc_conf)
             (temp / 'bsdinstall-pkgbase').write_bytes(pkgbase_script)
+            (temp / 'bsdinstall-script').write_bytes(bsdinstall_script)
             if VIRTIO_GPU_QEMU:
                 loader_conf = read_rr(image, '/boot/loader.conf')
                 if b'virtio_gpu_qemu_load=' not in loader_conf:
@@ -288,19 +330,16 @@ def main():
             package = temp / 'brasa-project.tar.gz'
             with tarfile.open(package, 'w:gz') as archive:
                 for folder in ('scripts', 'config', 'docs'):
-                    source_folder = ROOT / folder
-                    if folder == 'docs':
-                        archive.add(
-                            source_folder,
-                            arcname=folder,
-                            filter=lambda member: None if Path(member.name).name == 'RELEASES.md' else member,
-                        )
-                    else:
-                        archive.add(source_folder, arcname=folder)
-                archive.add(ROOT / 'README.md', arcname='README.md')
+                    add_normalized_project_tree(
+                        archive, ROOT / folder, folder, exclude_release_notes=(folder == 'docs'))
+                readme = (ROOT / 'README.md').read_bytes().replace(b'\r\n', b'\n')
+                info = archive.gettarinfo(str(ROOT / 'README.md'), arcname='README.md')
+                info.size = len(readme)
+                archive.addfile(info, io.BytesIO(readme))
             replace_paths = [
                 '/ETC/RC.LOCAL;1', '/ETC/RC.CONF;1',
                 '/USR/LIBEXEC/BSDINSTALL/PKGBASE.;1',
+                '/USR/LIBEXEC/BSDINSTALL/SCRIPT.;1',
                 '/BRASA/BRASA_PROJECT_TAR_GZ;1',
             ]
             if VIRTIO_GPU_QEMU:
@@ -348,13 +387,23 @@ def main():
             image.add_file(str(temp / 'bsdinstall-pkgbase'),
                            iso_path='/USR/LIBEXEC/BSDINSTALL/PKGBASE.;1',
                            rr_name='pkgbase', file_mode=0o555)
+            image.add_file(str(temp / 'bsdinstall-script'),
+                           iso_path='/USR/LIBEXEC/BSDINSTALL/SCRIPT.;1',
+                           rr_name='script', file_mode=0o555)
             image.add_file(str(package), iso_path='/BRASA/BRASA_PROJECT_TAR_GZ;1', rr_name='BRASA_PROJECT_TAR_GZ')
+            image.add_directory(iso_path='/BRASA/FREEBSD_DIST', rr_name='freebsd-dist')
+            for name, path in freebsd_dist_files.items():
+                image.add_file(str(path),
+                               iso_path=f'/BRASA/FREEBSD_DIST/{name.upper()};1',
+                               rr_name=name)
             image.add_file(str(ROOT / 'scripts/brasa-live-start'), iso_path='/BRASA/BRASA_LIVE_START;1', rr_name='brasa-live-start')
             if pkg_repo_catalog:
                 image.add_file(str(pkg_repo_catalog[0]), iso_path='/BRASA/BRASA_PKG_REPOSITORY_DB;1',
                                rr_name='BRASA_PKG_REPOSITORY_DB')
                 image.add_file(str(pkg_repo_catalog[1]), iso_path='/BRASA/BRASA_PKG_REPOSITORY_META;1',
                                rr_name='BRASA_PKG_REPOSITORY_META')
+                image.add_file(str(pkg_repo_catalog[2]), iso_path='/BRASA/BRASA_LIVE_PKG_ROOTS;1',
+                               rr_name='BRASA_LIVE_PKG_ROOTS')
             image.write(str(OUTPUT))
     finally:
         image.close()
@@ -363,11 +412,14 @@ def main():
     try:
         if not check.eltorito_boot_catalog:
             raise RuntimeError('O catálogo de boot foi perdido.')
-        required_paths = ['/etc/rc.local', '/brasa/brasa-live-start', '/brasa/BRASA_PROJECT_TAR_GZ']
+        required_paths = ['/etc/rc.local', '/brasa/brasa-live-start', '/brasa/BRASA_PROJECT_TAR_GZ',
+                          '/brasa/freebsd-dist/MANIFEST', '/brasa/freebsd-dist/base.txz',
+                          '/brasa/freebsd-dist/kernel.txz']
         if PACKAGE_CACHE_ISO:
             required_paths.extend(['/brasa/BRASA_PKG_CACHE_TAR',
                                    '/brasa/BRASA_PKG_REPOSITORY_DB',
-                                   '/brasa/BRASA_PKG_REPOSITORY_META'])
+                                   '/brasa/BRASA_PKG_REPOSITORY_META',
+                                   '/brasa/BRASA_LIVE_PKG_ROOTS'])
         if VIRTIO_GPU_QEMU:
             required_paths.extend(['/boot/loader.conf', '/boot/modules/virtio_gpu_qemu.ko',
                                    '/brasa/virtio_gpu_qemu_xorg.conf'])

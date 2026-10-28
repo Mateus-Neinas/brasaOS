@@ -166,3 +166,12 @@ O teste com a ISO publicada chegou à confirmação explícita e iniciou no disc
 - Mudança: troca `COMPONENTS=base` por `COMPONENTS=minimal` para evitar resolver e instalar os conjuntos `devel` e `optional` durante a instalação inicial; adiciona mensagens que identificam as quatro fases do pkgbase. Mantém os limites de fetch em 30 segundos e uma repetição.
 - Teste QEMU/WHPX com 8 GiB, quatro vCPUs e VirtIO GPU 128 MiB: tanto `qemu64,-svm` quanto `core2duo` pararam no boot no mesmo texto `random: unblocking device.`. O QCOW não recebeu gravações; o fluxo gráfico e a instalação pkgbase não foram alcançados. A troca de modelo de CPU não alterou o resultado. A redução `minimal` ainda precisa ser testada depois de corrigir o bloqueio de boot/ambiente QEMU.
 - Release experimental. Não use num computador com dados importantes. As ISOs base foram preservadas.
+
+## ISO graphical firstboot audio r5 (27/10/2026)
+
+- ISO: `Brasa-live-graphical-firstboot-audio-r5-2026-10-27.iso`
+- Tamanho: 1.285.003.264 bytes
+- SHA-256: `353F226C9E5F78400F579393931DC5E3721D13885BD0C5ABCC6996DE39AA0B98`
+- Mudanças: auto-inicia o live Brasa e a interface gráfica, normaliza scripts empacotados para LF para evitar falha de shell no FreeBSD e completa cinco arquivos ausentes do cache gráfico no momento da construção. Mantém os conjuntos base/kernel locais e `snd_uaudio.ko`.
+- Teste QEMU/TCG: 8 GiB RAM, 4 vCPUs, VGA 128 MiB, disco SATA/QCOW2 descartável. A janela de boas-vindas Brasa abriu automaticamente. O teste ainda atualizou catálogos e baixou 11 componentes gráficos; não houve instalação nem gravação no QCOW. A sessão foi deixada aberta na tela inicial.
+- WHPX parou em `random: unblocking device.` em duas combinações de vídeo. KDE pós-instalação, Wine/Proton, áudio USB em hardware e instalação em disco continuam sem validação. Release experimental.
