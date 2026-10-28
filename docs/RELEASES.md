@@ -4,6 +4,15 @@ Toda imagem ISO criada deve receber uma release própria no GitHub, inclusive qu
 
 Para publicar manualmente pelo GitHub, crie uma release em `https://github.com/Mateus-Neinas/brasaOS/releases/new`, informe a tag correspondente, copie as notas documentadas e anexe a ISO. A release não substitui o histórico de código: faça commits e push dos fontes e documentação separadamente.
 
+## ISO local-package-cache experimental (27/10/2026)
+
+- Tag: `brasa-local-pkg-cache-failed-2026-10-27`
+- Arquivo: `Brasa-live-graphical-firstboot-audio-r6-local-packages-2026-10-27.iso`
+- Tamanho: 837.859.328 bytes
+- SHA-256: `FD52196D9AE93DCCDA5E4AAEF0BF99467997D49FC23AB1FF34B7A554E6AC00AA`
+- Estado: experimental e não recomendada para teste. A variante reduziu o cache ao conjunto de 133 pacotes com nomes normalizados, mas no QEMU TCG (8 GiB, VGA 128 MiB, QCOW2 de 40 GiB) voltou ao menu textual antes de abrir a interface gráfica. O QCOW2 permaneceu em 197.632 bytes e não foi instalado. O método de cache local foi revertido; a ISO r5 continua sendo a última variante que chegou à tela gráfica.
+- `snd_uaudio.ko` e os conjuntos oficiais `base.txz`/`kernel.txz` foram herdados da r5. Instalação completa, KDE, Windows/Wine/Proton, áudio USB real e hardware físico não foram validados.
+
 ## ISO progress-fix (27/10/2026)
 
 - Tag publicada: [`brasa-progress-fix-2026-10-27`](https://github.com/Mateus-Neinas/brasaOS/releases/tag/brasa-progress-fix-2026-10-27)
