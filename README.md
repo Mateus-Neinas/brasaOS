@@ -4,11 +4,11 @@ Brasa é um protótipo x86-64 baseado em FreeBSD. O objetivo é oferecer uma ins
 
 ## Estado da imagem experimental mais recente
 
-A ISO local mais recente é r21. A r20 revelou que o `bsdinstall` abre um diálogo explícito `Installation Error!` oculto pela janela de progresso; isso não é uma espera normal. A r21 move o `#!/bin/sh` do script pós-instalação para a primeira linha e registra o log BSD quando detecta esse diálogo. O build foi gerado, mas a instalação no QCOW ainda não foi confirmada. KDE após instalação, primeiro boot, Wine e áudio USB em hardware real não foram validados. Consulte `docs/RELEASES.md` para hash e resultado. As imagens são experimentais; não use num computador com dados importantes. JWM é somente o ambiente temporário do instalador; KDE continua sendo o desktop pretendido no sistema instalado. Consulte `docs/PROTOTYPE.md` antes de testar.
+A ISO local mais recente é r28 (`.build/Brasa-live-r28-fd-fix-2026-10-28.iso`). O r27 confirmou que o seletor gráfico e a instalação da base/kernel local funcionam, mas revelou `Bad fd number` ao copiar o catálogo no script pós-instalação: `/bin/sh` não aceita os descritores 10 e 11. A r28 troca por 4 e 5; o build passou, mas o ensaio gráfico não confirmou a correção. KDE instalado, primeiro boot, Wine e áudio USB em hardware real seguem sem validação. Consulte `docs/RELEASES.md` para hash e resultados. As imagens são experimentais; não use num computador com dados importantes. JWM é somente o ambiente temporário do instalador; KDE continua sendo o desktop pretendido no sistema instalado. Consulte `docs/PROTOTYPE.md` antes de testar.
 
 ## O que funciona nesta mídia
 
-- A r21 ainda não concluiu a instalação no disco virtual; o teste até o momento não confirmou o fluxo de apagamento e instalação.
+- A instalação no disco virtual ainda não concluiu o pós-instalação; r27 confirmou o fluxo até a configuração do sistema, e r28 ainda não validou o ajuste.
 - Inclui o pacote Brasa em `/BRASA/BRASA_PROJECT_TAR_GZ` e `snd_uaudio.ko` no kernel.
 - KDE instalado, Wine, áudio USB físico e primeiro boot continuam sem validação.
 

@@ -2,14 +2,16 @@
 
 Todas as alterações de código e os resultados de cada build devem ser versionados e documentados no Git. Enquanto as imagens forem instáveis, mantenha localmente somente a ISO mais recente; não publique assets experimentais no GitHub. Preserve as ISOs-base. Depois que uma instalação completar e iniciar KDE pelo disco instalado, a próxima release poderá receber título `beta_1.x`.
 
-## ISO experimental mais recente: r21 (28/10/2026)
+## ISO experimental mais recente: r28 (28/10/2026)
 
-- Arquivo local: `.build/Brasa-live-r21-shebang-fix-2026-10-28.iso`
-- Tamanho: 1.285.013.504 bytes
-- SHA-256: `5E13F4793C72A6EC2BA0714A06EADFBD5662BCBE6B29B1C184CA638E1A96352C`
-- Mudanças: move `#!/bin/sh` para a primeira linha do script temporário executado diretamente por `chroot`; captura no log da interface as últimas linhas do `bsdinstall.log` se surgir o diálogo `Installation Error!`.
-- Build validado; o live e o assistente gráfico abriram no QEMU (8 GiB, 4 vCPUs, VirtIO GPU 128 MiB). O ensaio foi cancelado antes da confirmação de apagamento do QCOW. A instalação e a correção do shebang ainda não foram validadas no disco. O QCOW foi encerrado/removido. KDE, primeiro boot, Wine, áudio USB físico e hardware real não testados.
-- É a única ISO experimental Brasa mantida localmente; imagens-base preservadas. Nenhum asset experimental foi publicado como release.
+- Arquivo local: `.build/Brasa-live-r28-fd-fix-2026-10-28.iso`
+- Tamanho: 1.285.015.552 bytes
+- SHA-256: `D2EEF66148C30F743426946A398E3215DB9FD767BA67A51AB4D226401379A78F`
+- Mudança: os descritores usados pelo script pós-instalação para ler o catálogo passam de 10/11 para 4/5, compatíveis com o `/bin/sh` FreeBSD.
+- Build verificado. O teste r28 não chegou a validar o diálogo de instalação: a captura do QEMU alternou entre console e tela preta. Seu QCOW descartável foi removido e o QEMU encerrado.
+- A r27 confirmou o seletor gráfico e mostrou somente `vtbd0` (40 GiB), o QCOW descartável. Após confirmação, a instalação local de base/kernel passou; o script pós-instalação parou na cópia do catálogo com `/tmp/installscript: 14: Syntax error: Bad fd number` (status 2). Não foi identificado defeito no `bsdconfig`: o erro ocorreu depois dessa etapa, no script de Brasa.
+- r26 e r27 foram removidas após a criação da r28. Esta é a única ISO Brasa mantida localmente; imagens-base preservadas. Nenhuma ISO experimental foi publicada no GitHub.
+- A instalação completa, KDE no disco, primeiro boot, Wine, áudio USB físico e hardware real continuam sem validação.
 
 ### Resultado do r20: erro do bsdinstall oculto (28/10/2026)
 

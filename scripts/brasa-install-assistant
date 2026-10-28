@@ -225,13 +225,13 @@ printf '%s\n' "$full_name" > "$name_file"
 unset password
 
 cat > "$install_script" <<EOF
-#!/bin/sh
 PARTITIONS="$selected_disk"
 DISTRIBUTIONS="base.txz kernel.txz"
 export DISTRIBUTIONS
 BRASA_REPO_CATALOG_AVAILABLE="$brasa_repo_catalog_available"
 export BRASA_REPO_CATALOG_AVAILABLE
 
+#!/bin/sh
 set -eu
 username="$username"
 EOF
@@ -243,8 +243,8 @@ printf '\nBrasa: Dados da conta recebidos.\n'
 printf '\nBrasa: Copiando o catálogo do repositório para o sistema instalado.\n'
 if [ "$BRASA_REPO_CATALOG_AVAILABLE" = yes ]; then
   mkdir -p /var/db/pkg/repos/FreeBSD-ports
-  cat <&10 > /var/db/pkg/repos/FreeBSD-ports/db
-  cat <&11 > /var/db/pkg/repos/FreeBSD-ports/meta
+  cat <&4 > /var/db/pkg/repos/FreeBSD-ports/db
+  cat <&5 > /var/db/pkg/repos/FreeBSD-ports/meta
   : > /var/db/brasa-live-repo-catalog-ready
 fi
 mkdir -p /tmp/brasa-source
@@ -270,6 +270,9 @@ printf '\nBrasa: Bootstrap concluído.\n'
 cd /
 rm -rf /tmp/brasa-source
 EOF
+tr -d '\015' < "$install_script" > "$install_script.normalized"
+mv "$install_script.normalized" "$install_script"
+chmod 600 "$install_script"
 
 zenity --progress --no-cancel --auto-close --title="$title" --width=680 \
   --text='Preparando a instalação. Não desligue o computador.' \
@@ -298,6 +301,8 @@ report_install_processes() {
     tail -n 80 "$bsdinstall_log" >> "$install_log" 2>/dev/null || true
     tail -n 80 "$bsdinstall_log" | sed 's/^/Brasa bsdinstall: /' \
       > /dev/ttyu0 2>/dev/null || true
+    tail -n 80 "$install_log" | sed 's/^/Brasa saída: /' \
+      > /dev/ttyu0 2>/dev/null || true
     kill "$dialog_pid" 2>/dev/null || true
   fi
 }
@@ -314,7 +319,7 @@ report_install_processes() {
   # the ISO. bsdinstall's fetchmissingdists sees both sets locally and does not
   # prompt for a mirror or download the operating system over the network.
   bsdinstall script "$install_script" 6< "$name_file" 7< "$brasa_payload" \
-    8< "$password_file" 9< "$password_file" 10< "$brasa_repo_db" 11< "$brasa_repo_meta" \
+    8< "$password_file" 9< "$password_file" 4< "$brasa_repo_db" 5< "$brasa_repo_meta" \
     < /dev/null >> "$install_log" 2>&1 &
   bsdinstall_pid=$!
   last_percentage=8
@@ -485,6 +490,8 @@ report_install_processes() {
   else
     bsdinstall_status=$?
     cat "$bsdinstall_log" >> "$install_log" 2>/dev/null || true
+    tail -n 100 "$install_log" | sed 's/^/Brasa falha: /' \
+      > /dev/ttyu0 2>/dev/null || true
     exit "$bsdinstall_status"
   fi
 ) > "$install_log" 2>&1 &

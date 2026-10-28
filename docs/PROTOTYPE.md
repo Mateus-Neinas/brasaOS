@@ -18,11 +18,17 @@ O instalador gráfico seleciona o disco em uma janela e apresenta modelo, capaci
 
 A ISO permanece experimental: KDE, instalação no disco, primeiro login, Wine e interfaces USB de áudio ainda não foram validados. Não instale em um disco real.
 
+### r27–r28: descritores do script pós-instalação (28/10/2026)
+
+No teste r27, o assistente abriu, aceitou a conta e listou somente `vtbd0` de 40 GiB, o QCOW descartável. Após a confirmação, o particionamento e a extração da base/kernel incluídos na ISO terminaram. O script de configuração falhou ao copiar o catálogo: `/tmp/installscript: 14: Syntax error: Bad fd number`. A linha 14 redirecionava `<&10`; o script também lia `<&11`. O `/bin/sh` do FreeBSD suporta descritores até 9. Isso identifica uma falha concreta do script de Brasa, depois da etapa `bsdinstall config`, não uma espera normal do `bsdconfig`.
+
+A r28 altera esses descritores para 4 e 5 e foi compilada. O teste iniciou QEMU, mas a captura alternou entre o console e uma tela preta antes de confirmar a interface; por isso, a correção ainda não foi validada em instalação. O QCOW r27 e r28 foi descartado após cada tentativa; somente a ISO r28 permanece local. O próximo teste precisa confirmar a janela gráfica, repetir a instalação em QCOW descartável e verificar a criação do usuário e o bootstrap do desktop.
+
 ### r20–r21: erro explícito no pós-instalação (28/10/2026)
 
 O diagnóstico de processos na r20 encontrou `bsddialog --title "Installation Error!"` consumindo CPU enquanto a janela Zenity de progresso o ocultava. Ao dispensar o progresso, o assistente Brasa informou que a instalação não terminou. A base/kernel e as etapas marcadas de `bsdinstall config` haviam terminado; a falha surgiu ao entrar na execução do script de pós-instalação. A mensagem exata do `bsdinstall.log` não foi preservada nessa execução. Portanto, a espera observada não é uma demora normal documentada: havia uma falha explícita escondida.
 
-A inspeção do gerador encontrou um defeito provável: `#!/bin/sh` era escrito depois de variáveis no arquivo que `bsdinstall` copia e executa diretamente com `chroot`. A r21 move o shebang para a primeira linha e adiciona captura do log quando um diálogo de erro do `bsdinstall` aparece. A ISO r21 compilou e iniciou o live/QEMU, mas o teste de instalação ainda não confirmou a correção; o assistente foi cancelado antes do apagamento do QCOW descartável. A tela retornou ao login do live após o cancelamento. Nenhum sistema foi instalado.
+A r21 moveu o shebang para o início, mas essa mudança isolada fez as variáveis `PARTITIONS` e `DISTRIBUTIONS` deixarem de ser lidas pelo `bsdinstall`; a r22 restaurou o preâmbulo antes do shebang e a extração local de `base.txz`/`kernel.txz` voltou a funcionar. A falha capturada na r27 foi posterior e diferente: descritores 10/11 inválidos no `/bin/sh` do sistema-alvo. A correção r28 ainda aguarda validação gráfica e de instalação.
 
 A documentação oficial diz que o `bsdinstall` exibe etapas de configuração após extrair as distribuições, e a implementação-fonte define um diálogo genérico para falhas de script; não descreve o diálogo como espera prolongada. Fontes: [FreeBSD Handbook — Installing FreeBSD](https://docs.freebsd.org/en/books/handbook/bsdinstall/), [código-fonte do bsdinstall](https://cgit.freebsd.org/src/tree/usr.sbin/bsdinstall/scripts/auto?id=5870d6a1ef4ec5d6fc91d0f1635bca59e09a040d) e [manual bsdinstall(8)](https://man.freebsd.org/cgi/man.cgi?manpath=freebsd-current&query=bsdinstall&sektion=8).
 

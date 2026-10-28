@@ -97,6 +97,29 @@ def download_virtio_gpu_files(destination):
         extracted[member] = output
     return extracted
 
+def reuse_virtio_gpu_files(source_iso, destination):
+    """Reuse the verified runtime driver/config shipped in an earlier Brasa ISO."""
+    cached = pycdlib.PyCdlib()
+    cached.open(str(source_iso))
+    try:
+        extracted = {}
+        for member, output_name in VIRTIO_GPU_FILES.items():
+            # r26 stored the Xorg file under /brasa while retaining the package path
+            # for the kernel module.
+            iso_path = ('/brasa/virtio_gpu_qemu_xorg.conf'
+                        if output_name == 'virtio_gpu_qemu_xorg.conf' else member)
+            output = destination / output_name
+            try:
+                output.write_bytes(read_rr(cached, iso_path))
+            except Exception:
+                return None
+            if output.stat().st_size == 0:
+                return None
+            extracted[member] = output
+        return extracted
+    finally:
+        cached.close()
+
 def get_freebsd_distribution_files():
     """Fetch official 15.1 base/kernel sets once and verify pinned hashes."""
     directory = ROOT / '.build/freebsd-15.1-dist'
@@ -348,8 +371,19 @@ def main():
              b'\tchmod a+x $BSDINSTALL_CHROOT/tmp/installscript\n'),
             (b'\tchroot $BSDINSTALL_CHROOT /tmp/installscript $@ 2>&1\n',
              b'\tbrasa_phase bsdinstall-postinstall-start\n'
-             b'\tchroot $BSDINSTALL_CHROOT /tmp/installscript $@ 2>&1\n'
-             b'\tbrasa_phase bsdinstall-postinstall-returned\n'),
+             b'\tprintf "Brasa: executando o script do sistema-alvo com /bin/sh.\\n" > /dev/ttyu0\n'
+             b'\tls -l $BSDINSTALL_CHROOT/tmp/installscript > /dev/ttyu0 2>&1\n'
+             b'\tod -An -tx1 -N16 $BSDINSTALL_CHROOT/tmp/installscript > /dev/ttyu0 2>&1\n'
+             b'\tif chroot $BSDINSTALL_CHROOT /bin/sh /tmp/installscript $@ > $BSDINSTALL_CHROOT/tmp/brasa-installscript.log 2>&1; then\n'
+             b'\t\tcat $BSDINSTALL_CHROOT/tmp/brasa-installscript.log > /dev/ttyu0\n'
+             b'\t\tcat $BSDINSTALL_CHROOT/tmp/brasa-installscript.log\n'
+             b'\t\tbrasa_phase bsdinstall-postinstall-returned\n'
+             b'\telse\n'
+             b'\t\tbrasa_status=$?\n'
+             b'\t\tcat $BSDINSTALL_CHROOT/tmp/brasa-installscript.log > /dev/ttyu0 2>&1 || true\n'
+             b'\t\tprintf "Brasa: script do sistema-alvo falhou com status %s.\\n" "$brasa_status" > /dev/ttyu0\n'
+             b'\t\texit "$brasa_status"\n'
+             b'\tfi\n'),
             (b'\trm $BSDINSTALL_CHROOT/tmp/installscript\n',
              b'\tbrasa_phase bsdinstall-postinstall-cleanup\n'
              b'\trm $BSDINSTALL_CHROOT/tmp/installscript\n'),
@@ -374,7 +408,12 @@ def main():
         with tempfile.TemporaryDirectory(prefix='brasa-live-') as directory:
             temp = Path(directory)
             freebsd_dist_files = get_freebsd_distribution_files()
-            virtio_gpu_files = download_virtio_gpu_files(temp) if VIRTIO_GPU_QEMU else {}
+            virtio_gpu_files = {}
+            if VIRTIO_GPU_QEMU:
+                if PACKAGE_CACHE_ISO:
+                    virtio_gpu_files = reuse_virtio_gpu_files(PACKAGE_CACHE_ISO, temp) or {}
+                if not virtio_gpu_files:
+                    virtio_gpu_files = download_virtio_gpu_files(temp)
             (temp / 'rc.local').write_bytes(rc)
             (temp / 'rc.conf').write_bytes(rc_conf)
             (temp / 'bsdinstall-pkgbase').write_bytes(pkgbase_script)
@@ -505,7 +544,8 @@ def main():
         bsd_script_payload = read_rr(check, '/usr/libexec/bsdinstall/script')
         for marker in (b'bsdinstall-config-start', b'bsdinstall-config-returned',
                        b'bsdinstall-postinstall-copy', b'bsdinstall-postinstall-chmod',
-                       b'bsdinstall-postinstall-start', b'bsdinstall-postinstall-returned'):
+                       b'bsdinstall-postinstall-start', b'bsdinstall-postinstall-returned',
+                       b'/bin/sh /tmp/installscript'):
             if marker not in bsd_script_payload:
                 raise RuntimeError('A ISO precisa identificar a entrada e a saida de bsdinstall config.')
         config_payload = read_rr(check, '/usr/libexec/bsdinstall/config')
@@ -522,6 +562,11 @@ def main():
                 raise RuntimeError('O progresso precisa traduzir as subetapas do bsdinstall config.')
         if b"bsdinstall-postinstall-start)\n        case \"$output_line\" in" not in assistant:
             raise RuntimeError('O progresso deve preservar a saída real do script pós-instalação.')
+        if (b'cat > "$install_script" <<EOF\nPARTITIONS=' not in assistant or
+                b'export BRASA_REPO_CATALOG_AVAILABLE\n\n#!/bin/sh\nset -eu' not in assistant):
+            raise RuntimeError('As variáveis bsdinstall precisam ficar antes do separador shebang do script.')
+        if b"tr -d '\\015' < \"$install_script\" > \"$install_script.normalized\"" not in assistant:
+            raise RuntimeError('O script de pós-instalação precisa remover CR antes de ser executado pelo chroot.')
         if b'report_install_processes() {' not in assistant or \
                 b'ps -ax -o pid,ppid,stat,etime,pcpu,command' not in assistant:
             raise RuntimeError('A ISO precisa registrar os processos ativos do instalador durante esperas longas.')
