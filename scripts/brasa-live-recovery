@@ -23,9 +23,14 @@ printf '\nDNS: '
 grep -E '^[[:space:]]*nameserver[[:space:]]+' /etc/resolv.conf 2>/dev/null | tr '\n' ' '
 printf '\n\nPCI Ethernet:\n'
 /usr/sbin/pciconf -lv 2>&1 | grep -E -B1 -A2 'class[[:space:]]*=[[:space:]]*(0x020000|network|ethernet)' | head -n 5 || printf 'nenhum identificado\n'
+printf '\nDriver Realtek RGE:\n'
+rge_modules=$(kldstat -v 2>&1 | grep -Ei 'if_rge|rge_pci|rge_driver|module rge' | head -n 3 || true)
+[ -n "$rge_modules" ] && printf '%s\n' "$rge_modules" || printf 'modulo rge nao aparece como carregado\n'
+rge_attach=$(dmesg 2>&1 | grep -Ei 'rge[0-9]|if_rge|RTL8125|8125.*(attach|probe)' | tail -n 4 || true)
+[ -n "$rge_attach" ] && printf '%s\n' "$rge_attach" || printf 'nenhuma mensagem rge no kernel\n'
 printf '\nDHCP (ultimas linhas):\n'
 if [ -r /tmp/brasa-live-start.log ]; then
-  grep -Ei 'dhclient|DHCP|bound to|no DHCPOFFERS|no lease|em[0-9].*(UP|DOWN)' /tmp/brasa-live-start.log | tail -n 6
+  grep -Ei 'dhclient|DHCP|bound to|no DHCPOFFERS|no lease|em[0-9].*(UP|DOWN)|kldload.*rge|rge.*(error|failed)|link state' /tmp/brasa-live-start.log | tail -n 8
   printf '\nBootstrap: '
   tail -n 2 /tmp/brasa-live-start.log | tr '\n' ' '
 else

@@ -6,6 +6,14 @@ Iniciar por uma mídia x86-64, escolher idioma, informar o nome e a senha da con
 
 ## Estado atual
 
+### Candidata local alpha_1.38-rge-diagnostics (29/10/2026)
+
+A ISO híbrida `.build/Brasa-live-alpha_1.38-rge-diagnostics-final-hybrid.iso` (1.285.317.120 bytes; SHA-256 `DC8634C33FFCEAE7C09768D71971EBAC092DFA1960496B15B13741247BCA234B`) amplia a tela de recuperação: tenta mostrar o estado do módulo `if_rge`, procura mensagens de associação do RTL8125 no log do kernel e inclui falhas de carregamento no resumo DHCP. Isso separa placa ausente no PCI, driver sem associação e driver associado sem link/DHCP. O builder validou o pacote do driver/ABI e a estrutura híbrida; a verificação de sintaxe dos scripts passou. A última execução do conjunto de smoke checks ficou presa em um teste simulado de áudio aguardando uma resposta do `zenity`; o teste anterior tinha passado.
+
+Em QEMU TCG com 8 GiB, 4 vCPUs, VGA padrão de 128 MiB e e1000/NAT, a imagem híbrida iniciou por USB em BIOS, recebeu DHCP, preparou os pacotes e abriu a confirmação gráfica “Instalar Brasa”. Um QCOW descartável de 40 GiB foi conectado, mas o teste não avançou além da tela inicial e não iniciou a instalação; o QCOW não recebeu gravações e foi removido. Um boot novo da imagem final híbrida repetiu o caminho BIOS/USB e abriu o assistente gráfico. Isso verifica o live e a abertura do assistente, não uma instalação concluída, UEFI ou a associação do `rge` à placa física; a nova tela de diagnóstico ainda não foi acionada por um erro de rede real.
+
+Não será publicada outra release antes da alpha final validada no PC real. A release `alpha_1.37` é a única referência a manter no GitHub; a limpeza de `alpha_1.37b` e a remoção de ISOs locais sem progresso continuam pendentes. O teste UEFI QEMU não iniciou porque a distribuição local do QEMU não inclui o arquivo de variáveis OVMF x86-64.
+
 ### Candidata local alpha_1.37g-network-diagnostics: boot USB e diagnóstico DHCP (29/10/2026)
 
 A candidata inclui a mídia híbrida `.build/Brasa-live-alpha_1.37g-network-diagnostics-hybrid.iso` (1.285.308.928 bytes; SHA-256 `3F5B2C09864F645949EB3C0DA59CEF188E628F097649BC425BFEFBED6491E6E4`). O contêiner híbrido foi construído a partir da ISO óptica com GPT/MBR e catálogo El Torito. QEMU iniciou a própria imagem híbrida como dispositivo USB de armazenamento, exibiu o menu `Boot Brasa`, obteve DHCP e abriu a tela gráfica “Instalar Brasa”. Não havia disco de destino conectado e nenhuma instalação foi iniciada.

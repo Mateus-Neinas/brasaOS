@@ -654,6 +654,8 @@ def main():
                 b'BRASA - recuperacao de inicializacao' not in live_recovery or \
                 b'Etapa: %s' not in live_recovery or \
                 b'Fotografe esta tela' not in live_recovery or \
+                b'kldstat -v' not in live_recovery or \
+                b'if_rge|RTL8125' not in live_recovery or \
                 b'while :; do sleep 3600; done' not in live_recovery:
             raise RuntimeError('A recuperação precisa exibir a etapa, as interfaces e os identificadores PCI.')
         read_rr(check, '/usr/sbin/pciconf')
