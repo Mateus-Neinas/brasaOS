@@ -1,8 +1,0 @@
-Kubuntu 26.04.1 LTS upstream image
-File: dist/kubuntu-26.04.1-desktop-amd64.iso
-Download: https://cdimage.ubuntu.com/cdimage/kubuntu/releases/26.04.1/release/kubuntu-26.04.1-desktop-amd64.iso
-Official checksum list: https://cdimage.ubuntu.com/cdimage/kubuntu/releases/26.04.1/release/SHA256SUMS
-Size: 5,072,990,208 bytes
-SHA-256: 831e4d4bb85098339ba43d3502cd6619b27e76daf37246a084cd68a6413090b8
-Downloaded: 2026-10-29
-Status: original upstream image; checksum verified locally; no Brasa modifications
