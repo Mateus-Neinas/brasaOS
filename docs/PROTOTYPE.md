@@ -14,6 +14,8 @@ O início do `dhclient` live passou a rodar em modo foreground sob controle do b
 
 Testes de rede separados com a NIC virtual `e1000`: no VMware Workstation com NAT e 6 GiB, DHCP recebeu `192.168.102.129`, o catálogo FreeBSD foi atualizado, os pacotes gráficos foram completados e a tela “Instalar Brasa” abriu. A imagem ficou nessa primeira tela; não houve instalação. No VMware com bridge, `em0` ficou `active`, mas o cliente recebeu três `DHCPDISCOVER` e nenhum `DHCPOFFER`. No VirtualBox com NAT, `em0` ficou `no carrier` e a tela mostrou ausência de rota/DNS. Esses dados descrevem cada configuração virtual e não determinam ainda o que acontece com a NIC física do computador.
 
+O inventário do Windows neste mesmo PC identificou a Ethernet física como Realtek RTL8125, PCI `10EC:8125` (subsystem `1043:87D7`, revisão 05). O [`rge(4)` do FreeBSD 15.1](https://man.freebsd.org/cgi/man.cgi?manpath=FreeBSD+15.1-RELEASE&query=rge&sektion=4) documenta suporte ao RTL8125/8125B; a candidata inclui `realtek-rge-kmod` com `if_rge.ko`. Isso alinha o driver empacotado ao hardware conhecido, mas ainda falta observar o attach do módulo, estado do link e DHCP no boot bare-metal.
+
 A ISO híbrida continua local, sem release, até validação na máquina física e instalação em disco virtual seguida do primeiro boot KDE. A ISO 1.37c e anteriores não foram alteradas. Os testes usaram mídia somente de leitura; nenhum disco de instalação foi anexado. O candidato óptico intermediário está em `.build/Brasa-live-alpha_1.37g-network-diagnostics.iso`.
 
 ### Candidata local alpha_1.37e-ethernet: Bluetooth opcional no live (28/10/2026)
