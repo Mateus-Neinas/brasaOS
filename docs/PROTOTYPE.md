@@ -6,7 +6,7 @@ Iniciar por uma mídia x86-64, escolher idioma, informar o nome e a senha da con
 
 ## Estado atual
 
-Os caminhos de candidatas antigas abaixo registram o estado no dia dos testes. Em 29/10/2026, as ISOs intermediárias foram removidas do PC; permanecem a r37 de referência, a alpha_1.38 híbrida e as ISOs-base FreeBSD.
+Os caminhos de candidatas antigas abaixo registram o estado no dia dos testes. Em 29/10/2026, as ISOs intermediárias e os QCOWs antigos foram removidos do PC após confirmar que nenhuma VM estava ativa; permanecem a r37 de referência, a alpha_1.38 híbrida e as ISOs-base FreeBSD.
 
 ### Candidata local alpha_1.38-rge-diagnostics (29/10/2026)
 
