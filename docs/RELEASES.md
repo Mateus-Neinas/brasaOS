@@ -38,6 +38,7 @@ Em 29/10/2026, a pedido do usuário, a release `alpha_1.37b` foi removida; a ún
 ## ISO alpha_1.37: correção da sessão Plasma (28/10/2026)
 
 - Arquivo local: `.build/Brasa-live-r37-plasma-session-2026-10-28.iso`
+- A release `alpha_1.37` é a única release no GitHub e contém o asset baixável `Brasa-live-alpha_1.37.iso`, anexado em 29/10/2026.
 - Tamanho: 1.284.982.784 bytes
 - SHA-256: `FF215E6CAD3AE4998A9865CEEFCFBB1F369971E84A13EB9C3DC3DC6635849084`
 - Código de instalação: usa o meta pacote `plasma6-plasma` e inclui explicitamente o gerenciador de atividades, o widget de áudio e o serviço de atalhos; garante que `/home/<usuário>/.config` pertence à conta gráfica.
