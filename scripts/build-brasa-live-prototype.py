@@ -496,11 +496,15 @@ def main():
         anchor = b'mkdir /tmp/bsdinstall_etc\n'
         if old_rc.count(anchor) != 1:
             raise RuntimeError('O arquivo de inicialização da mídia não é o esperado.')
-        hook = (b'# Experimental Brasa live desktop; fall back to stock installer on failure.\n'
+        hook = (b'# Start Brasa before the stock installer and keep its failure path explicit.\n'
                 b'if [ -r /brasa/brasa-live-start ]; then\n'
                 b'    if /bin/sh /brasa/brasa-live-start; then\n'
                 b'        # A normal exit, including a cancel choice, must not\n'
                 b'        # fall through to a second, unrelated text installer.\n'
+                b'        exit 0\n'
+                b'    fi\n'
+                b'    if [ -r /brasa/brasa-live-recovery ]; then\n'
+                b'        /usr/libexec/bsdinstall/runconsoles /bin/sh /brasa/brasa-live-recovery %\n'
                 b'        exit 0\n'
                 b'    fi\n'
                 b'fi\n\n')
@@ -618,6 +622,7 @@ def main():
                                iso_path=f'/BRASA/FREEBSD_DIST/{name.upper()};1',
                                rr_name=name)
             image.add_file(str(ROOT / 'scripts/brasa-live-start'), iso_path='/BRASA/BRASA_LIVE_START;1', rr_name='brasa-live-start')
+            image.add_file(str(ROOT / 'scripts/brasa-live-recovery'), iso_path='/BRASA/BRASA_LIVE_RECOVERY;1', rr_name='brasa-live-recovery')
             image.add_file(str(rge_module), iso_path='/BRASA/IF_RGE.KO;1', rr_name='if_rge.ko')
             if pkg_repo_catalog:
                 image.add_file(str(pkg_repo_catalog[0]), iso_path='/BRASA/BRASA_PKG_REPOSITORY_DB;1',
@@ -636,19 +641,29 @@ def main():
             raise RuntimeError('O catálogo de boot foi perdido.')
         rc_local = read_rr(check, '/etc/rc.local')
         if (b'if /bin/sh /brasa/brasa-live-start; then' not in rc_local or
-                b'        exit 0\n' not in rc_local):
+                b'        exit 0\n' not in rc_local or
+                b'/bin/sh /brasa/brasa-live-recovery' not in rc_local):
             raise RuntimeError('A saída normal do live Brasa ainda cai no instalador texto do FreeBSD.')
         bluetooth_config = read_rr(check, '/etc/devd/bluetooth.conf')
         if b'service bluetooth quietstart' in bluetooth_config:
             raise RuntimeError('O live não pode iniciar automaticamente a pilha Bluetooth opcional.')
         live_start = read_rr(check, '/brasa/brasa-live-start')
+        live_recovery = read_rr(check, '/brasa/brasa-live-recovery')
+        if b'/tmp/brasa-live-phase' not in live_start or \
+                b'pciconf -lv' not in live_recovery or \
+                b'BRASA - recuperacao de inicializacao' not in live_recovery or \
+                b'Etapa: %s' not in live_recovery or \
+                b'Fotografe esta tela' not in live_recovery or \
+                b'while :; do sleep 3600; done' not in live_recovery:
+            raise RuntimeError('A recuperação precisa exibir a etapa, as interfaces e os identificadores PCI.')
+        read_rr(check, '/usr/sbin/pciconf')
         if (b'brasa-pkg-seed' in live_start or
                 live_start.count(b'tar -xf /brasa/BRASA_PKG_CACHE_TAR -C /var') != 1):
             raise RuntimeError('O cache de pacotes live deve ser extraído apenas uma vez para /var.')
         rge_payload = read_rr(check, '/brasa/if_rge.ko')
         if len(rge_payload) < 1024 or b'prepare_network()' not in live_start or \
                 b'kldload /brasa/if_rge.ko' not in live_start or \
-                b'media:.*Ethernet' not in live_start or b'dhclient -b' not in live_start:
+                b'media:.*Ethernet' not in live_start or b'dhclient -d' not in live_start:
             raise RuntimeError('A ISO precisa carregar o driver Ethernet extra e tentar DHCP nas interfaces cabeadas reconhecidas.')
         if PACKAGE_CACHE_ISO:
             package_archives = read_rr(check, '/brasa/BRASA_LIVE_PKG_ARCHIVES').decode('ascii').splitlines()

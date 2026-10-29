@@ -6,6 +6,16 @@ Iniciar por uma mídia x86-64, escolher idioma, informar o nome e a senha da con
 
 ## Estado atual
 
+### Candidata local alpha_1.37g-network-diagnostics: boot USB e diagnóstico DHCP (29/10/2026)
+
+A candidata inclui a mídia híbrida `.build/Brasa-live-alpha_1.37g-network-diagnostics-hybrid.iso` (1.285.308.928 bytes; SHA-256 `3F5B2C09864F645949EB3C0DA59CEF188E628F097649BC425BFEFBED6491E6E4`). O contêiner híbrido foi construído a partir da ISO óptica com GPT/MBR e catálogo El Torito. QEMU iniciou a própria imagem híbrida como dispositivo USB de armazenamento, exibiu o menu `Boot Brasa`, obteve DHCP e abriu a tela gráfica “Instalar Brasa”. Não havia disco de destino conectado e nenhuma instalação foi iniciada.
+
+O início do `dhclient` live passou a rodar em modo foreground sob controle do bootstrap, registrando as mensagens DHCP no log recuperável. A tela de recuperação agora cabe no console e mostra a etapa que falhou, interface, estado de link, rota, DNS, PCI de rede e últimas respostas DHCP. Ao falhar, o live mantém essa tela em vez de cair silenciosamente no instalador texto do FreeBSD.
+
+Testes de rede separados com a NIC virtual `e1000`: no VMware Workstation com NAT e 6 GiB, DHCP recebeu `192.168.102.129`, o catálogo FreeBSD foi atualizado, os pacotes gráficos foram completados e a tela “Instalar Brasa” abriu. A imagem ficou nessa primeira tela; não houve instalação. No VMware com bridge, `em0` ficou `active`, mas o cliente recebeu três `DHCPDISCOVER` e nenhum `DHCPOFFER`. No VirtualBox com NAT, `em0` ficou `no carrier` e a tela mostrou ausência de rota/DNS. Esses dados descrevem cada configuração virtual e não determinam ainda o que acontece com a NIC física do computador.
+
+A ISO híbrida continua local, sem release, até validação na máquina física e instalação em disco virtual seguida do primeiro boot KDE. A ISO 1.37c e anteriores não foram alteradas. Os testes usaram mídia somente de leitura; nenhum disco de instalação foi anexado. O candidato óptico intermediário está em `.build/Brasa-live-alpha_1.37g-network-diagnostics.iso`.
+
 ### Candidata local alpha_1.37e-ethernet: Bluetooth opcional no live (28/10/2026)
 
 A imagem `.build/Brasa-live-alpha_1.37e-ethernet.iso` parte do construtor Ethernet da 1.37d e substitui `/etc/devd/bluetooth.conf` apenas na mídia live, evitando que `devd` inicie automaticamente a pilha HCI de adaptadores Bluetooth opcionais. Isso não desativa os drivers USB HID de teclado e mouse. A instalação no disco recebe os arquivos upstream do FreeBSD; esse ajuste é exclusivo do ambiente live.

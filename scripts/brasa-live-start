@@ -4,10 +4,13 @@ set -eu
 
 log=/tmp/brasa-live-start.log
 say() {
+  printf '%s\n' "$*" > /tmp/brasa-live-phase
   printf '\nBrasa: %s\n' "$*" > /dev/console
 }
 failed() {
-  say "Não foi possível iniciar o ambiente gráfico. O instalador de texto será aberto."
+  failed_phase=$(cat /tmp/brasa-live-phase 2>/dev/null || true)
+  say "O ambiente gráfico não iniciou. Abrindo o diagnóstico de recuperação Brasa."
+  printf '%s\n' "${failed_phase:-Etapa nao identificada}" > /tmp/brasa-live-failed-phase
   if [ -f "$log" ]; then
     tail -n 20 "$log" > /dev/console || true
   fi
@@ -86,16 +89,25 @@ prepare_network() {
     iface_state=$(ifconfig "$interface" 2>/dev/null || true)
     case "$iface_state" in *'status: no carrier'*) continue ;; esac
     say "Solicitando rede por DHCP em $interface."
-    dhclient -b -c /tmp/brasa-dhclient.conf "$interface" >> "$log" 2>&1 || true
+    # Keep dhclient in the foreground but background it from this script so
+    # its actual DHCP exchange is captured in our recovery log. The previous
+    # -b daemon mode hid useful diagnostics in syslog on the read-only live OS.
+    dhclient -d -c /tmp/brasa-dhclient.conf "$interface" >> "$log" 2>&1 &
+    dhclient_pid=$!
     attempt=0
-    while [ "$attempt" -lt 8 ]; do
+    while [ "$attempt" -lt 12 ]; do
       if route -n get default >/dev/null 2>&1 && grep -Eq '^[[:space:]]*nameserver[[:space:]]+' /etc/resolv.conf 2>/dev/null; then
         say "Ethernet ativa em $interface; rota e DNS configurados."
         return 0
       fi
+      if ! kill -0 "$dhclient_pid" 2>/dev/null; then
+        break
+      fi
       attempt=$((attempt + 1))
       sleep 1
     done
+    kill "$dhclient_pid" 2>/dev/null || true
+    wait "$dhclient_pid" 2>/dev/null || true
   done < /tmp/brasa-ethernet-ifaces
   say 'Ethernet foi detectada, mas DHCP não forneceu rota e DNS. Verifique cabo, porta e DHCP do roteador.'
   return 1

@@ -1,0 +1,36 @@
+#!/bin/sh
+# Keep boot failures visible and fit the diagnostic summary on a text console.
+set -u
+
+phase='nao informada'
+if [ -r /tmp/brasa-live-failed-phase ]; then
+  phase=$(cat /tmp/brasa-live-failed-phase)
+elif [ -r /tmp/brasa-live-phase ]; then
+  phase=$(cat /tmp/brasa-live-phase)
+fi
+
+clear
+printf 'BRASA - recuperacao de inicializacao\n'
+printf 'Etapa: %s\n\n' "$phase"
+printf 'Interfaces: %s\n' "$(ifconfig -l 2>&1)"
+for interface in $(ifconfig -l 2>/dev/null); do
+  case "$interface" in lo*|wlan*|bridge*|tun*|tap*|pflog*|pfsync*|epair*|vlan*|wg*|tailscale*) continue ;; esac
+  ifconfig "$interface" 2>/dev/null | grep -E '^[[:space:]]*inet |^[[:space:]]*status:|^[[:space:]]*media:' | sed "s/^/$interface /"
+done
+printf '\nRota: '
+route -n get default 2>&1 | grep -E 'gateway:|interface:|route: ' | tr '\n' ' '
+printf '\nDNS: '
+grep -E '^[[:space:]]*nameserver[[:space:]]+' /etc/resolv.conf 2>/dev/null | tr '\n' ' '
+printf '\n\nPCI Ethernet:\n'
+/usr/sbin/pciconf -lv 2>&1 | grep -E -B1 -A2 'class[[:space:]]*=[[:space:]]*(0x020000|network|ethernet)' | head -n 5 || printf 'nenhum identificado\n'
+printf '\nDHCP (ultimas linhas):\n'
+if [ -r /tmp/brasa-live-start.log ]; then
+  grep -Ei 'dhclient|DHCP|bound to|no DHCPOFFERS|no lease|em[0-9].*(UP|DOWN)' /tmp/brasa-live-start.log | tail -n 6
+  printf '\nBootstrap: '
+  tail -n 2 /tmp/brasa-live-start.log | tr '\n' ' '
+else
+  printf 'log ausente\n'
+fi
+printf '\n\nO instalador padrao foi bloqueado. Fotografe esta tela para diagnostico.\n'
+printf 'A tela ficara parada; Ctrl+Alt+Del reinicia quando desejar.\n'
+while :; do sleep 3600; done

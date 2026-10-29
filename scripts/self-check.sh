@@ -2,7 +2,7 @@
 # Smoke checks using stubbed FreeBSD/Wine commands; safe on a development host.
 set -eu
 root=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)
-for file in bootstrap-freebsd.sh brasa-audio-select brasa-audio-aggregate brasa-audio-start brasa-audio-status brasa-audio-monitor brasa-audio-test brasa-run-windows brasa-windows-import brasa-apply-theme brasa-live-start brasa-install-assistant; do
+for file in bootstrap-freebsd.sh brasa-audio-select brasa-audio-aggregate brasa-audio-start brasa-audio-status brasa-audio-monitor brasa-audio-test brasa-run-windows brasa-windows-import brasa-apply-theme brasa-live-start brasa-live-recovery brasa-install-assistant; do
   sh -n "$root/scripts/$file"
 done
 if grep -q '/dev/ttyu0' "$root/scripts/brasa-live-start" "$root/scripts/brasa-install-assistant"; then
@@ -13,8 +13,12 @@ grep -q "say 'Montando o espaço temporário dos componentes gráficos.'" "$root
 grep -q "say 'Espaço temporário pronto.'" "$root/scripts/brasa-live-start"
 grep -q 'service devmatch onestart' "$root/scripts/brasa-live-start"
 grep -q 'do not auto-start the optional Bluetooth stack' "$root/scripts/build-brasa-live-prototype.py"
+grep -q 'pciconf -lv' "$root/scripts/brasa-live-recovery"
+grep -q "Etapa: %s" "$root/scripts/brasa-live-recovery"
+grep -q 'Fotografe esta tela' "$root/scripts/brasa-live-recovery"
+grep -q 'while :; do sleep 3600; done' "$root/scripts/brasa-live-recovery"
 grep -q "media:.*Ethernet" "$root/scripts/brasa-live-start"
-grep -q 'dhclient -b' "$root/scripts/brasa-live-start"
+grep -q 'dhclient -d' "$root/scripts/brasa-live-start"
 grep -q "realtek-rge-kmod" "$root/scripts/build-brasa-live-prototype.py"
 grep -q 'BRASA_LIVE_PKG_ARCHIVES' "$root/scripts/brasa-live-start"
 grep -q 'BRASA_LIVE_PKG_ARCHIVES' "$root/scripts/build-brasa-live-prototype.py"
