@@ -47,6 +47,84 @@ def gpt_header(current: int, backup: int, first_usable: int,
     return bytes(header)
 
 
+def verify_hybrid_image(path: Path) -> None:
+    """Reject USB images whose partition maps or preserved ISO boot data are invalid."""
+    with path.open("rb") as image:
+        image.seek(0, 2)
+        image_size = image.tell()
+        if image_size % SECTOR or image_size < (GPT_TABLE_SECTORS + 2) * SECTOR:
+            raise RuntimeError("A imagem híbrida tem tamanho inválido.")
+
+        def read_at(lba: int, count: int = 1) -> bytes:
+            image.seek(lba * SECTOR)
+            return image.read(count * SECTOR)
+
+        mbr = read_at(0)
+        if mbr[510:512] != b"\x55\xaa":
+            raise RuntimeError("A imagem USB está sem assinatura MBR.")
+        protective = [mbr[446 + i * 16:462 + i * 16] for i in range(4)]
+        if not any(entry[4] == 0xee and struct.unpack_from("<I", entry, 8)[0] == 1
+                   for entry in protective):
+            raise RuntimeError("A imagem USB está sem partição MBR protetora GPT.")
+
+        primary = read_at(1)
+        backup_lba = image_size // SECTOR - 1
+
+        def valid_gpt_header(header: bytes, current: int, alternate: int) -> bool:
+            if header[:8] != b"EFI PART":
+                return False
+            header_size = struct.unpack_from("<I", header, 12)[0]
+            stored_crc = struct.unpack_from("<I", header, 16)[0]
+            if not 92 <= header_size <= SECTOR:
+                return False
+            normalized = bytearray(header[:header_size])
+            struct.pack_into("<I", normalized, 16, 0)
+            return (zlib.crc32(normalized) & 0xffffffff == stored_crc and
+                    struct.unpack_from("<QQ", header, 24) == (current, alternate))
+
+        if not valid_gpt_header(primary, 1, backup_lba):
+            raise RuntimeError("O cabeçalho GPT primário não passou na verificação CRC/localização.")
+        table_lba = struct.unpack_from("<Q", primary, 72)[0]
+        entry_count, entry_size = struct.unpack_from("<II", primary, 80)
+        table_crc = struct.unpack_from("<I", primary, 88)[0]
+        if entry_count != GPT_ENTRY_COUNT or entry_size != GPT_ENTRY_SIZE:
+            raise RuntimeError("A tabela GPT tem formato inesperado.")
+        table_sectors = (entry_count * entry_size + SECTOR - 1) // SECTOR
+        table = read_at(table_lba, table_sectors)[:entry_count * entry_size]
+        backup_table_lba = backup_lba - table_sectors
+        backup_table = read_at(backup_table_lba, table_sectors)[:entry_count * entry_size]
+        if (zlib.crc32(table) & 0xffffffff != table_crc or backup_table != table or
+                not valid_gpt_header(read_at(backup_lba), backup_lba, 1)):
+            raise RuntimeError("A tabela ou o cabeçalho GPT de backup não passou na verificação CRC.")
+
+        entries = [table[i * entry_size:(i + 1) * entry_size] for i in range(entry_count)]
+        parsed = []
+        for entry in entries:
+            if not any(entry):
+                continue
+            kind = uuid.UUID(bytes_le=entry[:16])
+            first, last = struct.unpack_from("<QQ", entry, 32)
+            parsed.append((kind, first, last))
+        if not any(kind == FREEBSD_BOOT and first == 34 and last == 63
+                   for kind, first, last in parsed):
+            raise RuntimeError("A partição FreeBSD boot não foi preservada.")
+        efi = next(((first, last) for kind, first, last in parsed if kind == EFI_SYSTEM), None)
+        if efi is None or efi[0] > efi[1] or (efi[1] + 1) * SECTOR > image_size:
+            raise RuntimeError("A partição EFI não foi encontrada dentro da imagem.")
+        efi_boot = read_at(efi[0])
+        if efi_boot[:3] not in (b"\xeb\x3c\x90", b"\xe9\x00\x00") or efi_boot[510:512] != b"\x55\xaa":
+            raise RuntimeError("A partição EFI não contém uma imagem FAT válida.")
+
+        image.seek(16 * 2048)
+        pvd = image.read(7)
+        image.seek(17 * 2048)
+        boot_record = image.read(40)
+        boot_system_id = b"EL TORITO SPECIFICATION"
+        if (pvd[:7] != b"\x01CD001\x01" or boot_record[:7] != b"\x00CD001\x01" or
+                boot_record[7:7 + len(boot_system_id)] != boot_system_id):
+            raise RuntimeError("O ISO9660/El Torito original não foi preservado.")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("source_iso", type=Path)
@@ -134,6 +212,7 @@ def main() -> None:
             disk.seek(p1_first * SECTOR); disk.write(isoboot)
             disk.seek(backup_table_lba * SECTOR); disk.write(entries)
             disk.seek(disk_last * SECTOR); disk.write(backup)
+        verify_hybrid_image(output)
         print(f"Imagem USB criada: {output}")
         print(f"Tamanho: {output.stat().st_size:,} bytes")
         print(f"Boot BIOS em LBA {p1_first}; partição UEFI reaproveita a imagem El Torito em LBA {p2_first}.")

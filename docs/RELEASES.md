@@ -6,13 +6,16 @@ Em 29/10/2026, a pedido do usuário, a release `alpha_1.37b` foi removida; a ún
 
 ## Candidata local alpha_1.42-xorg-fallback (29/10/2026)
 
-## Candidata local alpha_1.43-uefi-scfb-first (29/10/2026)
+## Candidata local alpha_1.44-uefi-scfb-first-hybrid (29/10/2026)
 
-- ISO híbrida `.build/Brasa-live-alpha_1.43-uefi-scfb-first-hybrid.iso` (1.285.306.368 bytes; SHA-256 `8DC7D14F420ACF57E824FCAC920F142000A4E24B5AC9A0DDF66C319EBE8D8FA9`). Candidata local, sem release ou asset; manter somente `alpha_1.37` publicada até a validação no PC.
+- Imagem `.build/Brasa-live-alpha_1.44-uefi-scfb-first-hybrid.iso` (1.285.323.264 bytes; SHA-256 `D92EFDDB13E4A3361C22C09A420ED15560025071F971835173FDC6D778B162B3`), copiada para `Downloads/Brasa-alpha_1.44-uefi-scfb-first-hybrid.iso`. MBR `55aa`, GPT primária e CRC da tabela foram verificados; a imagem preserva ISO9660 e o catálogo El Torito. Candidata local, sem release ou asset; manter somente `alpha_1.37` publicada até a validação no PC.
 - Para inicialização UEFI, o ambiente live preserva o framebuffer do firmware em vez de carregar `amdgpu`/`i915kms` antes do instalador. A configuração Xorg SCFB e os pacotes SCFB/VESA também são incluídos no sistema instalado para o primeiro boot. `drm-kmod` permanece instalado para ativação posterior; KDE não foi removido.
-- QEMU TCG/OVMF x86-64, 8 GiB, 4 vCPUs, VGA 128 MiB, USB híbrido e e1000/NAT: iniciou pelo USB, montou o live e abriu a janela gráfica “Instalar Brasa”. Nenhum disco destino foi conectado e nenhuma instalação foi iniciada.
-- Isso verifica o fluxo em framebuffer virtual genérico, não a RX 6600 real (`1002:73FF`), a RTL8125 física, a instalação em disco ou a sessão KDE instalada. O teste do PC real ainda é necessário; não usar um disco físico sem revisar cuidadosamente o alvo no instalador.
-- Hash calculado depois da build. QEMU ficou aberto na primeira tela de confirmação do instalador para inspeção.
+- QEMU TCG/OVMF x86-64, 8 GiB, 4 vCPUs, VGA 128 MiB, USB storage usando a partição EFI GPT e e1000/NAT: carregou `BOOTX64.EFI` a partir de `HD(...,GPT,...)`, obteve DHCP e abriu a janela gráfica “Instalar Brasa”. Nenhum disco destino foi conectado nem instalação iniciada. A VM foi encerrada depois do teste.
+- Isso verifica a estrutura USB/UEFI e o fluxo em framebuffer virtual genérico, não a RX 6600 real (`1002:73FF`), a RTL8125 física, a instalação em disco ou a sessão KDE instalada. O boot no PC real ainda é necessário; pare na tela inicial do assistente para este primeiro teste.
+
+### Correção do artefato alpha_1.43
+
+A ISO com nome `.build/Brasa-live-alpha_1.43-uefi-scfb-first-hybrid.iso` era uma ISO óptica normal: os bytes 510–511 estavam zerados e não havia MBR/GPT. O QEMU iniciou-a como USB, mas o firmware escolheu o caminho `CDROM`, então esse teste não representava boot USB por partição. O erro foi de empacotamento/rotulagem, não do sistema live. A alpha_1.44 aplica `build-brasa-memstick.py` sobre a ISO óptica e verifica MBR, GPT, partição EFI e CRC antes do teste.
 
 ## Histórico da candidata local alpha_1.42-xorg-fallback (29/10/2026)
 

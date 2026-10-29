@@ -6,9 +6,17 @@ Iniciar por uma mídia x86-64, escolher idioma, informar o nome e a senha da con
 
 ## Estado atual
 
+### Candidata alpha_1.44: imagem híbrida validada pelo caminho USB UEFI
+
+A candidata `.build/Brasa-live-alpha_1.44-uefi-scfb-first-hybrid.iso` (1.285.323.264 bytes; SHA-256 `D92EFDDB13E4A3361C22C09A420ED15560025071F971835173FDC6D778B162B3`) foi construída a partir da ISO óptica da 1.43 com `scripts/build-brasa-memstick.py`. A imagem tem MBR `55aa`, GPT primária com CRC correto, partição FreeBSD boot e partição EFI FAT, além de preservar ISO9660/El Torito. A cópia de teste está em `Downloads/Brasa-alpha_1.44-uefi-scfb-first-hybrid.iso`.
+
+Em QEMU TCG/OVMF com 8 GiB, quatro vCPUs, VGA virtual de 128 MiB e dispositivo USB storage, o firmware carregou `BOOTX64.EFI` pela partição GPT (`HD(...,GPT,...)`). O sistema live subiu, e1000 recebeu DHCP, e o assistente gráfico “Instalar Brasa” abriu. Não havia disco destino; nenhuma instalação ocorreu. Esse teste resolve a falha de empacotamento que a 1.43 não detectou, mas não valida a RX 6600/RTL8125 físicas nem a instalação em hardware real.
+
 ### Candidata alpha_1.43: SCFB UEFI no primeiro boot
 
 A imagem `.build/Brasa-live-alpha_1.43-uefi-scfb-first-hybrid.iso` (1.285.306.368 bytes; SHA-256 `8DC7D14F420ACF57E824FCAC920F142000A4E24B5AC9A0DDF66C319EBE8D8FA9`) foi iniciada por USB híbrido em QEMU com OVMF/UEFI, TCG, 8 GiB, quatro vCPUs e VGA virtual de 128 MiB. A tela chegou ao assistente gráfico “Instalar Brasa”. Nenhum disco de destino foi ligado à VM.
+
+Correção do registro: a imagem produzida nessa etapa não tinha tabela MBR/GPT e era óptica; o UEFI do QEMU usou o caminho de boot `CDROM` ao receber o arquivo como USB storage. Portanto, a execução demonstrou o live pela ISO, mas não confirmou boot USB direto. A 1.44 acima corrige e testa a estrutura de partições híbrida.
 
 No UEFI, o ambiente live mantém o framebuffer fornecido pelo firmware e adia o carregamento de KMS AMD/Intel, para evitar a troca de modo antes que o usuário veja o instalador. SCFB e VESA foram acrescentados à instalação; SCFB é selecionado no UEFI, e `drm-kmod` permanece disponível. KDE foi mantido. A VGA genérica do QEMU não equivale à AMD RX 6600 do PC, então ainda é obrigatório testar o boot USB na máquina real antes de declarar compatibilidade. A ISO intermediária não foi publicada; o GitHub mantém apenas `alpha_1.37`.
 
