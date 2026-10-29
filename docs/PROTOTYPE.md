@@ -6,6 +6,12 @@ Iniciar por uma mídia x86-64, escolher idioma, informar o nome e a senha da con
 
 ## Estado atual
 
+### Candidata beta_1.1 — recursos opcionais pós-login (29/10/2026)
+
+O usuário confirmou que a candidata 1.45 instalou no computador físico e abriu o KDE. Após comandos manuais para aceleração da RX 6600, o reboot ficou em tela preta; o caminho KMS não deve ser ativado automaticamente. O áudio analógico do painel frontal funcionou, HDMI ainda não e interface USB class-compliant não foi testada. Os apps Brasa de seleção/agregação de áudio não funcionaram corretamente, e o teste abria Konsole.
+
+A candidata `Brasa-live-beta_1.1.iso` mantém o assistente principal e o pacote KDE; move PipeWire, WirePlumber, SoX e Wine para “Aplicar extras do Brasa”, iniciado automaticamente no primeiro login KDE e também disponível no menu. O assistente instala Firefox, exibe o progresso no Konsole, registra `/var/log/brasa-extras.log`, habilita PipeWire na sessão e deixa firmware AMD instalado sem ativar KMS. O app de teste de áudio foi ajustado para não abrir terminal. Essas alterações foram empacotadas e o boot da mídia híbrida abriu o instalador no QEMU, sem disco de destino; ainda falta testar uma instalação completa e executar o assistente no primeiro login. Não publicar como release enquanto essa etapa não for validada.
+
 ### Candidata local alpha_1.45-rge-link-recovery (29/10/2026)
 
 A foto do boot físico mostra o módulo `if_rge.ko` associado à Realtek RTL8125B (`rge0`), mas com `status: no carrier`; por isso o DHCP não obtém endereço/rota e o fluxo atual termina no diagnóstico Brasa antes do assistente gráfico. O inventário do Windows apontava link de 1 Gb/s para esta mesma interface. Isso localiza a falha entre o attach do driver e o link Ethernet; não comprova se a causa está no driver, PHY, cabo/porta ou negociação com o switch.

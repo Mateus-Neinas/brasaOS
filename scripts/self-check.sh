@@ -2,7 +2,7 @@
 # Smoke checks using stubbed FreeBSD/Wine commands; safe on a development host.
 set -eu
 root=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)
-for file in bootstrap-freebsd.sh brasa-audio-select brasa-audio-aggregate brasa-audio-start brasa-audio-status brasa-audio-monitor brasa-audio-test brasa-run-windows brasa-windows-import brasa-apply-theme brasa-live-start brasa-live-recovery brasa-install-assistant; do
+for file in bootstrap-freebsd.sh brasa-audio-select brasa-audio-aggregate brasa-audio-start brasa-audio-status brasa-audio-monitor brasa-audio-test brasa-extras brasa-extras-first-run brasa-extras-apply brasa-run-windows brasa-windows-import brasa-apply-theme brasa-live-start brasa-live-recovery brasa-install-assistant; do
   sh -n "$root/scripts/$file"
 done
 if grep -q '/dev/ttyu0' "$root/scripts/brasa-live-start" "$root/scripts/brasa-install-assistant"; then
@@ -46,6 +46,12 @@ grep -q 'if \[ "$boot_method" = UEFI \]; then' "$root/scripts/brasa-live-start"
 grep -q 'install -m 0755 scripts/brasa-audio-monitor /usr/local/bin/brasa-audio-monitor' "$root/scripts/bootstrap-freebsd.sh"
 grep -q 'install -m 0644 config/brasa-audio-monitor.desktop /usr/local/share/applications/brasa-audio-monitor.desktop' "$root/scripts/bootstrap-freebsd.sh"
 grep -q '^Exec=/usr/local/bin/brasa-audio-monitor$' "$root/config/brasa-audio-monitor.desktop"
+grep -q '^Exec=/usr/local/bin/brasa-audio-test$' "$root/config/brasa-audio-test.desktop"
+! grep -q 'konsole -e' "$root/config/brasa-audio-test.desktop"
+grep -q 'firefox zenity sox' "$root/scripts/brasa-extras-apply"
+grep -q 'pkg install -y pipewire wireplumber' "$root/scripts/brasa-extras-apply"
+grep -q 'brasa-extras-first-run' "$root/scripts/bootstrap-freebsd.sh"
+! grep -Eq 'install_packages .*\b(firefox|sox|pipewire|wireplumber|wine)\b' "$root/scripts/bootstrap-freebsd.sh"
 work=$(mktemp -d "${TMPDIR:-/tmp}/brasa-check.XXXXXX")
 trap 'rm -rf "$work"' EXIT HUP INT TERM
 mkdir -p "$work/bin" "$work/home"

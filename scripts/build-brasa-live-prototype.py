@@ -686,6 +686,8 @@ def main():
         with tarfile.open(fileobj=io.BytesIO(project_payload), mode='r:gz') as project_archive:
             assistant = project_archive.extractfile('scripts/brasa-install-assistant').read()
             bootstrap = project_archive.extractfile('scripts/bootstrap-freebsd.sh').read()
+            extras = project_archive.extractfile('scripts/brasa-extras-apply').read()
+            extras_desktop = project_archive.extractfile('config/brasa-extras.desktop').read()
         for marker in (b'Brasa: Extraindo os arquivos de configura\xc3\xa7\xc3\xa3o do Brasa.',
                        b'Brasa: Criando a conta de usu\xc3\xa1rio.',
                        b'Brasa: Iniciando o bootstrap do desktop e dos componentes.'):
@@ -693,8 +695,11 @@ def main():
                 raise RuntimeError('A ISO precisa mostrar cada etapa anterior ao bootstrap do Brasa.')
         if (b'*) progress_message=$output_line ;;' not in assistant or
                 b'Preparando o gerenciador de pacotes pkg.' not in bootstrap or
-                b'Verificando a disponibilidade do Wine.' not in bootstrap):
-            raise RuntimeError('A ISO precisa exibir a saída do instalador e as consultas de pacotes.')
+                b'Recursos opcionais (Firefox' not in bootstrap or
+                b'firefox zenity sox' not in extras or
+                b'pkg install -y pipewire wireplumber' not in extras or
+                b'Name=Aplicar extras do Brasa' not in extras_desktop):
+            raise RuntimeError('A ISO precisa exibir a saída do instalador e empacotar os extras fora da instalação principal.')
         bsd_script_payload = read_rr(check, '/usr/libexec/bsdinstall/script')
         for marker in (b'bsdinstall-config-start', b'bsdinstall-config-returned',
                        b'bsdinstall-postinstall-copy', b'bsdinstall-postinstall-chmod',

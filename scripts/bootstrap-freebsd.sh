@@ -190,55 +190,10 @@ EndSection
 EOF
 fi
 
-# Keep independent package transactions small so the GUI can identify which
-# feature is currently being configured and a slow optional download does not
-# hide progress for the core desktop.
-set --
-# Prefer the FreeBSD-native OSS backend with its rate servo. Keep OSS/kernel
-# audio available as a fallback if the newer optional packages are missing.
-for package in sox pipewire wireplumber; do
-  msg "Verificando a disponibilidade do pacote de áudio $package."
-  if pkg rquery '%n' "$package" 2>/dev/null | grep -qx "$package"; then
-    set -- "$@" "$package"
-  else
-    echo "brasa: optional package '$package' is unavailable; skipped."
-  fi
-done
-if pkg info -e pipewire-spa-oss >/dev/null 2>&1; then
-  echo "brasa: pipewire-spa-oss is installed and conflicts with pipewire-spa-oss-ng; keeping the OSS/kernel audio fallback."
-else
-  package=pipewire-spa-oss-ng
-  msg "Verificando a disponibilidade do backend OSS do PipeWire."
-  if pkg rquery '%n' "$package" 2>/dev/null | grep -qx "$package"; then
-    set -- "$@" "$package"
-  else
-    echo "brasa: optional package '$package' is unavailable; skipped."
-  fi
-fi
-if [ "$#" -gt 0 ]; then
-  msg "Etapa 2/3: instalando os componentes opcionais de áudio; snd_uaudio já está habilitado no kernel."
-  install_packages "$@"
-else
-  msg "Etapa 2/3: componentes PipeWire opcionais indisponíveis; áudio USB class compliant continua pelo snd_uaudio/OSS."
-fi
-
-set --
-msg "Verificando a disponibilidade do Wine."
-if pkg rquery '%n' wine 2>/dev/null | grep -qx wine; then
-  set -- wine
-  for package in wine-gecko wine-mono; do
-    msg "Verificando a disponibilidade do componente $package."
-    if pkg rquery '%n' "$package" 2>/dev/null | grep -qx "$package"; then
-      set -- "$@" "$package"
-    else
-      echo "brasa: optional package '$package' is unavailable; skipped."
-    fi
-  done
-  msg "Etapa 3/3: instalando Wine e os componentes de compatibilidade disponíveis."
-  install_packages "$@"
-else
-  msg "Etapa 3/3: Wine não está disponível neste repositório; o desktop está pronto sem ele."
-fi
+# Optional applications and audio services are installed by the separate
+# first-login Brasa Extras assistant, after the core system and KDE work.
+# Keep the boot/install path focused on Ethernet, the desktop and base files.
+msg "Recursos opcionais (Firefox, áudio Brasa e Wine) serão oferecidos após o primeiro login pelo assistente Brasa Extras."
 
 install -d -o root -g wheel -m 0755 /usr/local/bin /usr/local/share/applications /usr/local/share/color-schemes
 install -m 0755 scripts/brasa-run-windows /usr/local/bin/brasa-run-windows
@@ -248,30 +203,33 @@ install -m 0755 scripts/brasa-audio-select /usr/local/bin/brasa-audio-select
 install -m 0755 scripts/brasa-audio-aggregate /usr/local/bin/brasa-audio-aggregate
 install -m 0755 scripts/brasa-audio-start /usr/local/bin/brasa-audio-start
 install -m 0755 scripts/brasa-audio-test /usr/local/bin/brasa-audio-test
+install -m 0755 scripts/brasa-extras /usr/local/bin/brasa-extras
+install -m 0755 scripts/brasa-extras-first-run /usr/local/bin/brasa-extras-first-run
+install -d -m 0755 /usr/local/libexec
+install -m 0755 scripts/brasa-extras-apply /usr/local/libexec/brasa-extras-apply
 install -m 0755 scripts/brasa-windows-import /usr/local/bin/brasa-windows-import
 install -m 0755 scripts/brasa-apply-theme /usr/local/bin/brasa-apply-theme
 install -m 0644 config/colors/Brasa.colors /usr/local/share/color-schemes/Brasa.colors
 install -m 0644 config/brasa-audio.desktop /usr/local/share/applications/brasa-audio.desktop
 install -m 0644 config/brasa-audio-aggregate.desktop /usr/local/share/applications/brasa-audio-aggregate.desktop
 install -m 0644 config/brasa-audio-test.desktop /usr/local/share/applications/brasa-audio-test.desktop
+install -m 0644 config/brasa-extras.desktop /usr/local/share/applications/brasa-extras.desktop
 install -m 0644 config/brasa-audio-monitor.desktop /usr/local/share/applications/brasa-audio-monitor.desktop
 install -m 0644 config/brasa-windows.desktop /usr/local/share/applications/brasa-windows.desktop
 install -d -m 0755 "$brasa_home/.config"
 chown "$brasa_user:$brasa_group" "$brasa_home/.config"
 install -d -o "$brasa_user" -g "$brasa_group" -m 0755 "$brasa_home/.config/autostart"
 install -o "$brasa_user" -g "$brasa_group" -m 0644 config/brasa-theme-autostart.desktop "$brasa_home/.config/autostart/brasa-theme.desktop"
-if pkg info -e pipewire && pkg info -e wireplumber && pkg info -e pipewire-spa-oss-ng; then
-  install -d -o "$brasa_user" -g "$brasa_group" -m 0755 "$brasa_home/.config/autostart"
-  cat > "$brasa_home/.config/autostart/brasa-pipewire.desktop" <<'EOF'
+cat > "$brasa_home/.config/autostart/brasa-extras.desktop" <<'EOF'
 [Desktop Entry]
 Type=Application
-Name=Brasa Audio Engine
-Exec=/usr/local/bin/brasa-audio-start
+Name=Primeiros extras do Brasa
+Exec=/usr/local/bin/brasa-extras-first-run
 OnlyShowIn=KDE;
 X-KDE-autostart-after=panel
 EOF
-  chown "$brasa_user:$brasa_group" "$brasa_home/.config/autostart/brasa-pipewire.desktop"
-fi
+chown "$brasa_user:$brasa_group" "$brasa_home/.config/autostart/brasa-extras.desktop"
+chmod 0644 "$brasa_home/.config/autostart/brasa-extras.desktop"
 if [ "$installing_from_live" = yes ]; then
   rm -f /var/db/brasa-live-repo-catalog-ready
   msg "Desktop Brasa configurado para $brasa_user."

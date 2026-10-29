@@ -2,7 +2,7 @@
 Type=Application
 Name=Testar áudio Brasa
 Comment=Toca um tom de teste na saída FreeBSD padrão
-Exec=konsole -e /usr/local/bin/brasa-audio-test
+Exec=/usr/local/bin/brasa-audio-test
 Icon=audio-speakers
 Terminal=false
 Categories=AudioVideo;Settings;

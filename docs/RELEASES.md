@@ -1,8 +1,15 @@
 # Releases das ISOs
 
-Todas as alterações de código e os resultados de cada build devem ser versionados e documentados no Git. Preserve as ISOs-base e mantenha o total de ISOs abaixo de 10 GB. No GitHub, mantenha somente a release `alpha_1.37`, a primeira que iniciou com sucesso no QEMU, até existir uma alpha final que inicialize no PC real diretamente no instalador gráfico e conclua a instalação sem problemas. Builds intermediários ficam no histórico do código, sem releases nem assets ISO. As versões beta começam quando o usuário considerar o sistema do seu gosto e seguro.
+Todas as alterações de código e os resultados de cada build devem ser versionados e documentados no Git. Preserve as ISOs-base e mantenha o total de ISOs abaixo de 10 GB. A release pública de referência continua `alpha_1.37`. O usuário autorizou o nome `beta_1.1` para a próxima versão, mas ela só será publicada depois de validar a instalação e o assistente automático no primeiro login; por enquanto é candidata local sem release/asset.
 
 Em 29/10/2026, a pedido do usuário, a release `alpha_1.37b` foi removida; a única release mantida no GitHub é `alpha_1.37`, agora com a ISO r37 anexada. As notas abaixo preservam o histórico dos testes, mas os caminhos das candidatas antigas não significam que as ISOs ainda estejam no PC. Foram mantidos localmente a ISO r37 de referência, as candidatas alpha_1.39, 1.40, 1.41 e 1.42 e as imagens-base FreeBSD; as ISOs da 1.38 e a óptica intermediária 1.39 foram removidas. Os QCOWs antigos foram removidos após confirmar que nenhuma VM estava ativa; os QCOWs descartáveis de teste continuam preservados.
+
+## Candidata local beta_1.1 — extras pós-instalação (29/10/2026)
+
+- A candidata híbrida `.build/Brasa-live-beta_1.1.iso` (1.285.335.552 bytes; SHA-256 `3D1026D73B7FB8486CCAB3B09B87F161FE09A3E1F97DCA608DA62211C6209293`) deriva da mídia 1.45 e mantém GPT/MBR híbridos, ISO9660 e boot El Torito.
+- O usuário confirmou instalação física e primeiro login KDE com a 1.45. Relatou tela preta após comandos manuais de GPU; saída analógica frontal funcionou, HDMI não foi testado com sucesso, USB ainda não foi testado.
+- PipeWire, WirePlumber, SoX, Wine e Firefox foram separados do bootstrap pré-primeiro-login. O assistente aparece no primeiro login e no menu; grava progresso em `/var/log/brasa-extras.log`. A aceleração AMD continua sem ativação automática. O teste de áudio não chama Konsole.
+- Build validado pelo verificador interno do construtor e pela criação da imagem híbrida. QEMU TCG iniciou por mídia USB virtual, recebeu rede e abriu o instalador. Nenhum disco foi conectado; instalação completa e assistente de extras após login não foram testados. Manter sem release até validar esses passos.
 
 ## Candidata local alpha_1.45-rge-link-recovery (29/10/2026)
 
