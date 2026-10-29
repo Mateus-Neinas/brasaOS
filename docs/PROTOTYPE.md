@@ -6,6 +6,12 @@ Iniciar por uma mídia x86-64, escolher idioma, informar o nome e a senha da con
 
 ## Estado atual
 
+### Correção candidata para o boot em máquina real (28/10/2026)
+
+Na ISO alpha_1.37b, o boot físico ficou cerca de 20 minutos na mensagem “Preparando o espaço temporário para os componentes gráficos”. A função `say()` imprimia primeiro em `/dev/console` e depois abria `/dev/ttyu0` sempre que o nó serial existia. A mera existência desse nó não garante que haja um terminal conectado; a abertura de um TTY pode esperar pela portadora. Isso é uma causa plausível para a mensagem aparecer na tela enquanto o script para antes de executar `kldload tmpfs` ou montar `/usr/local`. Os avisos de ACPI, Bluetooth MediaTek e gravações recusadas pela raiz live somente leitura não identificam essa espera.
+
+O código removeu as escritas diretas em `/dev/ttyu0` do início live e dos diagnósticos/progresso do instalador. A mensagem foi dividida em carregamento do módulo, montagem e conclusão do `tmpfs`, para mostrar precisamente a próxima etapa. O builder gerou `.build/Brasa-live-alpha_1.37c.iso` (1.284.984.832 bytes; SHA-256 `e2f0ee43bceed2685502f4837e937b33b5176b03b0dc3bc29708b3a31845cb4a`); inspeção da ISO confirmou que o script live e o instalador empacotado não contêm mais acessos diretos a `ttyu0` e preservam os novos marcadores. Ainda falta iniciar esta candidata em QEMU e em máquina real; ela não foi publicada como release.
+
 ### r36: instalação concluída; primeiro boot pendente (28/10/2026)
 
 A ISO `.build/Brasa-live-r36-install-progress-2026-10-28.iso` concluiu a instalação em QCOW2 de 40 GiB no QEMU com WHPX, 8 GiB de RAM, 4 vCPUs e VirtIO GPU de 128 MiB. Base/kernel local, conta, KDE Plasma, componentes de áudio e Wine foram instalados. A confirmação do assistente apareceu após cerca de 7 minutos. A barra e o texto acompanharam a extração de pacotes KDE e a instalação de Wine.

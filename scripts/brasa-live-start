@@ -5,13 +5,11 @@ set -eu
 log=/tmp/brasa-live-start.log
 say() {
   printf '\nBrasa: %s\n' "$*" > /dev/console
-  if [ -c /dev/ttyu0 ]; then printf '\nBrasa: %s\n' "$*" > /dev/ttyu0 || true; fi
 }
 failed() {
   say "Não foi possível iniciar o ambiente gráfico. O instalador de texto será aberto."
   if [ -f "$log" ]; then
     tail -n 20 "$log" > /dev/console || true
-    if [ -c /dev/ttyu0 ]; then tail -n 20 "$log" > /dev/ttyu0 || true; fi
   fi
   exit 1
 }
@@ -46,11 +44,13 @@ mount -t unionfs /tmp/brasa-live-etc /etc >> "$log" 2>&1 || failed
 # reliably provide. The ISO cache contains package archives and repository
 # metadata, not an installed /usr/local tree, so do not unpack it to /tmp here.
 # The package archives are unpacked into this tmpfs only once by pkg add below.
-say 'Preparando o espaço temporário para os componentes gráficos.'
+say 'Carregando o suporte ao espaço temporário dos componentes gráficos.'
 kldload tmpfs >> "$log" 2>&1 || true
 # The minimal Xorg dependency set can exceed 2 GB once unpacked. Keep enough
 # headroom for pkg while allowing tmpfs to consume RAM only as files are written.
+say 'Montando o espaço temporário dos componentes gráficos.'
 mount -t tmpfs -o size=5g tmpfs /usr/local >> "$log" 2>&1 || failed
+say 'Espaço temporário pronto.'
 
 say 'Preparando a conexão de rede para carregar a interface gráfica.'
 printf 'timeout 20;\nretry 10;\n' > /tmp/brasa-dhclient.conf

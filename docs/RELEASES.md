@@ -2,6 +2,13 @@
 
 Todas as alterações de código e os resultados de cada build devem ser versionados e documentados no Git. Preserve as ISOs-base e mantenha o total de ISOs abaixo de 10 GB. A primeira versão com login gráfico confirmado recebe o título alpha solicitado pelo usuário; as versões beta começam quando ele considerar o sistema do seu gosto e seguro.
 
+## Candidata alpha_1.37c: desbloqueio do boot em máquina real (28/10/2026)
+
+- ISO local: `.build/Brasa-live-alpha_1.37c.iso` (1.284.984.832 bytes; SHA-256 `e2f0ee43bceed2685502f4837e937b33b5176b03b0dc3bc29708b3a31845cb4a`).
+- A máquina real parou por cerca de 20 minutos na mensagem de preparação do espaço temporário. O `say()` do script abria `/dev/ttyu0` quando o dispositivo existia; abrir uma porta serial sem portadora pode bloquear. É a principal hipótese, ainda precisa de validação física.
+- Removidas essas aberturas no inicializador live e no assistente. A etapa de `tmpfs` agora exibe marcadores antes/depois do carregamento e da montagem.
+- O builder e a inspeção dos arquivos embutidos na ISO passaram. Ainda não foi testada em QEMU nem em equipamento real; permanece apenas local e não foi publicada.
+
 ## ISO alpha_1.37b: imagem híbrida gravável em USB (28/10/2026)
 
 - Arquivo: `Brasa-live-alpha_1.37b.iso` (imagem local em `.build/Brasa-live-alpha_1.37b.iso`).

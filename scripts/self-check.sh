@@ -2,9 +2,15 @@
 # Smoke checks using stubbed FreeBSD/Wine commands; safe on a development host.
 set -eu
 root=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)
-for file in bootstrap-freebsd.sh brasa-audio-select brasa-audio-aggregate brasa-audio-start brasa-audio-status brasa-audio-monitor brasa-audio-test brasa-run-windows brasa-windows-import brasa-apply-theme; do
+for file in bootstrap-freebsd.sh brasa-audio-select brasa-audio-aggregate brasa-audio-start brasa-audio-status brasa-audio-monitor brasa-audio-test brasa-run-windows brasa-windows-import brasa-apply-theme brasa-live-start brasa-install-assistant; do
   sh -n "$root/scripts/$file"
 done
+if grep -q '/dev/ttyu0' "$root/scripts/brasa-live-start" "$root/scripts/brasa-install-assistant"; then
+  echo 'Live startup and installer must not open a serial TTY directly.' >&2
+  exit 1
+fi
+grep -q "say 'Montando o espaço temporário dos componentes gráficos.'" "$root/scripts/brasa-live-start"
+grep -q "say 'Espaço temporário pronto.'" "$root/scripts/brasa-live-start"
 grep -q 'install -m 0755 scripts/brasa-audio-monitor /usr/local/bin/brasa-audio-monitor' "$root/scripts/bootstrap-freebsd.sh"
 grep -q 'install -m 0644 config/brasa-audio-monitor.desktop /usr/local/share/applications/brasa-audio-monitor.desktop' "$root/scripts/bootstrap-freebsd.sh"
 grep -q '^Exec=/usr/local/bin/brasa-audio-monitor$' "$root/config/brasa-audio-monitor.desktop"

@@ -277,19 +277,14 @@ process_is_running() {
 }
 report_install_processes() {
   printf '\nBrasa diagnóstico: pid=%s; fase=%s; etapa=%ss; mensagem=%s\n' \
-    "$bsdinstall_pid" "$install_phase" "$elapsed_seconds" "$progress_message" > /dev/ttyu0 2>/dev/null || true
+    "$bsdinstall_pid" "$install_phase" "$elapsed_seconds" "$progress_message"
   ps -ax -o pid,ppid,stat,etime,pcpu,command 2>/dev/null | \
-    sort -k 5,5nr | head -n 20 | sed 's/^/Brasa processo: /' \
-    > /dev/ttyu0 2>/dev/null || true
+    sort -k 5,5nr | head -n 20 | sed 's/^/Brasa processo: /'
   dialog_pid=$(ps -ax -o pid= -o command= 2>/dev/null | \
     awk '$0 ~ /bsddialog --title Installation Error!/ { print $1; exit }')
   if [ -n "$dialog_pid" ]; then
     printf '\nBrasa: erro do bsdinstall detectado; detalhes do log:\n' >> "$install_log"
     tail -n 80 "$bsdinstall_log" >> "$install_log" 2>/dev/null || true
-    tail -n 80 "$bsdinstall_log" | sed 's/^/Brasa bsdinstall: /' \
-      > /dev/ttyu0 2>/dev/null || true
-    tail -n 80 "$install_log" | sed 's/^/Brasa saída: /' \
-      > /dev/ttyu0 2>/dev/null || true
     kill "$dialog_pid" 2>/dev/null || true
   fi
 }
@@ -313,7 +308,6 @@ report_install_processes() {
   last_percentage=8
   last_reported_percentage=-1
   last_reported_message=''
-  last_serial_message=''
   elapsed_seconds=0
   diagnostic_ticks=0
   base_install_done=no
@@ -452,10 +446,6 @@ report_install_processes() {
         *) progress_message='Instalando o sistema base do FreeBSD no disco escolhido...' ;;
       esac
     fi
-    if [ "$progress_message" != "$last_serial_message" ]; then
-      printf 'Brasa: %s\n' "$progress_message" > /dev/ttyu0 2>/dev/null || true
-      last_serial_message=$progress_message
-    fi
     elapsed_seconds=$((elapsed_seconds + 2))
     if [ "$last_percentage" -eq "$last_reported_percentage" ] && [ "$progress_message" = "$last_reported_message" ]; then
       progress_message="$progress_message (${elapsed_seconds}s nesta etapa)"
@@ -478,8 +468,6 @@ report_install_processes() {
   else
     bsdinstall_status=$?
     cat "$bsdinstall_log" >> "$install_log" 2>/dev/null || true
-    tail -n 100 "$install_log" | sed 's/^/Brasa falha: /' \
-      > /dev/ttyu0 2>/dev/null || true
     exit "$bsdinstall_status"
   fi
 ) > "$install_log" 2>&1 &
