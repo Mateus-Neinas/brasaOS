@@ -506,6 +506,13 @@ def main():
                 b'fi\n\n')
         rc = old_rc.replace(anchor, anchor + b'\n' + hook)
         rc_conf = read_rr(image, '/etc/rc.conf') + b'\ntmpsize="1g"\nvarsize="1g"\n'
+        # The live desktop needs USB HID input, display and Ethernet. Do not
+        # let devd start a Bluetooth HCI stack for optional adapters: several
+        # laptop combo chips time out during HCI reset, producing noisy errors
+        # while the Brasa graphical bootstrap is starting. The installed OS
+        # gets the stock Bluetooth configuration from its own base packages.
+        bluetooth_devd = (b'# Brasa live image: do not auto-start the optional Bluetooth stack.\n'
+                          b'# USB keyboards and mice continue to use the normal HID drivers.\n')
         with tempfile.TemporaryDirectory(prefix='brasa-live-') as directory:
             temp = Path(directory)
             freebsd_dist_files = get_freebsd_distribution_files()
@@ -518,6 +525,7 @@ def main():
             rge_module = download_realtek_rge_module(PACKAGE_CACHE_ISO, temp)
             (temp / 'rc.local').write_bytes(rc)
             (temp / 'rc.conf').write_bytes(rc_conf)
+            (temp / 'bluetooth.devd.conf').write_bytes(bluetooth_devd)
             (temp / 'bsdinstall-pkgbase').write_bytes(pkgbase_script)
             (temp / 'bsdinstall-script').write_bytes(bsdinstall_script)
             if VIRTIO_GPU_QEMU:
@@ -542,6 +550,7 @@ def main():
                 archive.addfile(info, io.BytesIO(readme))
             replace_paths = [
                 '/ETC/RC.LOCAL;1', '/ETC/RC.CONF;1',
+                '/ETC/DEVD/BLUETOOTH.CONF;1',
                 '/USR/LIBEXEC/BSDINSTALL/PKGBASE.;1',
                 '/USR/LIBEXEC/BSDINSTALL/SCRIPT.;1',
                 '/USR/LIBEXEC/BSDINSTALL/CONFIG.;1',
@@ -589,6 +598,8 @@ def main():
                                iso_path='/BRASA/VIRTIO_GPU_QEMU_XORG.CONF;1', rr_name='virtio_gpu_qemu_xorg.conf')
             image.add_file(str(temp / 'rc.local'), iso_path='/ETC/RC.LOCAL;1', rr_name='rc.local')
             image.add_file(str(temp / 'rc.conf'), iso_path='/ETC/RC.CONF;1', rr_name='rc.conf')
+            image.add_file(str(temp / 'bluetooth.devd.conf'),
+                           iso_path='/ETC/DEVD/BLUETOOTH.CONF;1', rr_name='bluetooth.conf')
             image.add_file(str(temp / 'bsdinstall-pkgbase'),
                            iso_path='/USR/LIBEXEC/BSDINSTALL/PKGBASE.;1',
                            rr_name='pkgbase', file_mode=0o100555)
@@ -627,6 +638,9 @@ def main():
         if (b'if /bin/sh /brasa/brasa-live-start; then' not in rc_local or
                 b'        exit 0\n' not in rc_local):
             raise RuntimeError('A saída normal do live Brasa ainda cai no instalador texto do FreeBSD.')
+        bluetooth_config = read_rr(check, '/etc/devd/bluetooth.conf')
+        if b'service bluetooth quietstart' in bluetooth_config:
+            raise RuntimeError('O live não pode iniciar automaticamente a pilha Bluetooth opcional.')
         live_start = read_rr(check, '/brasa/brasa-live-start')
         if (b'brasa-pkg-seed' in live_start or
                 live_start.count(b'tar -xf /brasa/BRASA_PKG_CACHE_TAR -C /var') != 1):

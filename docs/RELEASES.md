@@ -2,6 +2,13 @@
 
 Todas as alterações de código e os resultados de cada build devem ser versionados e documentados no Git. Preserve as ISOs-base e mantenha o total de ISOs abaixo de 10 GB. A primeira versão com login gráfico confirmado recebe o título alpha solicitado pelo usuário; as versões beta começam quando ele considerar o sistema do seu gosto e seguro.
 
+## Candidata local alpha_1.37e-ethernet: Bluetooth no live (28/10/2026)
+
+- ISO híbrida: `.build/Brasa-live-alpha_1.37e-ethernet.iso` (1.285.304.832 bytes; SHA-256 `D198AE36A7AC5C2B854DA6AC8CB70D0DC1FA0D8C5DEC3C9195D9A4F158811A0F`). Permanece local; não foi publicada.
+- O arquivo `devd` da mídia live não inicia automaticamente o stack Bluetooth. Teclados e mouses USB continuam no caminho HID normal; a configuração upstream do sistema instalado não é alterada.
+- Em QEMU TCG, e1000 obteve DHCP e o assistente Brasa abriu sozinho após baixar os pacotes ausentes. O instalador padrão do FreeBSD não apareceu. Sem instalação ou hardware físico validados.
+- WHPX falhou antes de desenhar a tela; a confirmação gráfica foi feita com TCG. Nenhum disco foi conectado ao QEMU.
+
 ## Candidata local alpha_1.37d-ethernet (28/10/2026)
 
 - ISO híbrida local: `.build/Brasa-live-alpha_1.37d-ethernet.iso` (1.285.302.784 bytes; SHA-256 `A567AABC7D1DF327BBC281B5098FA886D1C6E1C1D76B26AC9975C47404325F1B`). Não publicada como release: o teste alcançou apenas o assistente gráfico live, sem instalar o sistema ou validar o login KDE.

@@ -12,6 +12,7 @@ fi
 grep -q "say 'Montando o espaço temporário dos componentes gráficos.'" "$root/scripts/brasa-live-start"
 grep -q "say 'Espaço temporário pronto.'" "$root/scripts/brasa-live-start"
 grep -q 'service devmatch onestart' "$root/scripts/brasa-live-start"
+grep -q 'do not auto-start the optional Bluetooth stack' "$root/scripts/build-brasa-live-prototype.py"
 grep -q "media:.*Ethernet" "$root/scripts/brasa-live-start"
 grep -q 'dhclient -b' "$root/scripts/brasa-live-start"
 grep -q "realtek-rge-kmod" "$root/scripts/build-brasa-live-prototype.py"

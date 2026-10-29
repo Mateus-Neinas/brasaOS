@@ -6,6 +6,14 @@ Iniciar por uma mídia x86-64, escolher idioma, informar o nome e a senha da con
 
 ## Estado atual
 
+### Candidata local alpha_1.37e-ethernet: Bluetooth opcional no live (28/10/2026)
+
+A imagem `.build/Brasa-live-alpha_1.37e-ethernet.iso` parte do construtor Ethernet da 1.37d e substitui `/etc/devd/bluetooth.conf` apenas na mídia live, evitando que `devd` inicie automaticamente a pilha HCI de adaptadores Bluetooth opcionais. Isso não desativa os drivers USB HID de teclado e mouse. A instalação no disco recebe os arquivos upstream do FreeBSD; esse ajuste é exclusivo do ambiente live.
+
+Em QEMU 11.1 com TCG, 8 GiB de RAM, 4 vCPUs, VGA padrão de 128 MiB e e1000, a ISO obteve DHCP, rota e DNS, baixou os 291 MiB ausentes do cache e abriu automaticamente a tela “Instalar Brasa”, sem escolher `Live System` nem entrar no instalador padrão do FreeBSD. Nenhuma instalação foi iniciada. O teste WHPX falhou antes da tela com `Unexpected VP exit code 4`; foi repetido com TCG. O QEMU foi encerrado sem disco virtual conectado.
+
+O resultado confirma o fluxo de software com a NIC e1000 virtual, não a Ethernet física desta máquina nem o comportamento de um adaptador Bluetooth específico. O erro HCI observado na foto não é uma dependência necessária do assistente: o código de boot segue para rede e pacotes depois do início do sistema; o menu padrão aparece quando o bootstrap Brasa termina com erro. A candidata não foi publicada enquanto o teste físico de rede e a instalação completa não forem confirmados. Tamanho: 1.285.304.832 bytes; SHA-256 `D198AE36A7AC5C2B854DA6AC8CB70D0DC1FA0D8C5DEC3C9195D9A4F158811A0F`.
+
 ### Candidata local alpha_1.37d-ethernet: Ethernet automática (28/10/2026)
 
 A imagem híbrida `.build/Brasa-live-alpha_1.37d-ethernet.iso` foi construída como candidata nova a partir do conteúdo da 1.37c, sem sobrescrever a 1.37c ou releases anteriores. Ela inclui o módulo FreeBSD `if_rge.ko` da ABI FreeBSD 15 para RTL8125/8126/8127 e inicia `devmatch` para carregar drivers do kernel que correspondam ao hardware. O boot tenta DHCP em todas as interfaces cabeadas que o FreeBSD identifica por `media: Ethernet`, valida a rota padrão e o DNS e usa tentativas curtas para não travar em portas sem cabo.
