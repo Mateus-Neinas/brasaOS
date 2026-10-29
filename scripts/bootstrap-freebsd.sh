@@ -100,16 +100,26 @@ sysrc dbus_enable="YES"
 sysrc sddm_enable="YES"
 enable_kernel_module snd_uaudio
 
-# Install drm-kmod below, then load the matching kernel driver on first boot.
-# UEFI's generic SCFB fallback does not replace a GPU's native KMS driver.
+# Install drm-kmod below. On UEFI, keep the first graphical boot on the
+# firmware framebuffer; enable the native KMS module only on BIOS until it has
+# been validated on the target hardware.
+boot_method=$(sysctl -n machdep.bootmethod 2>/dev/null || true)
 display_devices=$(pciconf -l 2>/dev/null | grep 'class=0x03' || true)
 if printf '%s\n' "$display_devices" | grep -q 'vendor=0x1002'; then
-  msg "GPU AMD detectada; habilitando o driver amdgpu do FreeBSD."
-  enable_kernel_module amdgpu
+  if [ "$boot_method" = UEFI ]; then
+    msg "GPU AMD detectada; mantendo o framebuffer UEFI no primeiro início gráfico."
+  else
+    msg "GPU AMD detectada; habilitando o driver amdgpu do FreeBSD."
+    enable_kernel_module amdgpu
+  fi
 fi
 if printf '%s\n' "$display_devices" | grep -q 'vendor=0x8086'; then
-  msg "GPU Intel detectada; habilitando o driver i915kms do FreeBSD."
-  enable_kernel_module i915kms
+  if [ "$boot_method" = UEFI ]; then
+    msg "GPU Intel detectada; mantendo o framebuffer UEFI no primeiro início gráfico."
+  else
+    msg "GPU Intel detectada; habilitando o driver i915kms do FreeBSD."
+    enable_kernel_module i915kms
+  fi
 fi
 
 repo_catalog_ready=no
@@ -150,7 +160,7 @@ msg "Preparando o desktop KDE Plasma e os aplicativos essenciais."
 # installed together. Keep the desired X11 session and familiar applications.
 set -- plasma6-plasma plasma6-kactivitymanagerd plasma6-plasma-pa plasma6-kglobalacceld \
   plasma6-kwin-x11 plasma6-breeze konsole dolphin ark \
-  sddm xorg-minimal drm-kmod
+  sddm xorg-minimal drm-kmod xf86-video-scfb xf86-video-vesa
 msg "Verificando a disponibilidade do componente opcional KDE kf6-kdesu."
 if pkg rquery '%n' kf6-kdesu 2>/dev/null | grep -qx kf6-kdesu; then
   set -- "$@" kf6-kdesu
@@ -159,6 +169,26 @@ else
 fi
 msg "Etapa 1/3: instalando o desktop KDE Plasma e os aplicativos essenciais."
 install_packages "$@"
+
+# Keep a usable Xorg driver on machines without a supported KMS module. The
+# live installer configures this fallback before launching its GUI; the
+# installed system needs the same support before SDDM starts on the next boot.
+if [ "$boot_method" = UEFI ]; then
+  xorg_fallback=scfb
+  msg "Configurando o framebuffer UEFI SCFB para o primeiro início gráfico."
+elif [ -z "$gpu_modules" ]; then
+  xorg_fallback=vesa
+  msg "Configurando o driver gráfico genérico $xorg_fallback para o primeiro boot."
+fi
+if [ -n "${xorg_fallback:-}" ]; then
+  install -d -m 0755 /usr/local/etc/X11/xorg.conf.d
+  cat > /usr/local/etc/X11/xorg.conf.d/20-brasa-video.conf <<EOF
+Section "Device"
+    Identifier "Brasa generic video"
+    Driver "$xorg_fallback"
+EndSection
+EOF
+fi
 
 # Keep independent package transactions small so the GUI can identify which
 # feature is currently being configured and a slow optional download does not

@@ -6,7 +6,21 @@ Iniciar por uma mídia x86-64, escolher idioma, informar o nome e a senha da con
 
 ## Estado atual
 
-Os caminhos de candidatas antigas abaixo registram o estado no dia dos testes. Em 29/10/2026, foram removidas as ISOs intermediárias sem avanço e os QCOWs antigos depois de confirmar que nenhuma VM estava ativa; permanecem a r37 de referência, as candidatas alpha_1.39, 1.40 e 1.41 e as ISOs-base FreeBSD. Os QCOWs descartáveis usados nos testes de instalação 1.39/1.40 estão preservados para comparação. A ISO da candidata 1.38 foi removida após a 1.39 ser versionada.
+### Candidata alpha_1.43: SCFB UEFI no primeiro boot
+
+A imagem `.build/Brasa-live-alpha_1.43-uefi-scfb-first-hybrid.iso` (1.285.306.368 bytes; SHA-256 `8DC7D14F420ACF57E824FCAC920F142000A4E24B5AC9A0DDF66C319EBE8D8FA9`) foi iniciada por USB híbrido em QEMU com OVMF/UEFI, TCG, 8 GiB, quatro vCPUs e VGA virtual de 128 MiB. A tela chegou ao assistente gráfico “Instalar Brasa”. Nenhum disco de destino foi ligado à VM.
+
+No UEFI, o ambiente live mantém o framebuffer fornecido pelo firmware e adia o carregamento de KMS AMD/Intel, para evitar a troca de modo antes que o usuário veja o instalador. SCFB e VESA foram acrescentados à instalação; SCFB é selecionado no UEFI, e `drm-kmod` permanece disponível. KDE foi mantido. A VGA genérica do QEMU não equivale à AMD RX 6600 do PC, então ainda é obrigatório testar o boot USB na máquina real antes de declarar compatibilidade. A ISO intermediária não foi publicada; o GitHub mantém apenas `alpha_1.37`.
+
+Os caminhos de candidatas antigas abaixo registram o estado no dia dos testes. Em 29/10/2026, foram removidas as ISOs intermediárias sem avanço e os QCOWs antigos depois de confirmar que nenhuma VM estava ativa; permanecem a r37 de referência, as candidatas alpha_1.39, 1.40, 1.41 e 1.42 e as ISOs-base FreeBSD. Os QCOWs descartáveis usados nos testes de instalação continuam preservados para comparação. A ISO da candidata 1.38 foi removida após a 1.39 ser versionada.
+
+### Candidata local alpha_1.42-xorg-fallback (29/10/2026)
+
+A ISO híbrida `.build/Brasa-live-alpha_1.42-xorg-fallback-hybrid.iso` tem 1.285.306.368 bytes e SHA-256 `FB3F7907FAD0CD7D230E650AE783A613B347DF67757119F3A9618DD2987D305D`. A mudança instala `xf86-video-scfb` e `xf86-video-vesa` no sistema instalado e seleciona SCFB em UEFI quando não foi carregado um módulo KMS AMD/Intel; em BIOS, seleciona VESA. O KDE permanece o desktop planejado.
+
+QEMU TCG/OVMF x86-64, 8 GiB, 4 vCPUs, VGA 128 MiB, USB híbrido e e1000/NAT: a mídia iniciou, recebeu DHCP e abriu o assistente gráfico. A tentativa posterior de instalação no QCOW2 descartável `alpha142-install-test.qcow2` encerrou com erro. O diagnóstico visível listava a fase de conferência de `base.txz` e processos `bsdinstall` ativos; o motivo final não foi preservado. A instalação no disco e o primeiro boot não foram verificados, logo o fallback Xorg dessa mudança ainda não foi testado num sistema instalado.
+
+O inventário do PC confirma RX 6600 (`1002:73FF`) e RTL8125 (`10EC:8125`). A ISO inclui o módulo Realtek `if_rge.ko` com ABI FreeBSD 15 amd64, mas o candidato 1.42 ainda não foi iniciado no PC físico. Um teste VMware separado entrou no diagnóstico Brasa com `em0` e sem oferta DHCP; VMnet0 não aparecia no editor de rede, que exigia privilégios de administrador para alterar a configuração. Esse teste da bridge não exercitou a NIC física e não prova falha do suporte RTL8125. A candidata permanece local, sem release, até inicializar diretamente no instalador gráfico no PC real.
 
 ### Candidata local alpha_1.41-gpu-auto (29/10/2026)
 
