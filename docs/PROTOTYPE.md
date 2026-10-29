@@ -6,7 +6,7 @@ Iniciar por uma mídia x86-64, escolher idioma, informar o nome e a senha da con
 
 ## Estado atual
 
-Os caminhos de candidatas antigas abaixo registram o estado no dia dos testes. Em 29/10/2026, as ISOs intermediárias e os QCOWs antigos foram removidos do PC após confirmar que nenhuma VM estava ativa; permanecem a r37 de referência, a alpha_1.38 híbrida e as ISOs-base FreeBSD.
+Os caminhos de candidatas antigas abaixo registram o estado no dia dos testes. Em 29/10/2026, as ISOs intermediárias e os QCOWs antigos foram removidos do PC após confirmar que nenhuma VM estava ativa; permanecem a r37 de referência, a candidata alpha_1.39 e as ISOs-base FreeBSD. A ISO da candidata 1.38 foi removida após a 1.39 ser versionada.
 
 ### Candidata local alpha_1.38-rge-diagnostics (29/10/2026)
 
@@ -14,7 +14,15 @@ A ISO híbrida `.build/Brasa-live-alpha_1.38-rge-diagnostics-final-hybrid.iso` (
 
 Em QEMU TCG com 8 GiB, 4 vCPUs, VGA padrão de 128 MiB e e1000/NAT, a imagem híbrida iniciou por USB em BIOS, recebeu DHCP, preparou os pacotes e abriu a confirmação gráfica “Instalar Brasa”. Um QCOW descartável de 40 GiB foi conectado, mas o teste não avançou além da tela inicial e não iniciou a instalação; o QCOW não recebeu gravações e foi removido. Um boot novo da imagem final híbrida repetiu o caminho BIOS/USB e abriu o assistente gráfico. Isso verifica o live e a abertura do assistente, não uma instalação concluída, UEFI ou a associação do `rge` à placa física; a nova tela de diagnóstico ainda não foi acionada por um erro de rede real.
 
-No GitHub, mantenha somente a release `alpha_1.37`, a primeira que iniciou com sucesso no QEMU. Não publique releases ou assets ISO para builds intermediários: versione o código e documente os resultados no Git. Só publique a alpha final quando ela iniciar no PC real diretamente no instalador gráfico e concluir a instalação sem problemas. A limpeza de `alpha_1.37b` e das ISOs locais sem progresso já foi concluída. Um teste UEFI QEMU foi iniciado com o firmware x86-64 local e uma cópia descartável do arquivo de variáveis disponível; o resultado ainda precisa ser confirmado.
+No GitHub, mantenha somente a release `alpha_1.37`, a primeira que iniciou com sucesso no QEMU. Não publique releases ou assets ISO para builds intermediários: versione o código e documente os resultados no Git. Só publique a alpha final quando ela iniciar no PC real diretamente no instalador gráfico e concluir a instalação sem problemas. A limpeza de `alpha_1.37b` e das ISOs locais sem progresso já foi concluída.
+
+### Candidata local alpha_1.39-uefi-scfb (29/10/2026)
+
+A ISO híbrida `.build/Brasa-live-alpha_1.39-uefi-scfb-hybrid.iso` (1.285.317.120 bytes; SHA-256 `A36059C3EAD086A3389008B649F55E1D0634E26C7433F80B752602A5F634D939`) seleciona o driver Xorg SCFB quando `machdep.bootmethod=UEFI`; o boot BIOS preserva a seleção automática anterior. Isso segue a orientação do [FreeBSD Handbook](https://docs.freebsd.org/en/books/handbook/x11/), que indica SCFB para boot UEFI e VESA para BIOS. A tela de recuperação também passa a exibir as últimas linhas do log do Xorg e da inicialização live.
+
+Com QEMU TCG, firmware OVMF x86-64, 8 GiB, 4 vCPUs, VGA de 128 MiB e e1000/NAT, a mídia híbrida inicializou por USB, recebeu DHCP e abriu o assistente gráfico; esse teste não tinha disco conectado. Em outro boot com QCOW2 descartável de 40 GiB, o assistente abriu a seleção e identificou `vtbd0`/40 GB. Após avançar, a tela ficou sem o diálogo de confirmação por mais de dez minutos; o QCOW permaneceu em 197.632 bytes, sem partições ou gravações. O teste foi encerrado e o QCOW removido. A instalação completa, o primeiro boot do sistema instalado e o KDE ainda não foram validados. Esta candidata permanece local e não é uma release.
+
+Próximo passo: reproduzir o fluxo da tela de disco com telemetria/logs do Zenity e do Xorg, separando falha de foco do diálogo de falha do assistente, e só então iniciar a gravação no QCOW de teste.
 
 ### Candidata local alpha_1.37g-network-diagnostics: boot USB e diagnóstico DHCP (29/10/2026)
 

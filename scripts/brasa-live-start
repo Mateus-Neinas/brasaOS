@@ -157,6 +157,18 @@ if [ -c /dev/fb0 ] && [ -r /brasa/virtio_gpu_qemu_xorg.conf ]; then
   install -m 0644 /brasa/virtio_gpu_qemu_xorg.conf \
     /usr/local/etc/X11/xorg.conf.d/20-virtio-gpu-qemu.conf >> "$log" 2>&1 || failed
 fi
+boot_method=$(sysctl -n machdep.bootmethod 2>/dev/null || true)
+if [ "$boot_method" = UEFI ]; then
+  # FreeBSD's UEFI console exposes a system framebuffer; Xorg must select
+  # SCFB explicitly instead of guessing VESA or a DRM driver that is absent.
+  install -d -m 0755 /usr/local/etc/X11/xorg.conf.d >> "$log" 2>&1 || failed
+  cat > /usr/local/etc/X11/xorg.conf.d/20-brasa-uefi-scfb.conf <<'EOF'
+Section "Device"
+    Identifier "Brasa UEFI framebuffer"
+    Driver "scfb"
+EndSection
+EOF
+fi
 tar -xzf /brasa/BRASA_PROJECT_TAR_GZ -C /tmp/brasa-source >> "$log" 2>&1 || failed
 
 export HOME=/tmp/brasa-home

@@ -2,7 +2,15 @@
 
 Todas as alterações de código e os resultados de cada build devem ser versionados e documentados no Git. Preserve as ISOs-base e mantenha o total de ISOs abaixo de 10 GB. No GitHub, mantenha somente a release `alpha_1.37`, a primeira que iniciou com sucesso no QEMU, até existir uma alpha final que inicialize no PC real diretamente no instalador gráfico e conclua a instalação sem problemas. Builds intermediários ficam no histórico do código, sem releases nem assets ISO. As versões beta começam quando o usuário considerar o sistema do seu gosto e seguro.
 
-Em 29/10/2026, a pedido do usuário, a release `alpha_1.37b` foi removida; a única release mantida no GitHub é `alpha_1.37`, agora com a ISO r37 anexada. As notas abaixo preservam o histórico dos testes, mas os caminhos das candidatas antigas não significam que as ISOs ainda estejam no PC. Foram mantidos localmente a ISO r37 de referência, a candidata híbrida alpha_1.38 e as duas imagens-base FreeBSD. Os QCOWs antigos foram removidos após confirmar que nenhuma VM estava ativa.
+Em 29/10/2026, a pedido do usuário, a release `alpha_1.37b` foi removida; a única release mantida no GitHub é `alpha_1.37`, agora com a ISO r37 anexada. As notas abaixo preservam o histórico dos testes, mas os caminhos das candidatas antigas não significam que as ISOs ainda estejam no PC. Foram mantidos localmente a ISO r37 de referência, a candidata híbrida alpha_1.39 e as imagens-base FreeBSD; as ISOs da 1.38 e a óptica intermediária 1.39 foram removidas. Os QCOWs antigos foram removidos após confirmar que nenhuma VM estava ativa.
+
+## Candidata local alpha_1.39-uefi-scfb (29/10/2026)
+
+- ISO híbrida: `.build/Brasa-live-alpha_1.39-uefi-scfb-hybrid.iso` (1.285.317.120 bytes; SHA-256 `A36059C3EAD086A3389008B649F55E1D0634E26C7433F80B752602A5F634D939`). A ISO óptica intermediária mede 1.285.300.224 bytes (SHA-256 `72FF7796290F22AACAE2466154A6D1688039F5FDD95FF0E8380EB2ACE72943F2`). Nenhuma foi publicada como release.
+- Configura o driver Xorg `scfb` no boot UEFI conforme o [FreeBSD Handbook](https://docs.freebsd.org/en/books/handbook/x11/); BIOS mantém a configuração automática anterior. A tela de recuperação mostra também linhas recentes do Xorg e do bootstrap.
+- QEMU TCG/OVMF x86-64, 8 GiB, VGA 128 MiB, e1000/NAT: iniciou pela mídia USB, recebeu DHCP e abriu o assistente gráfico quando não havia disco destino conectado.
+- Com QCOW descartável de 40 GiB, a tela de seleção identificou `vtbd0`/40 GB. Depois de avançar, a tela ficou sem o diálogo de confirmação por mais de dez minutos; o QCOW continuou com 197.632 bytes e sem gravações. A VM foi encerrada e o QCOW removido. Instalação completa e boot do disco instalado não validados.
+- Próxima etapa: instrumentar e reproduzir a transição da lista de discos à confirmação; a 1.39 continua candidata local, não é release e ainda não satisfaz o critério da alpha final no PC real.
 
 ## Candidata local alpha_1.37e-ethernet: Bluetooth no live (28/10/2026)
 
