@@ -14,7 +14,7 @@ A ISO híbrida `.build/Brasa-live-alpha_1.38-rge-diagnostics-final-hybrid.iso` (
 
 Em QEMU TCG com 8 GiB, 4 vCPUs, VGA padrão de 128 MiB e e1000/NAT, a imagem híbrida iniciou por USB em BIOS, recebeu DHCP, preparou os pacotes e abriu a confirmação gráfica “Instalar Brasa”. Um QCOW descartável de 40 GiB foi conectado, mas o teste não avançou além da tela inicial e não iniciou a instalação; o QCOW não recebeu gravações e foi removido. Um boot novo da imagem final híbrida repetiu o caminho BIOS/USB e abriu o assistente gráfico. Isso verifica o live e a abertura do assistente, não uma instalação concluída, UEFI ou a associação do `rge` à placa física; a nova tela de diagnóstico ainda não foi acionada por um erro de rede real.
 
-Não será publicada outra release antes da alpha final validada no PC real. A release `alpha_1.37` é a única referência a manter no GitHub; a limpeza de `alpha_1.37b` e a remoção de ISOs locais sem progresso continuam pendentes. O teste UEFI QEMU não iniciou porque a distribuição local do QEMU não inclui o arquivo de variáveis OVMF x86-64.
+No GitHub, mantenha somente a release `alpha_1.37`, a primeira que iniciou com sucesso no QEMU. Não publique releases ou assets ISO para builds intermediários: versione o código e documente os resultados no Git. Só publique a alpha final quando ela iniciar no PC real diretamente no instalador gráfico e concluir a instalação sem problemas. A limpeza de `alpha_1.37b` e das ISOs locais sem progresso já foi concluída. Um teste UEFI QEMU foi iniciado com o firmware x86-64 local e uma cópia descartável do arquivo de variáveis disponível; o resultado ainda precisa ser confirmado.
 
 ### Candidata local alpha_1.37g-network-diagnostics: boot USB e diagnóstico DHCP (29/10/2026)
 

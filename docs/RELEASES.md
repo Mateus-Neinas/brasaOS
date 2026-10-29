@@ -1,6 +1,6 @@
 # Releases das ISOs
 
-Todas as alterações de código e os resultados de cada build devem ser versionados e documentados no Git. Preserve as ISOs-base e mantenha o total de ISOs abaixo de 10 GB. A primeira versão com login gráfico confirmado recebe o título alpha solicitado pelo usuário; as versões beta começam quando ele considerar o sistema do seu gosto e seguro.
+Todas as alterações de código e os resultados de cada build devem ser versionados e documentados no Git. Preserve as ISOs-base e mantenha o total de ISOs abaixo de 10 GB. No GitHub, mantenha somente a release `alpha_1.37`, a primeira que iniciou com sucesso no QEMU, até existir uma alpha final que inicialize no PC real diretamente no instalador gráfico e conclua a instalação sem problemas. Builds intermediários ficam no histórico do código, sem releases nem assets ISO. As versões beta começam quando o usuário considerar o sistema do seu gosto e seguro.
 
 Em 29/10/2026, a pedido do usuário, a release `alpha_1.37b` foi removida; a única release mantida no GitHub é `alpha_1.37`, agora com a ISO r37 anexada. As notas abaixo preservam o histórico dos testes, mas os caminhos das candidatas antigas não significam que as ISOs ainda estejam no PC. Foram mantidos localmente a ISO r37 de referência, a candidata híbrida alpha_1.38 e as duas imagens-base FreeBSD. Os QCOWs antigos foram removidos após confirmar que nenhuma VM estava ativa.
 
