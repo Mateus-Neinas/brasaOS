@@ -496,18 +496,23 @@ def main():
         anchor = b'mkdir /tmp/bsdinstall_etc\n'
         if old_rc.count(anchor) != 1:
             raise RuntimeError('O arquivo de inicialização da mídia não é o esperado.')
-        hook = (b'# Start Brasa before the stock installer and keep its failure path explicit.\n'
-                b'if [ -r /brasa/brasa-live-start ]; then\n'
-                b'    if /bin/sh /brasa/brasa-live-start; then\n'
-                b'        # A normal exit, including a cancel choice, must not\n'
-                b'        # fall through to a second, unrelated text installer.\n'
-                b'        exit 0\n'
-                b'    fi\n'
-                b'    if [ -r /brasa/brasa-live-recovery ]; then\n'
-                b'        /usr/libexec/bsdinstall/runconsoles /bin/sh /brasa/brasa-live-recovery %\n'
-                b'        exit 0\n'
-                b'    fi\n'
-                b'fi\n\n')
+        hook = (b'# Start Brasa before the stock installer and never silently fall through.\n'
+                b'printf "%s\\n" "Brasa: verificando os componentes de inicializacao." > /dev/console\n'
+                b'if [ ! -r /brasa/brasa-live-start ]; then\n'
+                b'    printf "%s\\n" "Brasa: arquivo principal ausente na midia USB; confira a imagem gravada." > /dev/console\n'
+                b'    while :; do sleep 3600; done\n'
+                b'fi\n'
+                b'if /bin/sh /brasa/brasa-live-start; then\n'
+                b'    # A normal exit, including a cancel choice, must not\n'
+                b'    # fall through to a second, unrelated text installer.\n'
+                b'    exit 0\n'
+                b'fi\n'
+                b'if [ -r /brasa/brasa-live-recovery ]; then\n'
+                b'    /usr/libexec/bsdinstall/runconsoles /bin/sh /brasa/brasa-live-recovery %\n'
+                b'    exit 0\n'
+                b'fi\n'
+                b'printf "%s\\n" "Brasa: diagnostico de recuperacao ausente na midia." > /dev/console\n'
+                b'while :; do sleep 3600; done\n\n')
         rc = old_rc.replace(anchor, anchor + b'\n' + hook)
         rc_conf = read_rr(image, '/etc/rc.conf') + b'\ntmpsize="1g"\nvarsize="1g"\n'
         # The live desktop needs USB HID input, display and Ethernet. Do not
@@ -640,17 +645,22 @@ def main():
         if not check.eltorito_boot_catalog:
             raise RuntimeError('O catálogo de boot foi perdido.')
         rc_local = read_rr(check, '/etc/rc.local')
-        if (b'if /bin/sh /brasa/brasa-live-start; then' not in rc_local or
-                b'        exit 0\n' not in rc_local or
-                b'/bin/sh /brasa/brasa-live-recovery' not in rc_local):
-            raise RuntimeError('A saída normal do live Brasa ainda cai no instalador texto do FreeBSD.')
+        if (b'Brasa: verificando os componentes de inicializacao.' not in rc_local or
+                b'if [ ! -r /brasa/brasa-live-start ]; then' not in rc_local or
+                b'Brasa: arquivo principal ausente na midia USB' not in rc_local or
+                b'if /bin/sh /brasa/brasa-live-start; then' not in rc_local or
+                b'    exit 0\n' not in rc_local or
+                b'/bin/sh /brasa/brasa-live-recovery' not in rc_local or
+                b'Brasa: diagnostico de recuperacao ausente na midia.' not in rc_local):
+            raise RuntimeError('O live deve interceptar o instalador texto e parar com diagnóstico se faltar um arquivo Brasa.')
         bluetooth_config = read_rr(check, '/etc/devd/bluetooth.conf')
         if b'service bluetooth quietstart' in bluetooth_config:
             raise RuntimeError('O live não pode iniciar automaticamente a pilha Bluetooth opcional.')
         live_start = read_rr(check, '/brasa/brasa-live-start')
         live_recovery = read_rr(check, '/brasa/brasa-live-recovery')
         if b'/tmp/brasa-live-phase' not in live_start or \
-                b'pciconf -lv' not in live_recovery or \
+                b"pciconf -l 2>&1 | grep -E 'class=0x(02|03|04)'" not in live_recovery or \
+                b'machdep.bootmethod' not in live_recovery or \
                 b'BRASA - recuperacao de inicializacao' not in live_recovery or \
                 b'Etapa: %s' not in live_recovery or \
                 b'Fotografe esta tela' not in live_recovery or \

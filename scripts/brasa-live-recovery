@@ -12,6 +12,7 @@ fi
 clear
 printf 'BRASA - recuperacao de inicializacao\n'
 printf 'Etapa: %s\n\n' "$phase"
+printf 'Boot: %s\n' "$(sysctl -n machdep.bootmethod 2>/dev/null || echo desconhecido)"
 printf 'Interfaces: %s\n' "$(ifconfig -l 2>&1)"
 for interface in $(ifconfig -l 2>/dev/null); do
   case "$interface" in lo*|wlan*|bridge*|tun*|tap*|pflog*|pfsync*|epair*|vlan*|wg*|tailscale*) continue ;; esac
@@ -21,8 +22,8 @@ printf '\nRota: '
 route -n get default 2>&1 | grep -E 'gateway:|interface:|route: ' | tr '\n' ' '
 printf '\nDNS: '
 grep -E '^[[:space:]]*nameserver[[:space:]]+' /etc/resolv.conf 2>/dev/null | tr '\n' ' '
-printf '\n\nPCI Ethernet:\n'
-/usr/sbin/pciconf -lv 2>&1 | grep -E -B1 -A2 'class[[:space:]]*=[[:space:]]*(0x020000|network|ethernet)' | head -n 5 || printf 'nenhum identificado\n'
+printf '\n\nPCI rede/video (driver, vendor/device/class):\n'
+/usr/sbin/pciconf -l 2>&1 | grep -E 'class=0x(02|03|04)' | head -n 6 || printf 'nenhum identificado\n'
 printf '\nDriver Realtek RGE:\n'
 rge_modules=$(kldstat -v 2>&1 | grep -Ei 'if_rge|rge_pci|rge_driver|module rge' | head -n 3 || true)
 [ -n "$rge_modules" ] && printf '%s\n' "$rge_modules" || printf 'modulo rge nao aparece como carregado\n'

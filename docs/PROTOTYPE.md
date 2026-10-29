@@ -6,7 +6,15 @@ Iniciar por uma mídia x86-64, escolher idioma, informar o nome e a senha da con
 
 ## Estado atual
 
-Os caminhos de candidatas antigas abaixo registram o estado no dia dos testes. Em 29/10/2026, as ISOs intermediárias e os QCOWs antigos foram removidos do PC após confirmar que nenhuma VM estava ativa; permanecem a r37 de referência, a candidata alpha_1.39 e as ISOs-base FreeBSD. A ISO da candidata 1.38 foi removida após a 1.39 ser versionada.
+Os caminhos de candidatas antigas abaixo registram o estado no dia dos testes. Em 29/10/2026, as ISOs intermediárias e os QCOWs antigos foram removidos do PC após confirmar que nenhuma VM estava ativa; permanecem a r37 de referência, as candidatas alpha_1.39 e alpha_1.40 e as ISOs-base FreeBSD. A ISO da candidata 1.38 foi removida após a 1.39 ser versionada.
+
+### Candidata local alpha_1.40-boot-diagnostics (29/10/2026)
+
+A ISO híbrida `.build/Brasa-live-alpha_1.40-boot-diagnostics-hybrid.iso` tem 1.285.319.168 bytes e SHA-256 `982E77F99C2E949D7ECC164ADC182C5F71AAE98BEA03F1E3D068CE7EC9A14766`. O gancho que inicia o Brasa agora falha de forma visível e interrompe o boot se o script principal ou o diagnóstico de recuperação estiver ausente na mídia, em vez de deixar a inicialização cair silenciosamente no menu padrão do `bsdinstall`.
+
+Em QEMU TCG com OVMF x86-64, 8 GiB, 4 vCPUs, VGA de 128 MiB e e1000/NAT, a ISO híbrida iniciou tanto como CD virtual quanto como armazenamento USB virtual. Nos dois percursos, recebeu DHCP e chegou ao ambiente gráfico; no boot USB, extraiu os pacotes locais, atualizou o catálogo FreeBSD e abriu “Instalar Brasa”. O assistente também avançou por teclado até o campo para nome da conta. A VM foi testada sem disco de destino e nenhuma instalação foi iniciada. A tela do instalador aberta aqui comprova o caminho USB/UEFI até a interface; não valida instalação, boot no PC real, nem diagnóstico em uma falha real de hardware.
+
+A build do construtor foi concluída, `py_compile` e `git diff --check` passaram. O `scripts/self-check.sh` foi interrompido durante os cenários do monitor de áudio que fazem amostragens temporizadas; a suíte completa não foi concluída e esse resultado não permite afirmar sucesso ou falha nela. A ISO 1.40 permanece candidata local, sem release. No GitHub deve continuar somente `alpha_1.37` até a candidata passar pelo instalador gráfico e concluir instalação no PC real.
 
 ### Candidata local alpha_1.38-rge-diagnostics (29/10/2026)
 

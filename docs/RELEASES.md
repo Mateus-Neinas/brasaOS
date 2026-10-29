@@ -2,7 +2,16 @@
 
 Todas as alterações de código e os resultados de cada build devem ser versionados e documentados no Git. Preserve as ISOs-base e mantenha o total de ISOs abaixo de 10 GB. No GitHub, mantenha somente a release `alpha_1.37`, a primeira que iniciou com sucesso no QEMU, até existir uma alpha final que inicialize no PC real diretamente no instalador gráfico e conclua a instalação sem problemas. Builds intermediários ficam no histórico do código, sem releases nem assets ISO. As versões beta começam quando o usuário considerar o sistema do seu gosto e seguro.
 
-Em 29/10/2026, a pedido do usuário, a release `alpha_1.37b` foi removida; a única release mantida no GitHub é `alpha_1.37`, agora com a ISO r37 anexada. As notas abaixo preservam o histórico dos testes, mas os caminhos das candidatas antigas não significam que as ISOs ainda estejam no PC. Foram mantidos localmente a ISO r37 de referência, a candidata híbrida alpha_1.39 e as imagens-base FreeBSD; as ISOs da 1.38 e a óptica intermediária 1.39 foram removidas. Os QCOWs antigos foram removidos após confirmar que nenhuma VM estava ativa.
+Em 29/10/2026, a pedido do usuário, a release `alpha_1.37b` foi removida; a única release mantida no GitHub é `alpha_1.37`, agora com a ISO r37 anexada. As notas abaixo preservam o histórico dos testes, mas os caminhos das candidatas antigas não significam que as ISOs ainda estejam no PC. Foram mantidos localmente a ISO r37 de referência, as candidatas híbridas alpha_1.39 e alpha_1.40 e as imagens-base FreeBSD; as ISOs da 1.38 e a óptica intermediária 1.39 foram removidas. Os QCOWs antigos foram removidos após confirmar que nenhuma VM estava ativa.
+
+## Candidata local alpha_1.40-boot-diagnostics (29/10/2026)
+
+- ISO híbrida: `.build/Brasa-live-alpha_1.40-boot-diagnostics-hybrid.iso` (1.285.319.168 bytes; SHA-256 `982E77F99C2E949D7ECC164ADC182C5F71AAE98BEA03F1E3D068CE7EC9A14766`). Não publicada como release.
+- O gancho de boot mostra diagnóstico e para com erro explícito se os scripts Brasa estiverem ausentes, evitando cair sem explicação no `bsdinstall` padrão.
+- QEMU TCG/OVMF x86-64, 8 GiB, 4 vCPUs, VGA 128 MiB, e1000/NAT: a híbrida iniciou como CD virtual UEFI e como dispositivo USB virtual UEFI. Ambos os boots chegaram à interface live; o caminho USB atualizou o catálogo e completou o carregamento dos pacotes gráficos pela rede. “Instalar Brasa” abriu e, pelo teclado, avançou ao campo de nome de conta.
+- Sem disco de destino conectado; nenhuma instalação foi iniciada. Isto verifica o boot USB/UEFI e a abertura da interface, não o processo de instalação, o boot físico ou a compatibilidade com os dispositivos reais.
+- `python -m py_compile scripts/build-brasa-live-prototype.py` e `git diff --check` passaram. `scripts/self-check.sh` foi interrompido durante as amostragens temporizadas do monitor de áudio simulado; a suíte completa não foi concluída.
+- Manter no GitHub apenas `alpha_1.37` até a versão final iniciar no PC real diretamente no instalador gráfico e concluir a instalação.
 
 ## Candidata local alpha_1.39-uefi-scfb (29/10/2026)
 
