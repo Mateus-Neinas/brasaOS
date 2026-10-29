@@ -4,7 +4,7 @@ Brasa é um protótipo x86-64 baseado em FreeBSD. O objetivo é oferecer instala
 
 ## Estado da ISO
 
-A versão publicada mais recente é `alpha_1.37b`, disponível como `Brasa-live-alpha_1.37b.iso` na página de Releases. SHA-256: `36B53E173EEBE74FA4DA0395A469350BD632A6ADACE11573F05DBC0C9F1A6CC3`. A candidata local `alpha_1.37c` está em `.build/Brasa-live-alpha_1.37c.iso`; ela remove aberturas diretas da porta serial durante o boot, possível causa da espera de 20 minutos em máquina real. A candidata passou pela criação e inspeção estrutural, mas ainda aguarda novo boot em hardware. No Rufus, use modo DD/raw; `Alt+I` força esse modo.
+A versão publicada mais recente é `alpha_1.37b`, disponível como `Brasa-live-alpha_1.37b.iso` na página de Releases. SHA-256: `36B53E173EEBE74FA4DA0395A469350BD632A6ADACE11573F05DBC0C9F1A6CC3`. A candidata local `alpha_1.37c` está em `.build/Brasa-live-alpha_1.37c.iso`; ela remove aberturas diretas da porta serial durante o boot, possível causa da espera de 20 minutos em máquina real, e preserva PMBR/GPT híbrido para USB. A estrutura MBR/GPT/ISO9660 foi conferida; ainda aguarda novo boot em hardware. No Rufus, use modo DD/raw; `Alt+I` força esse modo.
 
 O boot BIOS da mídia alpha_1.37b foi confirmado no QEMU. Em máquina real, ela parou por cerca de 20 minutos antes da interface gráfica; o instalador não chegou a abrir nem a selecionar um disco. A candidata alpha_1.37c remove uma possível espera em `/dev/ttyu0`, mas ainda não foi validada em hardware. Não inicie a instalação em disco físico. A instalação limpa em QEMU e o áudio USB real também não foram validados nesta candidata.
 

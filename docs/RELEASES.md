@@ -4,10 +4,10 @@ Todas as alterações de código e os resultados de cada build devem ser version
 
 ## Candidata alpha_1.37c: desbloqueio do boot em máquina real (28/10/2026)
 
-- ISO local: `.build/Brasa-live-alpha_1.37c.iso` (1.284.984.832 bytes; SHA-256 `e2f0ee43bceed2685502f4837e937b33b5176b03b0dc3bc29708b3a31845cb4a`).
+- ISO local híbrida: `.build/Brasa-live-alpha_1.37c.iso` (1.285.001.728 bytes; SHA-256 `0cccc9a4a17cc64fd6289fb41b259b6ce8870e9eabf6d536709c58cfb2d013bb`). A ISO óptica intermediária foi preservada como `.build/Brasa-live-alpha_1.37c-optical.iso`.
 - A máquina real parou por cerca de 20 minutos na mensagem de preparação do espaço temporário. O `say()` do script abria `/dev/ttyu0` quando o dispositivo existia; abrir uma porta serial sem portadora pode bloquear. É a principal hipótese, ainda precisa de validação física.
 - Removidas essas aberturas no inicializador live e no assistente. A etapa de `tmpfs` agora exibe marcadores antes/depois do carregamento e da montagem.
-- O builder e a inspeção dos arquivos embutidos na ISO passaram. Ainda não foi testada em QEMU nem em equipamento real; permanece apenas local e não foi publicada.
+- Os builders passaram; a estrutura PMBR/GPT/ISO9660 e os scripts embutidos foram inspecionados. Ainda não foi testada em QEMU nem em equipamento real; permanece apenas local e não foi publicada.
 
 ## ISO alpha_1.37b: imagem híbrida gravável em USB (28/10/2026)
 
