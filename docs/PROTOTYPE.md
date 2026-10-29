@@ -6,6 +6,14 @@ Iniciar por uma mídia x86-64, escolher idioma, informar o nome e a senha da con
 
 ## Estado atual
 
+### Candidata local alpha_1.45-rge-link-recovery (29/10/2026)
+
+A foto do boot físico mostra o módulo `if_rge.ko` associado à Realtek RTL8125B (`rge0`), mas com `status: no carrier`; por isso o DHCP não obtém endereço/rota e o fluxo atual termina no diagnóstico Brasa antes do assistente gráfico. O inventário do Windows apontava link de 1 Gb/s para esta mesma interface. Isso localiza a falha entre o attach do driver e o link Ethernet; não comprova se a causa está no driver, PHY, cabo/porta ou negociação com o switch.
+
+A candidata `.build/Brasa-live-alpha_1.45-rge-link-recovery-hybrid.iso` adiciona uma espera limitada pelo link no `rge*`, tenta uma vez 1000BASE-T full-duplex e restaura `autoselect` se não houver portadora. Também remove o `kldload tmpfs` redundante, pois o kernel GENERIC já contém tmpfs, e mostra as mídias anunciadas por `rge0` na tela de recuperação. A tentativa de link é uma mitigação ainda não validada no PC físico.
+
+Em QEMU TCG/OVMF com 8 GiB, quatro vCPUs, VGA de 128 MiB e ISO híbrida apresentada como USB, o boot UEFI foi selecionado pela partição GPT, a e1000 virtual recebeu rede e o assistente gráfico “Instalar Brasa” abriu. Nenhum disco de destino foi conectado e nenhuma instalação ocorreu. Este teste não exercita a Realtek física nem prova que a nova tentativa de link corrigirá `no carrier`; manter a release GitHub em `alpha_1.37` até o teste bare-metal.
+
 ### Candidata alpha_1.44: imagem híbrida validada pelo caminho USB UEFI
 
 A candidata `.build/Brasa-live-alpha_1.44-uefi-scfb-first-hybrid.iso` (1.285.323.264 bytes; SHA-256 `D92EFDDB13E4A3361C22C09A420ED15560025071F971835173FDC6D778B162B3`) foi construída a partir da ISO óptica da 1.43 com `scripts/build-brasa-memstick.py`. A imagem tem MBR `55aa`, GPT primária com CRC correto, partição FreeBSD boot e partição EFI FAT, além de preservar ISO9660/El Torito. A cópia de teste está em `Downloads/Brasa-alpha_1.44-uefi-scfb-first-hybrid.iso`.

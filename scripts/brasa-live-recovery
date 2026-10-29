@@ -18,6 +18,14 @@ for interface in $(ifconfig -l 2>/dev/null); do
   case "$interface" in lo*|wlan*|bridge*|tun*|tap*|pflog*|pfsync*|epair*|vlan*|wg*|tailscale*) continue ;; esac
   ifconfig "$interface" 2>/dev/null | grep -E '^[[:space:]]*inet |^[[:space:]]*status:|^[[:space:]]*media:' | sed "s/^/$interface /"
 done
+for interface in $(ifconfig -l 2>/dev/null); do
+  case "$interface" in
+    rge*)
+      printf '\nMídias Ethernet aceitas por %s:\n' "$interface"
+      ifconfig -m "$interface" 2>&1 | grep -E 'media:|^[[:space:]]+media' | head -n 12
+      ;;
+  esac
+done
 printf '\nRota: '
 route -n get default 2>&1 | grep -E 'gateway:|interface:|route: ' | tr '\n' ' '
 printf '\nDNS: '

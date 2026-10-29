@@ -48,7 +48,8 @@ mount -t unionfs /tmp/brasa-live-etc /etc >> "$log" 2>&1 || failed
 # metadata, not an installed /usr/local tree, so do not unpack it to /tmp here.
 # The package archives are unpacked into this tmpfs only once by pkg add below.
 say 'Carregando o suporte ao espaço temporário dos componentes gráficos.'
-kldload tmpfs >> "$log" 2>&1 || true
+# FreeBSD's GENERIC kernel already has tmpfs. Attempting kldload here reports
+# a scary duplicate-module error on real hardware even though mounting works.
 # The minimal Xorg dependency set can exceed 2 GB once unpacked. Keep enough
 # headroom for pkg while allowing tmpfs to consume RAM only as files are written.
 say 'Montando o espaço temporário dos componentes gráficos.'
@@ -87,7 +88,14 @@ prepare_network() {
   while IFS= read -r interface; do
     [ -n "$interface" ] || continue
     iface_state=$(ifconfig "$interface" 2>/dev/null || true)
-    case "$iface_state" in *'status: no carrier'*) continue ;; esac
+    case "$iface_state" in
+      *'status: no carrier'*)
+        case "$interface" in
+          rge*) recover_rge_link "$interface" || continue ;;
+          *) continue ;;
+        esac
+        ;;
+    esac
     say "Solicitando rede por DHCP em $interface."
     # Keep dhclient in the foreground but background it from this script so
     # its actual DHCP exchange is captured in our recovery log. The previous
@@ -111,6 +119,39 @@ prepare_network() {
   done < /tmp/brasa-ethernet-ifaces
   say 'Ethernet foi detectada, mas DHCP não forneceu rota e DNS. Verifique cabo, porta e DHCP do roteador.'
   return 1
+}
+
+wait_for_carrier() {
+  interface=$1
+  max_wait=$2
+  carrier_attempt=0
+  while [ "$carrier_attempt" -lt "$max_wait" ]; do
+    carrier_state=$(ifconfig "$interface" 2>/dev/null || true)
+    case "$carrier_state" in *'status: no carrier'*) ;; *) return 0 ;; esac
+    carrier_attempt=$((carrier_attempt + 1))
+    sleep 1
+  done
+  return 1
+}
+
+recover_rge_link() {
+  interface=$1
+  say "Aguardando o link físico de $interface após inicializar a Realtek."
+  if wait_for_carrier "$interface" 6; then
+    return 0
+  fi
+
+  # This PC reports a 1 Gb/s link in Windows. Try that standard full-duplex
+  # mode once if RTL8125 autonegotiation reports no carrier, then restore auto.
+  say "Tentando negociar $interface a 1 Gb/s para compatibilidade com o cabo."
+  if ifconfig "$interface" media 1000baseT mediaopt full-duplex >> "$log" 2>&1 && \
+    wait_for_carrier "$interface" 8; then
+    return 0
+  fi
+
+  say "Restaurando negociação automática em $interface."
+  ifconfig "$interface" media autoselect >> "$log" 2>&1 || true
+  wait_for_carrier "$interface" 4
 }
 
 prepare_network || failed

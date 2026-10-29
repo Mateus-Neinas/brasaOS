@@ -4,6 +4,13 @@ Todas as alterações de código e os resultados de cada build devem ser version
 
 Em 29/10/2026, a pedido do usuário, a release `alpha_1.37b` foi removida; a única release mantida no GitHub é `alpha_1.37`, agora com a ISO r37 anexada. As notas abaixo preservam o histórico dos testes, mas os caminhos das candidatas antigas não significam que as ISOs ainda estejam no PC. Foram mantidos localmente a ISO r37 de referência, as candidatas alpha_1.39, 1.40, 1.41 e 1.42 e as imagens-base FreeBSD; as ISOs da 1.38 e a óptica intermediária 1.39 foram removidas. Os QCOWs antigos foram removidos após confirmar que nenhuma VM estava ativa; os QCOWs descartáveis de teste continuam preservados.
 
+## Candidata local alpha_1.45-rge-link-recovery (29/10/2026)
+
+- ISO híbrida `.build/Brasa-live-alpha_1.45-rge-link-recovery-hybrid.iso` (1.285.331.456 bytes; SHA-256 `AFBFE52B9670C63CD337B44F469B25EF4980C40AF4D173C43431561A931A6BE4`), copiada para Downloads. Não publicada como release; manter somente `alpha_1.37` no GitHub.
+- Foto do boot físico: `rge0` foi associado à RTL8125B, mas reportou `no carrier`; DHCP falhou por falta de link e a interface gráfica não foi iniciada. A tela também mostrou a mensagem não fatal de `tmpfs` já presente no kernel; o `kldload` duplicado foi removido.
+- A candidata espera link em `rge*`, faz uma tentativa limitada com 1000BASE-T full-duplex e restaura autonegociação automática caso a portadora continue ausente. A tela de recuperação lista as mídias suportadas. A mudança não está comprovada no hardware até novo boot no PC.
+- QEMU TCG/OVMF UEFI, 8 GiB, 4 vCPUs, VGA 128 MiB, USB mass-storage híbrido e e1000/NAT: `BOOTX64.EFI` iniciou pela partição GPT, o live recebeu rede e abriu “Instalar Brasa”. Nenhum disco destino foi anexado; instalação em disco, RTL8125 física e KDE instalado não foram testados.
+
 ## Candidata local alpha_1.42-xorg-fallback (29/10/2026)
 
 ## Candidata local alpha_1.44-uefi-scfb-first-hybrid (29/10/2026)
