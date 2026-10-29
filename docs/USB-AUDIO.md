@@ -1,30 +1,32 @@
-# Áudio USB: requisito e evidências
+# USB audio on Brasa
 
-O requisito do Brasa é aceitar interfaces pelos descritores USB Audio Class, sem lista fixa de marcas, oferecer agregação com um dispositivo como referência e demonstrar estabilidade comparável à do macOS. Este requisito permanece em aberto. Uma configuração gerada corretamente e testes com comandos simulados não demonstram estabilidade do transporte USB nem de relógios independentes.
+## User requirement
 
-| Parte do requisito | Implementação atual | Evidência disponível e trabalho pendente |
-| --- | --- | --- |
-| USB Audio Class 1 e 2 | Driver `snd_uaudio` do FreeBSD | Os caminhos existem no driver upstream. O Brasa ainda precisa compilar e executar sua instalação e exercitar interfaces reais. |
-| USB Audio Class 3 e revisões posteriores | Ausente no protótipo | O parser FreeBSD ainda pula descritores de áudio das revisões 3 ou superiores. Exige implementação no driver, incluindo descoberta de formatos, canais, clocks e controles. |
-| Escolha de referência | Prioridades WirePlumber para o membro escolhido e sua direção oposta | Verificação simulada da regra. O monitor distingue driver/seguidor no formato real do `pw-top`; falta demonstrar o papel escolhido durante agregação real. |
-| Cadência dos seguidores | Servo de taxa OSS-ng e reamostragem PipeWire | Recurso do backend usado pelo Brasa; falta medir drift, sobre/subfluxo e qualidade com relógios físicos independentes. |
-| Captura multicanal agregada | Concatenação dos mapas das fontes, até 64 canais | Teste simulado de duas fontes de 32 canais verifica o mapa combinado e nomes de destino únicos. A tentativa de 65 canais falha preservando os dois arquivos anteriores e removendo a configuração parcial. Falta executar a captura real. |
-| Recuperação e estabilidade | Correspondência por descrição física quando única; diagnóstico e monitor | Fixtures cobrem renumeração, reset intermediário de contador, troca de ID e uma atualização sem o dispositivo. O monitor marca a janela interrompida. Recuperação de USB, suspensão e reprodução/gravação prolongadas continuam sem validação em hardware. |
+Brasa should make USB Audio Class compliant interfaces straightforward to use, without a fixed list of supported manufacturers. Users should be able to inspect playback and capture devices, choose the desired output/input, understand channel and format capabilities, and eventually combine devices where practical. The goal is dependable behavior comparable to a polished desktop OS; parity with macOS is not established and must not be claimed without side-by-side testing.
 
-## Trabalho necessário no driver para UAC3
+## Kubuntu audio stack
 
-O caminho atual não deve ser liberado simplesmente tratando UAC3 como UAC2. A detecção de revisão precisa considerar o protocolo da interface e o layout correto do cabeçalho. Descritores de streaming e de canais precisam ser decodificados com seus próprios tamanhos e referências; controles de clock, formatos e clusters precisam ser resolvidos antes de anunciar capacidades ao PCM. Leitura de comprimentos e referências deve rejeitar dados incompletos ou inválidos antes de acessar campos. Depois são necessários compilação do módulo, ensaios de descritores e testes de transporte USB real.
+The new baseline is Kubuntu 26.04.1 LTS. Linux ALSA drivers expose audio hardware to the system; the `snd-usb-audio` kernel driver supports many USB Audio Class devices. PipeWire provides the desktop audio graph, and WirePlumber manages device/node policy. HDMI audio depends on the graphics and audio hardware drivers as well as the selected PipeWire profile. Actual device support depends on descriptors, firmware, controls, and the upstream driver implementation.
 
-A revisão 4.0 também está publicada pela USB-IF e precisa de uma avaliação própria antes de qualquer declaração de compatibilidade. A meta genérica não termina no subconjunto UAC1/UAC2 hoje disponível no FreeBSD.
+Do not carry over the retired FreeBSD OSS/PipeWire backend or its configuration scripts. Use standard Ubuntu/Kubuntu packages and APIs first, then add a thin Brasa interface only where the desktop controls are unclear or insufficient.
 
-## Evidência necessária para concluir estabilidade
+## Development stages
 
-Executar entrada, saída e duplex nas taxas e mapas anunciados por cada interface; repetir início/parada, hotplug do mestre e dos seguidores e suspensão/retomada. Agregar interfaces com osciladores independentes, manter carga real prolongada e medir xruns, continuidade de amostras, drift, latência e recuperação. Comparar com macOS sob o mesmo hardware, formato e carga antes de declarar estabilidade equivalente. Para fases fisicamente coerentes entre interfaces, também é necessário testar sincronismo de hardware compatível; reamostragem e compensação de latência não provam alinhamento físico de fase.
+1. **Observe:** inventory ALSA cards, PCM devices, PipeWire nodes, profiles, channels, and formats on clean Kubuntu.
+2. **Select:** create clear UI for choosing existing input/output and showing availability/errors; do not replace KDE audio settings until feature parity is established.
+3. **Test:** provide an actual graphical playback/recording test with explicit device selection and visible result; do not launch a terminal as the app UI.
+4. **Aggregate:** evaluate PipeWire combine-stream for multiple sinks/sources. Expose member selection, channel maps, latency, and device loss clearly.
+5. **Measure:** test independent hardware clocks during sustained duplex playback/capture. Resampling and latency compensation can manage drift but cannot guarantee common phase or sample-accurate synchronization.
+6. **Package:** distribute the feature as an optional post-install Brasa component while it is experimental.
 
-## Fontes da auditoria
+## Validation matrix
 
-- [FreeBSD 15.1: uaudio.c](https://github.com/freebsd/freebsd-src/blob/releng/15.1/sys/dev/sound/usb/uaudio.c)
-- [OSS-ng: servo e configuração](https://github.com/kev009/pw-oss)
-- [PipeWire: formato produzido por pw-top](https://github.com/PipeWire/pipewire/blob/master/src/tools/pw-top.c)
-- [PipeWire: limite e posições de canais](https://github.com/PipeWire/pipewire/blob/master/spa/include/spa/param/audio/raw.h)
-- [USB-IF: Audio Devices Release 4.0](https://www.usb.org/document-library/usb-audio-devices-release-40-and-adopters-agreement)
+For each built-in, HDMI, and USB interface tested, record hardware and kernel versions, connection type, ALSA card/profile, PipeWire nodes, sample rates, channel maps, playback, capture, duplex, hotplug, suspend/resume, xruns, latency, and long-run stability. Test at least one UAC1 and UAC2 device if available, and multiple devices for aggregation. Do not infer support for UAC3 or every class-compliant device from a successful UAC1/UAC2 test.
+
+Compare with macOS only using the same interface, rate, channel configuration, duration, and workload. Publish limits and failures alongside successful results.
+
+## Upstream references
+
+- [Ubuntu audio overview](https://wiki.ubuntu.com/AudioOnUbuntu)
+- [PipeWire combine-stream module](https://pipewire.pages.freedesktop.org/pipewire/page_module_combine_stream.html)
+- [Kubuntu 26.04 LTS release notes](https://kubuntu.org/news/kubuntu-26-04-release-notes/)

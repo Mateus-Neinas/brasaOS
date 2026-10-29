@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 160" role="img" aria-labelledby="title desc">
+  <title id="title">Brasa OS</title>
+  <desc id="desc">Marca Brasa com símbolo coral inspirado em uma brasa e ondas de áudio</desc>
+  <g fill="none" stroke="#FF684A" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M72 116C48 99 44 74 61 55c1 17 9 24 17 29-4-27 17-47 37-65 1 23 20 33 24 55 3 17-4 32-17 42" stroke-width="12"/>
+    <path d="M70 123h67" stroke-width="10"/>
+    <path d="M88 106V82m17 24V69m17 37V84" stroke-width="8"/>
+  </g>
+  <text x="174" y="105" fill="#171923" font-family="Inter, Noto Sans, sans-serif" font-size="66" font-weight="700" letter-spacing="-2">brasa</text>
+  <text x="180" y="137" fill="#686875" font-family="Inter, Noto Sans, sans-serif" font-size="18" font-weight="600" letter-spacing="5">SISTEMA OPERACIONAL</text>
+</svg>

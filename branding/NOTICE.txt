@@ -1,0 +1,3 @@
+Brasa OS is an independent operating system project based on Kubuntu and Ubuntu. It is not affiliated with, endorsed by, or an official release of Canonical or the Kubuntu project. Kubuntu, Ubuntu, and associated marks are trademarks of Canonical Ltd. and are used here only to identify the upstream project.
+
+The software included in Brasa OS remains subject to the licenses and copyright notices of its respective authors. Firmware and other non-free components, if included, have their own terms.
