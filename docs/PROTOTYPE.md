@@ -6,6 +6,8 @@ Iniciar por uma mídia x86-64, escolher idioma, informar o nome e a senha da con
 
 ## Estado atual
 
+Os caminhos de candidatas antigas abaixo registram o estado no dia dos testes. Em 29/10/2026, as ISOs intermediárias foram removidas do PC; permanecem a r37 de referência, a alpha_1.38 híbrida e as ISOs-base FreeBSD.
+
 ### Candidata local alpha_1.38-rge-diagnostics (29/10/2026)
 
 A ISO híbrida `.build/Brasa-live-alpha_1.38-rge-diagnostics-final-hybrid.iso` (1.285.317.120 bytes; SHA-256 `DC8634C33FFCEAE7C09768D71971EBAC092DFA1960496B15B13741247BCA234B`) amplia a tela de recuperação: tenta mostrar o estado do módulo `if_rge`, procura mensagens de associação do RTL8125 no log do kernel e inclui falhas de carregamento no resumo DHCP. Isso separa placa ausente no PCI, driver sem associação e driver associado sem link/DHCP. O builder validou o pacote do driver/ABI e a estrutura híbrida; a verificação de sintaxe dos scripts passou. A última execução do conjunto de smoke checks ficou presa em um teste simulado de áudio aguardando uma resposta do `zenity`; o teste anterior tinha passado.
