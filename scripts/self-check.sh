@@ -11,6 +11,13 @@ if grep -q '/dev/ttyu0' "$root/scripts/brasa-live-start" "$root/scripts/brasa-in
 fi
 grep -q "say 'Montando o espaço temporário dos componentes gráficos.'" "$root/scripts/brasa-live-start"
 grep -q "say 'Espaço temporário pronto.'" "$root/scripts/brasa-live-start"
+grep -q 'service devmatch onestart' "$root/scripts/brasa-live-start"
+grep -q "media:.*Ethernet" "$root/scripts/brasa-live-start"
+grep -q 'dhclient -b' "$root/scripts/brasa-live-start"
+grep -q "realtek-rge-kmod" "$root/scripts/build-brasa-live-prototype.py"
+grep -q 'BRASA_LIVE_PKG_ARCHIVES' "$root/scripts/brasa-live-start"
+grep -q 'BRASA_LIVE_PKG_ARCHIVES' "$root/scripts/build-brasa-live-prototype.py"
+grep -q 'if_rge_load="YES"' "$root/scripts/bootstrap-freebsd.sh"
 grep -q 'install -m 0755 scripts/brasa-audio-monitor /usr/local/bin/brasa-audio-monitor' "$root/scripts/bootstrap-freebsd.sh"
 grep -q 'install -m 0644 config/brasa-audio-monitor.desktop /usr/local/share/applications/brasa-audio-monitor.desktop' "$root/scripts/bootstrap-freebsd.sh"
 grep -q '^Exec=/usr/local/bin/brasa-audio-monitor$' "$root/config/brasa-audio-monitor.desktop"

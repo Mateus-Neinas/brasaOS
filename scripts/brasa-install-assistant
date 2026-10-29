@@ -169,17 +169,24 @@ case "$current_bytes" in ''|*[!0-9]*) unset password; fail 'Não foi possível c
   { unset password; fail 'O disco mudou desde a seleção. Nenhuma instalação foi iniciada.'; }
 }
 
-# Best-effort DHCP for optional hardware packages after the base install. The
-# FreeBSD base and generic kernel are shipped on the ISO, so no network is
-# required to install or boot the selected machine.
-if ! route -n get default >/dev/null 2>&1; then
-  printf 'timeout 20;\nretry 10;\n' > /tmp/brasa-dhclient.conf
+# The live system may already have acquired its address before opening this GUI.
+# If needed, use devmatch and try DHCP briefly on each recognized Ethernet NIC.
+service devmatch onestart >/dev/null 2>&1 || true
+if ! route -n get default >/dev/null 2>&1 || ! grep -Eq '^[[:space:]]*nameserver[[:space:]]+' /etc/resolv.conf 2>/dev/null; then
+  printf 'timeout 8;\nretry 1;\n' > /tmp/brasa-dhclient.conf
   for interface in $(ifconfig -l); do
-    case "$interface" in lo*|wlan*|bridge*|lagg*|vlan*|tun*|tap*|pflog*|pfsync*) continue ;; esac
+    case "$interface" in lo*|wlan*|bridge*|tun*|tap*|pflog*|pfsync*|epair*|vlan*|wg*|tailscale*) continue ;; esac
     ifconfig "$interface" up 2>/dev/null || continue
-    ifconfig "$interface" | grep -q 'inet ' && continue
-    dhclient -c /tmp/brasa-dhclient.conf "$interface" >/dev/null 2>&1 || true
-    route -n get default >/dev/null 2>&1 && break
+    ifconfig "$interface" 2>/dev/null | grep -Eiq 'media:.*Ethernet' || continue
+    ifconfig "$interface" 2>/dev/null | grep -q 'status: no carrier' && continue
+    dhclient -b -c /tmp/brasa-dhclient.conf "$interface" >/dev/null 2>&1 || true
+    attempt=0
+    while [ "$attempt" -lt 8 ]; do
+      route -n get default >/dev/null 2>&1 && grep -Eq '^[[:space:]]*nameserver[[:space:]]+' /etc/resolv.conf 2>/dev/null && break
+      attempt=$((attempt + 1))
+      sleep 1
+    done
+    route -n get default >/dev/null 2>&1 && grep -Eq '^[[:space:]]*nameserver[[:space:]]+' /etc/resolv.conf 2>/dev/null && break
   done
 fi
 validate_selected_disk

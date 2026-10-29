@@ -111,6 +111,17 @@ if [ "$repo_catalog_ready" != yes ]; then
   export REPO_AUTOUPDATE=no
 fi
 
+# The FreeBSD GENERIC kernel/devmatch covers its supported Ethernet chipsets.
+# RTL8125/8126/8127 need the matching FreeBSD 15 kmod, which was also used by
+# the live ISO to bring these adapters online before the graphical installer.
+if [ "$release" = 15.1 ] && pkg rquery '%n' realtek-rge-kmod 2>/dev/null | grep -qx realtek-rge-kmod; then
+  msg "Instalando o módulo Ethernet Realtek adicional para o sistema instalado."
+  install_packages realtek-rge-kmod
+  if ! grep -Eq '^[[:space:]]*if_rge_load="YES"' /boot/loader.conf 2>/dev/null; then
+    printf '\nif_rge_load="YES"\n' >> /boot/loader.conf
+  fi
+fi
+
 msg "Preparando o desktop KDE Plasma e os aplicativos essenciais."
 # Use FreeBSD Handbook's Plasma meta package so the session manager, shell,
 # activity manager, audio widget, and other required desktop services are all

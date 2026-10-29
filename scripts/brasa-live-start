@@ -52,17 +52,56 @@ say 'Montando o espaço temporário dos componentes gráficos.'
 mount -t tmpfs -o size=5g tmpfs /usr/local >> "$log" 2>&1 || failed
 say 'Espaço temporário pronto.'
 
-say 'Preparando a conexão de rede para carregar a interface gráfica.'
-printf 'timeout 20;\nretry 10;\n' > /tmp/brasa-dhclient.conf
-if ! route -n get default >/dev/null 2>&1; then
-  for interface in $(ifconfig -l); do
-    case "$interface" in lo*|wlan*|bridge*|lagg*|vlan*|tun*|tap*|pflog*|pfsync*) continue ;; esac
-    ifconfig "$interface" up >> "$log" 2>&1 || continue
-    dhclient -c /tmp/brasa-dhclient.conf "$interface" >> "$log" 2>&1 || true
-    route -n get default >/dev/null 2>&1 && break
-  done
+say 'Ativando o reconhecimento automático dos drivers Ethernet do FreeBSD.'
+service devmatch onestart >> "$log" 2>&1 || true
+if [ -r /brasa/if_rge.ko ]; then
+  say 'Carregando suporte Ethernet adicional para Realtek 2,5 Gb/s.'
+  kldload /brasa/if_rge.ko >> "$log" 2>&1 || true
 fi
-route -n get default >/dev/null 2>&1 || failed
+
+prepare_network() {
+  if route -n get default >/dev/null 2>&1 && grep -Eq '^[[:space:]]*nameserver[[:space:]]+' /etc/resolv.conf 2>/dev/null; then
+    return 0
+  fi
+
+  say 'Procurando interfaces Ethernet reconhecidas pelo FreeBSD.'
+  : > /tmp/brasa-ethernet-ifaces
+  for interface in $(ifconfig -l); do
+    case "$interface" in lo*|wlan*|bridge*|tun*|tap*|pflog*|pfsync*|epair*|vlan*|wg*|tailscale*) continue ;; esac
+    ifconfig "$interface" up >> "$log" 2>&1 || continue
+    if ifconfig "$interface" 2>/dev/null | grep -Eiq 'media:.*Ethernet'; then
+      printf '%s\n' "$interface" >> /tmp/brasa-ethernet-ifaces
+    fi
+  done
+
+  [ -s /tmp/brasa-ethernet-ifaces ] || {
+    say 'Nenhuma interface cabeada compatível foi detectada.'
+    return 1
+  }
+  # FreeBSD's dhclient has no ISC-style -1 switch. Start it in the background,
+  # then wait briefly for an address, default route, and DHCP-provided DNS.
+  printf 'timeout 8;\nretry 1;\n' > /tmp/brasa-dhclient.conf
+  while IFS= read -r interface; do
+    [ -n "$interface" ] || continue
+    iface_state=$(ifconfig "$interface" 2>/dev/null || true)
+    case "$iface_state" in *'status: no carrier'*) continue ;; esac
+    say "Solicitando rede por DHCP em $interface."
+    dhclient -b -c /tmp/brasa-dhclient.conf "$interface" >> "$log" 2>&1 || true
+    attempt=0
+    while [ "$attempt" -lt 8 ]; do
+      if route -n get default >/dev/null 2>&1 && grep -Eq '^[[:space:]]*nameserver[[:space:]]+' /etc/resolv.conf 2>/dev/null; then
+        say "Ethernet ativa em $interface; rota e DNS configurados."
+        return 0
+      fi
+      attempt=$((attempt + 1))
+      sleep 1
+    done
+  done < /tmp/brasa-ethernet-ifaces
+  say 'Ethernet foi detectada, mas DHCP não forneceu rota e DNS. Verifique cabo, porta e DHCP do roteador.'
+  return 1
+}
+
+prepare_network || failed
 
 say 'Preparando os componentes gráficos mínimos.'
 export ASSUME_ALWAYS_YES=yes
@@ -80,12 +119,12 @@ if [ -r /brasa/BRASA_PKG_CACHE_TAR ]; then
     say 'Catálogo de pacotes pronto na mídia.'
   fi
   set --
-  if [ -r /brasa/BRASA_LIVE_PKG_ROOTS ]; then
+  if [ -r /brasa/BRASA_LIVE_PKG_ARCHIVES ]; then
     while IFS= read -r package; do
       case "$package" in ''|*/*) failed ;; esac
       [ -r "/var/cache/pkg/$package" ] || failed
       set -- "$@" "/var/cache/pkg/$package"
-    done < /brasa/BRASA_LIVE_PKG_ROOTS
+    done < /brasa/BRASA_LIVE_PKG_ARCHIVES
   fi
   if [ "$#" -gt 0 ] && \
     run_logged 'Instalando os componentes gráficos locais...' pkg add "$@"; then

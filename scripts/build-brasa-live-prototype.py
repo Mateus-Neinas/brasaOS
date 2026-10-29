@@ -4,19 +4,21 @@ from pathlib import Path
 import io
 import os
 import hashlib
+import json
 import shutil
 import subprocess
 import sqlite3
 import sys
 import tarfile
 import tempfile
+import urllib.error
 import urllib.request
 import pycdlib
 
 ROOT = Path(__file__).resolve().parent.parent
 SOURCE = ROOT / 'dist/Brasa-15.1-amd64.iso'
 LIVE_PACKAGE_ROOTS = (
-    'xorg-minimal', 'xinit', 'jwm', 'zenity', 'dejavu',
+    'xorg-minimal', 'xinit', 'jwm', 'zenity', 'dejavu', 'realtek-rge-kmod',
     'xf86-video-vesa', 'xf86-video-scfb',
 )
 VIRTIO_GPU_KMOD_URL = (
@@ -119,6 +121,61 @@ def reuse_virtio_gpu_files(source_iso, destination):
         return extracted
     finally:
         cached.close()
+
+def download_realtek_rge_module(source_iso, destination):
+    """Embed the ABI-matched FreeBSD module for RTL8125/8126/8127 Ethernet."""
+    if not source_iso:
+        raise RuntimeError('A ISO de referência é necessária para obter o catálogo do driver Ethernet.')
+    cached = pycdlib.PyCdlib()
+    cached.open(str(source_iso))
+    try:
+        catalog = destination / 'realtek-rge-catalog.sqlite'
+        with catalog.open('wb') as stream:
+            cached.get_file_from_iso_fp(stream, rr_path='/brasa/BRASA_PKG_REPOSITORY_DB')
+    finally:
+        cached.close()
+    database = sqlite3.connect(catalog)
+    try:
+        package = database.execute(
+            "SELECT version, path, pkgsize FROM packages WHERE name = 'realtek-rge-kmod' "
+            "ORDER BY version DESC LIMIT 1"
+        ).fetchone()
+    finally:
+        database.close()
+    if not package:
+        raise RuntimeError('O catálogo FreeBSD embutido não contém o driver Realtek RGE.')
+    version, path, expected_size = package
+    package_path = destination / f'realtek-rge-kmod-{version}.pkg'
+    # Repository snapshots may prune the old content-hash URL while retaining
+    # the same immutable package version under All/<name>-<version>.pkg.
+    package_url = FREEBSD_PKG_REPOSITORY_URL + f'All/realtek-rge-kmod-{version}.pkg'
+    with urllib.request.urlopen(package_url, timeout=60) as response, package_path.open('wb') as output:
+        shutil.copyfileobj(response, output)
+    module_path = destination / 'if_rge.ko'
+    try:
+        with tarfile.open(package_path, 'r:*') as package_archive:
+            manifest = json.load(package_archive.extractfile('+COMPACT_MANIFEST'))
+            if (manifest.get('name') != 'realtek-rge-kmod' or
+                    manifest.get('version') != version or
+                    manifest.get('abi') != 'FreeBSD:15:amd64'):
+                raise RuntimeError('O pacote Realtek RGE não corresponde à versão/ABI do catálogo FreeBSD.')
+            member = next((item for item in package_archive.getmembers()
+                           if item.name.lstrip('./').endswith('boot/modules/if_rge.ko')), None)
+            if member is None:
+                raise RuntimeError('O pacote Realtek RGE não contém boot/modules/if_rge.ko.')
+            with module_path.open('wb') as output:
+                shutil.copyfileobj(package_archive.extractfile(member), output)
+    except RuntimeError:
+        raise
+    except Exception as error:
+        raise RuntimeError('Falha ao validar ou extrair o pacote Realtek RGE.') from error
+    if module_path.stat().st_size < 1024:
+        raise RuntimeError('O módulo if_rge.ko extraído está vazio ou incompleto.')
+    if package_path.stat().st_size != expected_size:
+        print(f'Nota: o mirror FreeBSD forneceu {package_path.stat().st_size} bytes; '
+              f'o catálogo de 1.37c registra {expected_size}. Manifesto e ABI conferidos.')
+    print(f'Driver FreeBSD realtek-rge-kmod {version} incluído para RTL8125/8126/8127.')
+    return module_path
 
 def get_freebsd_distribution_files():
     """Fetch official 15.1 base/kernel sets once and verify pinned hashes."""
@@ -231,31 +288,53 @@ def prune_package_cache(source, destination, temporary_directory, catalog_fallba
             keep_paths = set()
             present_paths = {member.name for member in archive.getmembers()}
             downloaded_packages = []
-            package_roots = []
+            package_archives = []
             for package_id, name, version, path, package_size in rows:
                 if package_id not in selected:
                     continue
                 regular_path = f'cache/pkg/{name}-{version}.pkg'
                 hashed_path = f'cache/pkg/{os.path.basename(path)}'
                 if regular_path in present_paths or hashed_path in present_paths:
-                    keep_paths.update((regular_path, hashed_path))
-                    if name in LIVE_PACKAGE_ROOTS:
-                        package_roots.append(os.path.basename(path) if hashed_path in present_paths
-                                             else os.path.basename(regular_path))
+                    selected_path = hashed_path if hashed_path in present_paths else regular_path
+                    keep_paths.add(selected_path)
+                    package_archives.append(os.path.basename(selected_path))
                     continue
                 # A cache may have the dependency catalog but omit a handful
                 # of required GUI packages. Fetch only those absent archives
                 # while building the ISO so boot never waits for pkg update.
                 destination_path = temporary_directory / os.path.basename(path)
-                with urllib.request.urlopen(FREEBSD_PKG_REPOSITORY_URL + path, timeout=60) as response, destination_path.open('wb') as output:
+                package_url = FREEBSD_PKG_REPOSITORY_URL + path
+                unhashed_fallback = False
+                try:
+                    response = urllib.request.urlopen(package_url, timeout=60)
+                except urllib.error.HTTPError as error:
+                    if error.code != 404:
+                        raise
+                    # Mirrors may prune old content-hash URLs while the same
+                    # immutable version remains available in the flat All dir.
+                    package_url = (FREEBSD_PKG_REPOSITORY_URL +
+                                   f'All/{name}-{version}.pkg')
+                    response = urllib.request.urlopen(package_url, timeout=60)
+                    unhashed_fallback = True
+                with response, destination_path.open('wb') as output:
                     while block := response.read(1024 * 1024):
                         output.write(block)
+                try:
+                    with tarfile.open(destination_path, 'r:*') as fetched:
+                        manifest = json.load(fetched.extractfile('+COMPACT_MANIFEST'))
+                except Exception as error:
+                    raise RuntimeError(f'O pacote {name}-{version} não tem manifesto válido.') from error
+                if (manifest.get('name') != name or manifest.get('version') != version or
+                        manifest.get('abi') != 'FreeBSD:15:amd64'):
+                    raise RuntimeError(f'O manifesto do pacote {name}-{version} não corresponde ao catálogo/ABI FreeBSD 15.')
                 if destination_path.stat().st_size != package_size:
-                    raise RuntimeError(f'O pacote gráfico {name}-{version} veio incompleto do repositório FreeBSD.')
+                    if not unhashed_fallback:
+                        raise RuntimeError(f'O pacote gráfico {name}-{version} veio incompleto do repositório FreeBSD.')
+                    print(f'Nota: mirror entregou {destination_path.stat().st_size} bytes para {name}-{version}; '
+                          f'o catálogo registra {package_size}. Manifesto e ABI conferidos.')
                 downloaded_packages.append((destination_path, hashed_path))
                 keep_paths.add(hashed_path)
-                if name in LIVE_PACKAGE_ROOTS:
-                    package_roots.append(os.path.basename(path))
+                package_archives.append(os.path.basename(hashed_path))
 
             all_members = archive.getmembers()
             original_packages = sum(1 for member in all_members
@@ -277,9 +356,9 @@ def prune_package_cache(source, destination, temporary_directory, catalog_fallba
                   f'{included_packages} arquivos preservados e {len(downloaded_packages)} ausentes baixados.')
         finally:
             database.close()
-        roots_path = temporary_directory / 'brasa-live-package-roots'
-        roots_path.write_bytes(''.join(f'{name}\n' for name in package_roots).encode('ascii'))
-        return catalog_path, catalog_meta_path, roots_path
+        archives_path = temporary_directory / 'brasa-live-package-archives'
+        archives_path.write_bytes(''.join(f'{name}\n' for name in package_archives).encode('ascii'))
+        return catalog_path, catalog_meta_path, archives_path
 
 def main():
     if not SOURCE.is_file():
@@ -436,6 +515,7 @@ def main():
                     virtio_gpu_files = reuse_virtio_gpu_files(PACKAGE_CACHE_ISO, temp) or {}
                 if not virtio_gpu_files:
                     virtio_gpu_files = download_virtio_gpu_files(temp)
+            rge_module = download_realtek_rge_module(PACKAGE_CACHE_ISO, temp)
             (temp / 'rc.local').write_bytes(rc)
             (temp / 'rc.conf').write_bytes(rc_conf)
             (temp / 'bsdinstall-pkgbase').write_bytes(pkgbase_script)
@@ -527,13 +607,14 @@ def main():
                                iso_path=f'/BRASA/FREEBSD_DIST/{name.upper()};1',
                                rr_name=name)
             image.add_file(str(ROOT / 'scripts/brasa-live-start'), iso_path='/BRASA/BRASA_LIVE_START;1', rr_name='brasa-live-start')
+            image.add_file(str(rge_module), iso_path='/BRASA/IF_RGE.KO;1', rr_name='if_rge.ko')
             if pkg_repo_catalog:
                 image.add_file(str(pkg_repo_catalog[0]), iso_path='/BRASA/BRASA_PKG_REPOSITORY_DB;1',
                                rr_name='BRASA_PKG_REPOSITORY_DB')
                 image.add_file(str(pkg_repo_catalog[1]), iso_path='/BRASA/BRASA_PKG_REPOSITORY_META;1',
                                rr_name='BRASA_PKG_REPOSITORY_META')
-                image.add_file(str(pkg_repo_catalog[2]), iso_path='/BRASA/BRASA_LIVE_PKG_ROOTS;1',
-                               rr_name='BRASA_LIVE_PKG_ROOTS')
+                image.add_file(str(pkg_repo_catalog[2]), iso_path='/BRASA/BRASA_LIVE_PKG_ARCHIVES;1',
+                               rr_name='BRASA_LIVE_PKG_ARCHIVES')
             image.write(str(OUTPUT))
     finally:
         image.close()
@@ -550,6 +631,16 @@ def main():
         if (b'brasa-pkg-seed' in live_start or
                 live_start.count(b'tar -xf /brasa/BRASA_PKG_CACHE_TAR -C /var') != 1):
             raise RuntimeError('O cache de pacotes live deve ser extraído apenas uma vez para /var.')
+        rge_payload = read_rr(check, '/brasa/if_rge.ko')
+        if len(rge_payload) < 1024 or b'prepare_network()' not in live_start or \
+                b'kldload /brasa/if_rge.ko' not in live_start or \
+                b'media:.*Ethernet' not in live_start or b'dhclient -b' not in live_start:
+            raise RuntimeError('A ISO precisa carregar o driver Ethernet extra e tentar DHCP nas interfaces cabeadas reconhecidas.')
+        if PACKAGE_CACHE_ISO:
+            package_archives = read_rr(check, '/brasa/BRASA_LIVE_PKG_ARCHIVES').decode('ascii').splitlines()
+            if len(package_archives) < 100 or len(package_archives) != len(set(package_archives)) or \
+                    any('/' in name or not name.endswith('.pkg') for name in package_archives):
+                raise RuntimeError('A ISO precisa fornecer uma vez cada pacote da árvore gráfica cacheada.')
         project_payload = read_rr(check, '/brasa/BRASA_PROJECT_TAR_GZ')
         with tarfile.open(fileobj=io.BytesIO(project_payload), mode='r:gz') as project_archive:
             assistant = project_archive.extractfile('scripts/brasa-install-assistant').read()
@@ -613,7 +704,7 @@ def main():
             required_paths.extend(['/brasa/BRASA_PKG_CACHE_TAR',
                                    '/brasa/BRASA_PKG_REPOSITORY_DB',
                                    '/brasa/BRASA_PKG_REPOSITORY_META',
-                                   '/brasa/BRASA_LIVE_PKG_ROOTS'])
+                                   '/brasa/BRASA_LIVE_PKG_ARCHIVES'])
         if VIRTIO_GPU_QEMU:
             required_paths.extend(['/boot/loader.conf', '/boot/modules/virtio_gpu_qemu.ko',
                                    '/brasa/virtio_gpu_qemu_xorg.conf'])

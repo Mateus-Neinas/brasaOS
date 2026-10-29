@@ -2,6 +2,13 @@
 
 Todas as alterações de código e os resultados de cada build devem ser versionados e documentados no Git. Preserve as ISOs-base e mantenha o total de ISOs abaixo de 10 GB. A primeira versão com login gráfico confirmado recebe o título alpha solicitado pelo usuário; as versões beta começam quando ele considerar o sistema do seu gosto e seguro.
 
+## Candidata local alpha_1.37d-ethernet (28/10/2026)
+
+- ISO híbrida local: `.build/Brasa-live-alpha_1.37d-ethernet.iso` (1.285.302.784 bytes; SHA-256 `A567AABC7D1DF327BBC281B5098FA886D1C6E1C1D76B26AC9975C47404325F1B`). Não publicada como release: o teste alcançou apenas o assistente gráfico live, sem instalar o sistema ou validar o login KDE.
+- O QEMU usou o pendrive híbrido via USB storage, placa e1000 com DHCP e rede NAT. O sistema configurou endereço, rota e DNS, acessou os catálogos FreeBSD e abriu o assistente Brasa. Foi necessário escolher `Live System` no menu FreeBSD.
+- A mídia tenta `devmatch` para os drivers FreeBSD correspondentes e inclui `if_rge.ko` para RTL8125/8126/8127. O DHCP foi verificado em e1000 virtual, não em todos os chipsets físicos. Ver também o estado e as limitações em `docs/PROTOTYPE.md`.
+- A 1.37c e versões anteriores não foram modificadas. O QCOW2 de teste foi descartável e removido; nenhuma instalação foi iniciada.
+
 ## Candidata alpha_1.37c: desbloqueio do boot em máquina real (28/10/2026)
 
 - ISO local híbrida: `.build/Brasa-live-alpha_1.37c.iso` (1.285.001.728 bytes; SHA-256 `0cccc9a4a17cc64fd6289fb41b259b6ce8870e9eabf6d536709c58cfb2d013bb`). A ISO óptica intermediária foi preservada como `.build/Brasa-live-alpha_1.37c-optical.iso`.

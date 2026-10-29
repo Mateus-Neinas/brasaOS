@@ -6,6 +6,16 @@ Iniciar por uma mídia x86-64, escolher idioma, informar o nome e a senha da con
 
 ## Estado atual
 
+### Candidata local alpha_1.37d-ethernet: Ethernet automática (28/10/2026)
+
+A imagem híbrida `.build/Brasa-live-alpha_1.37d-ethernet.iso` foi construída como candidata nova a partir do conteúdo da 1.37c, sem sobrescrever a 1.37c ou releases anteriores. Ela inclui o módulo FreeBSD `if_rge.ko` da ABI FreeBSD 15 para RTL8125/8126/8127 e inicia `devmatch` para carregar drivers do kernel que correspondam ao hardware. O boot tenta DHCP em todas as interfaces cabeadas que o FreeBSD identifica por `media: Ethernet`, valida a rota padrão e o DNS e usa tentativas curtas para não travar em portas sem cabo.
+
+Teste QEMU pelo USB storage híbrido, 6 GiB, 2 vCPUs, VGA de 128 MiB, QEMU TCG e rede user-mode com placa virtual e1000. Depois de escolher `Live System` no menu inicial do FreeBSD, o sistema reconheceu `em0`, obteve DHCP, rota e DNS, atualizou os catálogos FreeBSD e baixou dependências ausentes. O assistente gráfico “Instalar Brasa” abriu na tela inicial. Nenhuma instalação foi iniciada; o QCOW2 descartável foi removido.
+
+A instalação local dos pacotes gráficos tentou o cache e teve 10 pacotes recusados; o fallback online atualizou o catálogo e baixou 291 MiB. Assim, a rede e o caminho online foram verificados, mas o boot ainda depende da opção `Live System` no menu FreeBSD e o caminho de cache local pode ser melhorado. O driver extra RGE foi empacotado e carregado no teste, mas não foi conectado a um hardware RTL8125 real. O teste e1000 confirma o DHCP genérico, não compatibilidade física com toda placa Ethernet. O tamanho da ISO híbrida é 1.285.302.784 bytes; SHA-256 `A567AABC7D1DF327BBC281B5098FA886D1C6E1C1D76B26AC9975C47404325F1B`.
+
+O SHA-256 da ISO óptica de referência 1.37c continuou `E2F0EE43BCEED2685502F4837E937B33B5176B03B0DC3BC29708B3A31845CB4`; a ISO híbrida 1.37c continuou `0CCCC9A4A17CC64FD6289FB41B259B6CE8870E9EABF6D536709C58CFB2D013BB`. O FreeBSD não possui um driver único universal: esta candidata usa a cobertura dos drivers FreeBSD GENERIC/devmatch e acrescenta o módulo RGE; outros chipsets sem driver FreeBSD compatível ainda exigirão módulo ou port específico.
+
 ### Correção candidata para o boot em máquina real (28/10/2026)
 
 Na ISO alpha_1.37b, o boot físico ficou cerca de 20 minutos na mensagem “Preparando o espaço temporário para os componentes gráficos”. A função `say()` imprimia primeiro em `/dev/console` e depois abria `/dev/ttyu0` sempre que o nó serial existia. A mera existência desse nó não garante que haja um terminal conectado; a abertura de um TTY pode esperar pela portadora. Isso é uma causa plausível para a mensagem aparecer na tela enquanto o script para antes de executar `kldload tmpfs` ou montar `/usr/local`. Os avisos de ACPI, Bluetooth MediaTek e gravações recusadas pela raiz live somente leitura não identificam essa espera.
