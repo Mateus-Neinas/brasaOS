@@ -10,7 +10,13 @@ Em 29/10/2026, a pedido do usuário, a release `alpha_1.37b` foi removida; a ún
 - Configura o driver Xorg `scfb` no boot UEFI conforme o [FreeBSD Handbook](https://docs.freebsd.org/en/books/handbook/x11/); BIOS mantém a configuração automática anterior. A tela de recuperação mostra também linhas recentes do Xorg e do bootstrap.
 - QEMU TCG/OVMF x86-64, 8 GiB, VGA 128 MiB, e1000/NAT: iniciou pela mídia USB, recebeu DHCP e abriu o assistente gráfico quando não havia disco destino conectado.
 - Com QCOW descartável de 40 GiB, a tela de seleção identificou `vtbd0`/40 GB. Depois de avançar, a tela ficou sem o diálogo de confirmação por mais de dez minutos; o QCOW continuou com 197.632 bytes e sem gravações. A VM foi encerrada e o QCOW removido. Instalação completa e boot do disco instalado não validados.
-- Próxima etapa: instrumentar e reproduzir a transição da lista de discos à confirmação; a 1.39 continua candidata local, não é release e ainda não satisfaz o critério da alpha final no PC real.
+- Na tentativa UEFI acima, a transição da lista de discos à confirmação não avançou. O teste BIOS posterior abaixo concluiu a instalação, mas a 1.39 continua candidata local, sem release, e ainda não satisfaz o critério de hardware real.
+
+### Teste posterior de instalação BIOS em QEMU (29/10/2026)
+
+- A mesma ISO híbrida alpha_1.39 foi iniciada em BIOS QEMU TCG com 8 GiB, 4 vCPUs, VGA de 128 MiB, e1000/NAT e QCOW2 descartável de 40 GiB como `vtbd0`. O instalador concluiu a extração dos 860 pacotes, terminou as etapas adicionais e mostrou “A instalação terminou”. Houve escrita contínua no QCOW durante a instalação, que levou cerca de 39 minutos desde o início da VM.
+- Após encerrar a VM de instalação, a mesma imagem QCOW foi iniciada sem a ISO, com boot direto pelo disco. FreeBSD 15.1 iniciou, `em0` recebeu DHCP (`10.0.2.15`), SDDM aceitou o login `brasa`, e a sessão Plasma mostrou papel de parede e painel no VT9. O Konsole abriu e exibiu o prompt da conta `brasa`.
+- A primeira tela preta era a console de texto no VT1; mudar para o VT9 mostrou a sessão gráfica. O teste confirma a instalação BIOS e o primeiro boot em hardware virtual QEMU. Instalação completa UEFI, inicialização no PC real, compatibilidade de dispositivos físicos e áudio USB class-compliant continuam sem validação. A candidata não é release; mantenha apenas `alpha_1.37` no GitHub até passar o critério de hardware real definido acima.
 
 ## Candidata local alpha_1.37e-ethernet: Bluetooth no live (28/10/2026)
 
