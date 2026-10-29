@@ -8,10 +8,12 @@ Em 29/10/2026, a pedido do usuário, a release `alpha_1.37b` foi removida; a ún
 
 - ISO híbrida: `.build/Brasa-live-alpha_1.40-boot-diagnostics-hybrid.iso` (1.285.319.168 bytes; SHA-256 `982E77F99C2E949D7ECC164ADC182C5F71AAE98BEA03F1E3D068CE7EC9A14766`). Não publicada como release.
 - O gancho de boot mostra diagnóstico e para com erro explícito se os scripts Brasa estiverem ausentes, evitando cair sem explicação no `bsdinstall` padrão.
-- QEMU TCG/OVMF x86-64, 8 GiB, 4 vCPUs, VGA 128 MiB, e1000/NAT: a híbrida iniciou como CD virtual UEFI e como dispositivo USB virtual UEFI. Ambos os boots chegaram à interface live; o caminho USB atualizou o catálogo e completou o carregamento dos pacotes gráficos pela rede. “Instalar Brasa” abriu e, pelo teclado, avançou ao campo de nome de conta.
-- Sem disco de destino conectado; nenhuma instalação foi iniciada. Isto verifica o boot USB/UEFI e a abertura da interface, não o processo de instalação, o boot físico ou a compatibilidade com os dispositivos reais.
+- QEMU TCG/OVMF x86-64, 8 GiB, 4 vCPUs, VGA 128 MiB, e1000/NAT: a híbrida iniciou como CD virtual UEFI e como dispositivo USB virtual UEFI. Ambos os boots chegaram à interface live; o caminho USB atualizou o catálogo e completou o carregamento dos pacotes gráficos pela rede. “Instalar Brasa” abriu e, pelo teclado, avançou ao formulário de conta.
+- Com QCOW2 descartável de 40 GiB (`vtbd0`), a instalação UEFI concluiu a extração dos 860 componentes e mostrou “A instalação terminou”. Durante a etapa de boot houve a mensagem `mv: /tmp/bsdinstall_boot/loader.conf: No such file or directory`, mas ela não impediu a conclusão.
+- Depois de encerrar a VM de instalação, a mesma imagem iniciou sem ISO ou USB. O loader EFI foi encontrado manualmente no caminho de fallback e iniciou o FreeBSD 15.1 pelo QCOW; o usuário conseguiu autenticar no console. SDDM não abriu uma sessão gráfica. `startx` terminou com `no screens found`, e `/dev/fb0` não existe nessa configuração UEFI do QEMU. Assim, a instalação em disco passou, mas o primeiro boot UEFI/KDE falhou; é necessário corrigir e repetir antes de considerar o fluxo concluído.
+- Isso verifica o processo de instalação em QEMU, não o boot físico, a instalação em PC real ou a compatibilidade com dispositivos reais.
 - `python -m py_compile scripts/build-brasa-live-prototype.py` e `git diff --check` passaram. `scripts/self-check.sh` foi interrompido durante as amostragens temporizadas do monitor de áudio simulado; a suíte completa não foi concluída.
-- Manter no GitHub apenas `alpha_1.37` até a versão final iniciar no PC real diretamente no instalador gráfico e concluir a instalação.
+- Manter no GitHub apenas `alpha_1.37` até a versão final iniciar no PC real diretamente no instalador gráfico e concluir a instalação sem problemas. As candidatas intermediárias permanecem apenas no histórico do código; nenhuma nova release ou asset ISO foi publicado.
 
 ## Candidata local alpha_1.39-uefi-scfb (29/10/2026)
 
