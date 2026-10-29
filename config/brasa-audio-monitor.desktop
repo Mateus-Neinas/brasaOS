@@ -1,8 +1,0 @@
-[Desktop Entry]
-Type=Application
-Name=Monitorar estabilidade do áudio
-Comment=Observe xruns durante reprodução ou gravação
-Exec=/usr/local/bin/brasa-audio-monitor
-Icon=audio-card
-Terminal=false
-Categories=AudioVideo;Audio;

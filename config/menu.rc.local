@@ -1,8 +1,0 @@
-\ Brasa boot menu labels; the FreeBSD loader includes this file automatically.
-set loader_menu_multi_user_prompt="Brasa"
-set mainmenu_caption[1]="Iniciar instalador Brasa [Enter]"
-set mainansi_caption[1]="Iniciar instalador Brasa ^[1m[Enter]^[m"
-set maintoggled_text[1]="Iniciar Brasa em modo de recuperação [Enter]"
-set maintoggled_ansi[1]="Iniciar Brasa em modo de recuperação ^[1m[Enter]^[m"
-set mainmenu_caption[2]="Modo de usuário único (recuperação)"
-set mainansi_caption[2]="Modo de usuário único (recuperação)"

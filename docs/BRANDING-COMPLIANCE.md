@@ -1,6 +1,6 @@
 # Conformidade de marca e redistribuição
 
-Brasa está sendo construído como um sistema derivado independente, baseado no Kubuntu. Este documento registra providências para uma futura imagem distribuível; não constitui parecer jurídico nem declara a ISO atual em conformidade.
+Brasa está sendo construído para uso próprio e privado, baseado no Kubuntu. Nenhuma ISO modificada será publicada ou distribuída nesta fase. Este documento registra a identidade e os cuidados caso esse escopo mude; não constitui parecer jurídico.
 
 ## Identidade Brasa preparada
 
@@ -9,7 +9,7 @@ Brasa está sendo construído como um sistema derivado independente, baseado no 
 - Texto informativo para documentação e interface: `branding/NOTICE.txt`.
 - A marca deve ser aplicada no branding do live system, instalador, tela de login, sessão Plasma, metadados do sistema e materiais de download.
 
-## Condições antes de redistribuir uma imagem modificada
+## Se o projeto passar a redistribuir uma imagem modificada
 
 1. Não apresentar a imagem como Kubuntu oficial nem sugerir aprovação da Canonical.
 2. Substituir os elementos visuais e textuais de marca do Kubuntu/Ubuntu em todo o sistema modificado, inclusive no instalador e nos binários que os incorporam, seguindo a política vigente da Canonical.
@@ -21,7 +21,7 @@ Brasa está sendo construído como um sistema derivado independente, baseado no 
 
 ## Limite do estado atual
 
-`dist/kubuntu-26.04.1-desktop-amd64.iso` é uma cópia intacta da mídia oficial e permanece como referência de upstream. O SVG e os textos Brasa ainda não foram injetados na imagem. Não se deve distribuir essa ISO com o nome Brasa, nem afirmar que a política de marcas já foi satisfeita por adicionar um aviso ou trocar um papel de parede.
+`dist/kubuntu-26.04.1-desktop-amd64.iso` é uma cópia intacta da mídia oficial e permanece como referência de upstream. O SVG e os textos Brasa ainda não foram injetados na imagem. A ISO Brasa será local e privada; não será publicada como release.
 
 ## Fontes oficiais
 

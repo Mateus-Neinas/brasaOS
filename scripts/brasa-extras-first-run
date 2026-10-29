@@ -1,8 +1,0 @@
-#!/bin/sh
-# Run once on the first KDE login; the menu launcher remains available for retry.
-set -eu
-marker=${XDG_CONFIG_HOME:-"$HOME/.config"}/brasa-extras-first-run-attempted
-[ -e "$marker" ] && exit 0
-mkdir -p "$(dirname "$marker")"
-: > "$marker"
-exec /usr/local/bin/brasa-extras

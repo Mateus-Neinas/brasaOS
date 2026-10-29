@@ -1,6 +1,6 @@
 # Brasa OS
 
-Brasa is a desktop operating system project built as a fork based on Kubuntu. The project is restarting from a clean Kubuntu base; the earlier FreeBSD prototype is legacy work and is not used as the foundation for the new system.
+Brasa is a private desktop operating system project based on Kubuntu. Development is restarting from a clean Kubuntu base; the earlier FreeBSD prototype has been removed from the working tree and is not used as the foundation.
 
 ## Current baseline
 
@@ -9,6 +9,7 @@ Brasa is a desktop operating system project built as a fork based on Kubuntu. Th
 - Official SHA-256 verified: `831e4d4bb85098339ba43d3502cd6619b27e76daf37246a084cd68a6413090b8`.
 - A clean QEMU boot reached the Kubuntu boot splash. The live desktop has not yet been confirmed; the current TCG run is slow.
 - No Brasa package, installer change, or audio modification has been applied to the upstream ISO.
+- The first private Brasa image will be named `Brasa-alpha_1.1_reboot.iso`.
 
 ## Product direction
 
@@ -27,4 +28,4 @@ The goal is broad USB Audio Class support, but hardware compatibility and clock 
 
 ## Redistribution
 
-Brasa must use its own name, artwork, and identity. The project will describe its upstream accurately as Kubuntu/Ubuntu and review package licenses and trademark requirements before publishing a modified image. The unmodified upstream ISO is a local build input and is not committed to Git.
+Brasa uses its own name and artwork and accurately identifies Kubuntu as its upstream. The project is for private use; no modified ISO is being published or attached to a GitHub release. The unmodified upstream ISO is a local build input and is not committed to Git.
