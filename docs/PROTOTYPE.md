@@ -16,6 +16,8 @@ Testes de rede separados com a NIC virtual `e1000`: no VMware Workstation com NA
 
 O inventário do Windows neste mesmo PC identificou a Ethernet física como Realtek RTL8125, PCI `10EC:8125` (subsystem `1043:87D7`, revisão 05). O [`rge(4)` do FreeBSD 15.1](https://man.freebsd.org/cgi/man.cgi?manpath=FreeBSD+15.1-RELEASE&query=rge&sektion=4) documenta suporte ao RTL8125/8125B; a candidata inclui `realtek-rge-kmod` com `if_rge.ko`. Isso alinha o driver empacotado ao hardware conhecido, mas ainda falta observar o attach do módulo, estado do link e DHCP no boot bare-metal.
 
+No Windows deste PC, a mesma interface está `Up`, link 1 Gbps, DHCP habilitado e com IPv4, gateway e DNS. Assim, o cabo e a rede do host estão operacionais no Windows; isso não comprova que o `rge` anexará à placa no Brasa.
+
 A ISO híbrida continua local, sem release, até validação na máquina física e instalação em disco virtual seguida do primeiro boot KDE. A ISO 1.37c e anteriores não foram alteradas. Os testes usaram mídia somente de leitura; nenhum disco de instalação foi anexado. O candidato óptico intermediário está em `.build/Brasa-live-alpha_1.37g-network-diagnostics.iso`.
 
 ### Candidata local alpha_1.37e-ethernet: Bluetooth opcional no live (28/10/2026)

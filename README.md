@@ -10,7 +10,7 @@ O boot BIOS da mídia alpha_1.37b foi confirmado no QEMU. Em máquina real, ela 
 
 O desktop KDE Plasma continua sendo o desktop instalado pretendido. O módulo `snd_uaudio` está habilitado, mas dispositivos USB Audio Class ainda não foram testados em equipamento físico.
 
-O Windows identifica a Ethernet física deste PC como Realtek RTL8125 (`PCI 10EC:8125`). A candidata g inclui o módulo `realtek-rge-kmod`; o manual `rge(4)` do FreeBSD 15.1 lista suporte ao RTL8125. A conexão real ainda precisa ser confirmada no boot do Brasa: detecção do driver, link e DHCP.
+O Windows identifica a Ethernet física deste PC como Realtek RTL8125 (`PCI 10EC:8125`) e atualmente informa link, DHCP, gateway e DNS ativos. A candidata g inclui o módulo `realtek-rge-kmod`; o manual `rge(4)` do FreeBSD 15.1 lista suporte ao RTL8125. Falta confirmar no boot do Brasa a detecção/associação do driver e a conexão DHCP.
 
 ## Objetivos e limitações
 
