@@ -85,10 +85,32 @@ if [ -t 0 ] && [ -t 1 ] && [ ! -f /var/db/brasa-password-ready ]; then
   : > /var/db/brasa-password-ready
 fi
 
-# snd_uaudio is the FreeBSD USB Audio Class kernel driver.
+# Keep kld_list idempotent if setup is resumed after a package/network failure.
+enable_kernel_module() {
+  module=$1
+  modules=$(sysrc -n kld_list 2>/dev/null || true)
+  case " $modules " in
+    *" $module "*) ;;
+    *) sysrc kld_list+="$module" >/dev/null ;;
+  esac
+}
+
+# Enable FreeBSD's native USB Audio Class driver.
 sysrc dbus_enable="YES"
 sysrc sddm_enable="YES"
-sysrc kld_list+="snd_uaudio"
+enable_kernel_module snd_uaudio
+
+# Install drm-kmod below, then load the matching kernel driver on first boot.
+# UEFI's generic SCFB fallback does not replace a GPU's native KMS driver.
+display_devices=$(pciconf -l 2>/dev/null | grep 'class=0x03' || true)
+if printf '%s\n' "$display_devices" | grep -q 'vendor=0x1002'; then
+  msg "GPU AMD detectada; habilitando o driver amdgpu do FreeBSD."
+  enable_kernel_module amdgpu
+fi
+if printf '%s\n' "$display_devices" | grep -q 'vendor=0x8086'; then
+  msg "GPU Intel detectada; habilitando o driver i915kms do FreeBSD."
+  enable_kernel_module i915kms
+fi
 
 repo_catalog_ready=no
 if [ -f /var/db/brasa-live-repo-catalog-ready ]; then

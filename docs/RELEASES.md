@@ -2,7 +2,15 @@
 
 Todas as alterações de código e os resultados de cada build devem ser versionados e documentados no Git. Preserve as ISOs-base e mantenha o total de ISOs abaixo de 10 GB. No GitHub, mantenha somente a release `alpha_1.37`, a primeira que iniciou com sucesso no QEMU, até existir uma alpha final que inicialize no PC real diretamente no instalador gráfico e conclua a instalação sem problemas. Builds intermediários ficam no histórico do código, sem releases nem assets ISO. As versões beta começam quando o usuário considerar o sistema do seu gosto e seguro.
 
-Em 29/10/2026, a pedido do usuário, a release `alpha_1.37b` foi removida; a única release mantida no GitHub é `alpha_1.37`, agora com a ISO r37 anexada. As notas abaixo preservam o histórico dos testes, mas os caminhos das candidatas antigas não significam que as ISOs ainda estejam no PC. Foram mantidos localmente a ISO r37 de referência, as candidatas híbridas alpha_1.39 e alpha_1.40 e as imagens-base FreeBSD; as ISOs da 1.38 e a óptica intermediária 1.39 foram removidas. Os QCOWs antigos foram removidos após confirmar que nenhuma VM estava ativa.
+Em 29/10/2026, a pedido do usuário, a release `alpha_1.37b` foi removida; a única release mantida no GitHub é `alpha_1.37`, agora com a ISO r37 anexada. As notas abaixo preservam o histórico dos testes, mas os caminhos das candidatas antigas não significam que as ISOs ainda estejam no PC. Foram mantidos localmente a ISO r37 de referência, as candidatas alpha_1.39, 1.40 e 1.41 e as imagens-base FreeBSD; as ISOs da 1.38 e a óptica intermediária 1.39 foram removidas. Os QCOWs antigos foram removidos após confirmar que nenhuma VM estava ativa; os QCOWs descartáveis de teste 1.39/1.40 continuam preservados.
+
+## Candidata local alpha_1.41-gpu-auto (29/10/2026)
+
+- ISO híbrida `.build/Brasa-live-alpha_1.41-gpu-auto-hybrid.iso` (1.285.323.264 bytes; SHA-256 `5F21844552771F1AA75AC14E5697BDEBB8BFA19781DB15F6B180A03360E60A97`). Não publicada como release; a única release continua sendo `alpha_1.37`.
+- O bootstrap detecta GPUs PCI AMD (`1002`) e Intel (`8086`), instala `drm-kmod` no ambiente live se necessário e tenta carregar `amdgpu`/`i915kms`. A instalação no disco habilita o módulo correspondente para o próximo boot. Se não detectar uma GPU suportada ou o módulo não carregar, mantém a alternativa SCFB no UEFI.
+- QEMU TCG/OVMF x86-64, 8 GiB, 4 vCPUs, VGA virtual padrão com 128 MiB, USB mass-storage e e1000/NAT: o live iniciou por USB em UEFI, recebeu DHCP, atualizou o catálogo, completou os nove pacotes que faltavam e abriu o assistente gráfico Brasa. Não foi conectado disco de destino.
+- O QEMU usa uma VGA virtual genérica (`1234:1111`), não uma AMD ou Intel compatível com `drm-kmod`; por isso, o ramo novo de carregamento KMS não foi exercitado. A instalação e o primeiro boot UEFI desta candidata, assim como o boot no PC físico, ainda precisam de teste. Não publicar release até cumprir o critério físico definido acima.
+- Verificações: `sh -n` nos scripts alterados, `python -m py_compile scripts/build-brasa-live-prototype.py`, `git diff --check` e `scripts/self-check.sh` passaram.
 
 ## Candidata local alpha_1.40-boot-diagnostics (29/10/2026)
 

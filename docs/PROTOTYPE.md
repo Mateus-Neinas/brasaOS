@@ -6,7 +6,13 @@ Iniciar por uma mídia x86-64, escolher idioma, informar o nome e a senha da con
 
 ## Estado atual
 
-Os caminhos de candidatas antigas abaixo registram o estado no dia dos testes. Em 29/10/2026, as ISOs intermediárias e os QCOWs antigos foram removidos do PC após confirmar que nenhuma VM estava ativa; permanecem a r37 de referência, as candidatas alpha_1.39 e alpha_1.40 e as ISOs-base FreeBSD. A ISO da candidata 1.38 foi removida após a 1.39 ser versionada.
+Os caminhos de candidatas antigas abaixo registram o estado no dia dos testes. Em 29/10/2026, foram removidas as ISOs intermediárias sem avanço e os QCOWs antigos depois de confirmar que nenhuma VM estava ativa; permanecem a r37 de referência, as candidatas alpha_1.39, 1.40 e 1.41 e as ISOs-base FreeBSD. Os QCOWs descartáveis usados nos testes de instalação 1.39/1.40 estão preservados para comparação. A ISO da candidata 1.38 foi removida após a 1.39 ser versionada.
+
+### Candidata local alpha_1.41-gpu-auto (29/10/2026)
+
+A ISO híbrida `.build/Brasa-live-alpha_1.41-gpu-auto-hybrid.iso` tem 1.285.323.264 bytes e SHA-256 `5F21844552771F1AA75AC14E5697BDEBB8BFA19781DB15F6B180A03360E60A97`. Ela inclui detecção de adaptadores gráficos PCI AMD e Intel no live e no instalador. O live tenta obter `drm-kmod` do repositório FreeBSD e carregar `amdgpu` ou `i915kms`; o sistema instalado registra o módulo compatível em `kld_list`. Se o driver nativo não estiver disponível, o live UEFI mantém o fallback SCFB.
+
+Em QEMU TCG/OVMF, 8 GiB, 4 vCPUs, VGA genérica padrão com 128 MiB e e1000/NAT, iniciou como USB virtual UEFI, recebeu DHCP, atualizou o catálogo de pacotes, baixou os nove arquivos que faltavam e chegou ao assistente gráfico Brasa. A VM não tinha disco de destino, então esta execução não instalou nem exercitou a configuração do sistema instalado. A VGA QEMU usa `1234:1111`, que não aciona a detecção AMD/Intel; o ramo KMS novo e o hardware físico ainda precisam ser testados. O candidato não tem release GitHub.
 
 ### Candidata local alpha_1.40-boot-diagnostics (29/10/2026)
 

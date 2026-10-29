@@ -152,15 +152,43 @@ else
   run_logged 'Instalando a interface gráfica mínima...' pkg install -y \
     xorg-minimal xinit jwm zenity dejavu xf86-video-vesa xf86-video-scfb || failed
 fi
+
+# Use the native KMS module when the installed GPU is supported by drm-kmod.
+# The generic SCFB fallback is retained for firmware framebuffers and virtual
+# adapters without a matching FreeBSD kernel driver.
+display_devices=$(pciconf -l 2>/dev/null | grep 'class=0x03' || true)
+gpu_modules=''
+if printf '%s\n' "$display_devices" | grep -q 'vendor=0x1002'; then
+  gpu_modules="$gpu_modules amdgpu"
+fi
+if printf '%s\n' "$display_devices" | grep -q 'vendor=0x8086'; then
+  gpu_modules="$gpu_modules i915kms"
+fi
+loaded_gpu=no
+if [ -n "$gpu_modules" ]; then
+  if pkg info -e drm-kmod >/dev/null 2>&1 || \
+    run_logged 'Baixando os drivers gráficos correspondentes ao computador...' pkg install -y drm-kmod; then
+    for module in $gpu_modules; do
+      say "Ativando o driver gráfico $module."
+      if kldload "$module" >> "$log" 2>&1; then
+        loaded_gpu=yes
+      else
+        printf 'brasa: não foi possível carregar %s; mantendo o framebuffer genérico.\n' \
+          "$module" >> "$log"
+      fi
+    done
+  else
+    say 'Driver gráfico específico indisponível; tentando o framebuffer genérico.'
+  fi
+fi
 if [ -c /dev/fb0 ] && [ -r /brasa/virtio_gpu_qemu_xorg.conf ]; then
   install -d -m 0755 /usr/local/etc/X11/xorg.conf.d >> "$log" 2>&1 || failed
   install -m 0644 /brasa/virtio_gpu_qemu_xorg.conf \
     /usr/local/etc/X11/xorg.conf.d/20-virtio-gpu-qemu.conf >> "$log" 2>&1 || failed
 fi
 boot_method=$(sysctl -n machdep.bootmethod 2>/dev/null || true)
-if [ "$boot_method" = UEFI ]; then
-  # FreeBSD's UEFI console exposes a system framebuffer; Xorg must select
-  # SCFB explicitly instead of guessing VESA or a DRM driver that is absent.
+if [ "$boot_method" = UEFI ] && [ "$loaded_gpu" != yes ]; then
+  # UEFI needs SCFB only when no native KMS module attached to the GPU.
   install -d -m 0755 /usr/local/etc/X11/xorg.conf.d >> "$log" 2>&1 || failed
   cat > /usr/local/etc/X11/xorg.conf.d/20-brasa-uefi-scfb.conf <<'EOF'
 Section "Device"
