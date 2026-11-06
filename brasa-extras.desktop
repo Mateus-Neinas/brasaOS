@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Aplicar extras do Brasa
+Comment=Instala Firefox e ativa os recursos opcionais de áudio do Brasa
+Exec=/usr/local/bin/brasa-extras
+Icon=system-software-install
+Terminal=false
+Categories=System;Settings;

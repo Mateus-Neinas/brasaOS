@@ -1,0 +1,32 @@
+#!/bin/sh
+# Launch the optional Brasa feature pack after the base system is installed.
+set -eu
+
+helper=/usr/local/libexec/brasa-extras-apply
+user=${USER:-$(id -un)}
+case "$user" in ''|*[!a-zA-Z0-9_-]*) echo 'Conta Brasa inválida.' >&2; exit 1 ;; esac
+
+if [ ! -x "$helper" ]; then
+  echo "O assistente de extras não está instalado: $helper" >&2
+  exit 1
+fi
+
+if [ "$(id -u)" -eq 0 ]; then
+  exec "$helper" --user "$user"
+fi
+
+konsole_bin=$(command -v konsole 2>/dev/null || true)
+[ -n "$konsole_bin" ] || { echo 'Konsole não está disponível para mostrar o progresso.' >&2; exit 1; }
+
+# Use a visible terminal for the administrator password and streamed package
+# progress. The username was restricted above, so the su command is safe.
+if "$konsole_bin" --nofork --hold -e /usr/bin/su -m root -c "$helper --user $user"; then
+  result=0
+else
+  result=$?
+fi
+
+if [ "$result" -eq 0 ] && [ -e /var/db/brasa-extras-ready ] && [ -x /usr/local/bin/brasa-audio-start ]; then
+  /usr/local/bin/brasa-audio-start || true
+fi
+exit "$result"

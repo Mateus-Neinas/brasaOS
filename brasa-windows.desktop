@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Apps Windows do Brasa
+Comment=Instale ou abra um executável Windows com Wine
+Exec=/usr/local/bin/brasa-windows-import
+Icon=wine
+Terminal=false
+Categories=Utility;

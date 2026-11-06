@@ -1,0 +1,264 @@
+#!/bin/sh
+# Experimental live desktop bootstrap. Run only from the installer medium.
+set -eu
+
+log=/tmp/brasa-live-start.log
+say() {
+  printf '%s\n' "$*" > /tmp/brasa-live-phase
+  printf '\nBrasa: %s\n' "$*" > /dev/console
+}
+failed() {
+  failed_phase=$(cat /tmp/brasa-live-phase 2>/dev/null || true)
+  say "O ambiente gráfico não iniciou. Abrindo o diagnóstico de recuperação Brasa."
+  printf '%s\n' "${failed_phase:-Etapa nao identificada}" > /tmp/brasa-live-failed-phase
+  if [ -f "$log" ]; then
+    tail -n 20 "$log" > /dev/console || true
+  fi
+  exit 1
+}
+run_logged() {
+  stage=$1
+  shift
+  say "$stage"
+  "$@" >> "$log" 2>&1 &
+  task_pid=$!
+  previous_line=''
+  while :; do
+    task_state=$(ps -o stat= -p "$task_pid" 2>/dev/null || true)
+    case "$task_state" in ''|Z*) break ;; esac
+    current_line=$(tail -n 1 "$log" 2>/dev/null || true)
+    if [ -n "$current_line" ] && [ "$current_line" != "$previous_line" ]; then
+      say "$current_line"
+      previous_line=$current_line
+    fi
+    sleep 2
+  done
+  if wait "$task_pid"; then return 0; else return $?; fi
+}
+
+[ "$(uname -s)" = FreeBSD ] || exit 1
+[ "$(id -u)" -eq 0 ] || exit 1
+[ -r /brasa/BRASA_PROJECT_TAR_GZ ] || exit 1
+mkdir -p /tmp/brasa-live-etc /tmp/brasa-home /tmp/brasa-source
+chmod 700 /tmp/brasa-home
+kldload unionfs >> "$log" 2>&1 || true
+mount -t unionfs /tmp/brasa-live-etc /etc >> "$log" 2>&1 || failed
+# A small tmpfs supports package directory renames, which unionfs does not
+# reliably provide. The ISO cache contains package archives and repository
+# metadata, not an installed /usr/local tree, so do not unpack it to /tmp here.
+# The package archives are unpacked into this tmpfs only once by pkg add below.
+say 'Carregando o suporte ao espaço temporário dos componentes gráficos.'
+# FreeBSD's GENERIC kernel already has tmpfs. Attempting kldload here reports
+# a scary duplicate-module error on real hardware even though mounting works.
+# The minimal Xorg dependency set can exceed 2 GB once unpacked. Keep enough
+# headroom for pkg while allowing tmpfs to consume RAM only as files are written.
+say 'Montando o espaço temporário dos componentes gráficos.'
+mount -t tmpfs -o size=5g tmpfs /usr/local >> "$log" 2>&1 || failed
+say 'Espaço temporário pronto.'
+
+say 'Ativando o reconhecimento automático dos drivers Ethernet do FreeBSD.'
+service devmatch onestart >> "$log" 2>&1 || true
+if [ -r /brasa/if_rge.ko ]; then
+  say 'Carregando suporte Ethernet adicional para Realtek 2,5 Gb/s.'
+  kldload /brasa/if_rge.ko >> "$log" 2>&1 || true
+fi
+
+prepare_network() {
+  if route -n get default >/dev/null 2>&1 && grep -Eq '^[[:space:]]*nameserver[[:space:]]+' /etc/resolv.conf 2>/dev/null; then
+    return 0
+  fi
+
+  say 'Procurando interfaces Ethernet reconhecidas pelo FreeBSD.'
+  : > /tmp/brasa-ethernet-ifaces
+  for interface in $(ifconfig -l); do
+    case "$interface" in lo*|wlan*|bridge*|tun*|tap*|pflog*|pfsync*|epair*|vlan*|wg*|tailscale*) continue ;; esac
+    ifconfig "$interface" up >> "$log" 2>&1 || continue
+    if ifconfig "$interface" 2>/dev/null | grep -Eiq 'media:.*Ethernet'; then
+      printf '%s\n' "$interface" >> /tmp/brasa-ethernet-ifaces
+    fi
+  done
+
+  [ -s /tmp/brasa-ethernet-ifaces ] || {
+    say 'Nenhuma interface cabeada compatível foi detectada.'
+    return 1
+  }
+  # FreeBSD's dhclient has no ISC-style -1 switch. Start it in the background,
+  # then wait briefly for an address, default route, and DHCP-provided DNS.
+  printf 'timeout 8;\nretry 1;\n' > /tmp/brasa-dhclient.conf
+  while IFS= read -r interface; do
+    [ -n "$interface" ] || continue
+    iface_state=$(ifconfig "$interface" 2>/dev/null || true)
+    case "$iface_state" in
+      *'status: no carrier'*)
+        case "$interface" in
+          rge*) recover_rge_link "$interface" || continue ;;
+          *) continue ;;
+        esac
+        ;;
+    esac
+    say "Solicitando rede por DHCP em $interface."
+    # Keep dhclient in the foreground but background it from this script so
+    # its actual DHCP exchange is captured in our recovery log. The previous
+    # -b daemon mode hid useful diagnostics in syslog on the read-only live OS.
+    dhclient -d -c /tmp/brasa-dhclient.conf "$interface" >> "$log" 2>&1 &
+    dhclient_pid=$!
+    attempt=0
+    while [ "$attempt" -lt 12 ]; do
+      if route -n get default >/dev/null 2>&1 && grep -Eq '^[[:space:]]*nameserver[[:space:]]+' /etc/resolv.conf 2>/dev/null; then
+        say "Ethernet ativa em $interface; rota e DNS configurados."
+        return 0
+      fi
+      if ! kill -0 "$dhclient_pid" 2>/dev/null; then
+        break
+      fi
+      attempt=$((attempt + 1))
+      sleep 1
+    done
+    kill "$dhclient_pid" 2>/dev/null || true
+    wait "$dhclient_pid" 2>/dev/null || true
+  done < /tmp/brasa-ethernet-ifaces
+  say 'Ethernet foi detectada, mas DHCP não forneceu rota e DNS. Verifique cabo, porta e DHCP do roteador.'
+  return 1
+}
+
+wait_for_carrier() {
+  interface=$1
+  max_wait=$2
+  carrier_attempt=0
+  while [ "$carrier_attempt" -lt "$max_wait" ]; do
+    carrier_state=$(ifconfig "$interface" 2>/dev/null || true)
+    case "$carrier_state" in *'status: no carrier'*) ;; *) return 0 ;; esac
+    carrier_attempt=$((carrier_attempt + 1))
+    sleep 1
+  done
+  return 1
+}
+
+recover_rge_link() {
+  interface=$1
+  say "Aguardando o link físico de $interface após inicializar a Realtek."
+  if wait_for_carrier "$interface" 6; then
+    return 0
+  fi
+
+  # This PC reports a 1 Gb/s link in Windows. Try that standard full-duplex
+  # mode once if RTL8125 autonegotiation reports no carrier, then restore auto.
+  say "Tentando negociar $interface a 1 Gb/s para compatibilidade com o cabo."
+  if ifconfig "$interface" media 1000baseT mediaopt full-duplex >> "$log" 2>&1 && \
+    wait_for_carrier "$interface" 8; then
+    return 0
+  fi
+
+  say "Restaurando negociação automática em $interface."
+  ifconfig "$interface" media autoselect >> "$log" 2>&1 || true
+  wait_for_carrier "$interface" 4
+}
+
+prepare_network || failed
+
+say 'Preparando os componentes gráficos mínimos.'
+export ASSUME_ALWAYS_YES=yes
+export PATH=/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin
+if [ ! -x /usr/local/sbin/pkg ]; then
+  run_logged 'Preparando o gerenciador de pacotes...' pkg bootstrap -y -f || failed
+fi
+if [ -r /brasa/BRASA_PKG_CACHE_TAR ]; then
+  say 'Usando os pacotes incluídos na mídia.'
+  tar -xf /brasa/BRASA_PKG_CACHE_TAR -C /var >> "$log" 2>&1 || failed
+  if [ -r /brasa/BRASA_PKG_REPOSITORY_DB ] && [ -r /brasa/BRASA_PKG_REPOSITORY_META ]; then
+    install -d -m 0755 /var/db/pkg/repos/FreeBSD-ports >> "$log" 2>&1 || failed
+    cp /brasa/BRASA_PKG_REPOSITORY_DB /var/db/pkg/repos/FreeBSD-ports/db >> "$log" 2>&1 || failed
+    cp /brasa/BRASA_PKG_REPOSITORY_META /var/db/pkg/repos/FreeBSD-ports/meta >> "$log" 2>&1 || failed
+    say 'Catálogo de pacotes pronto na mídia.'
+  fi
+  set --
+  if [ -r /brasa/BRASA_LIVE_PKG_ARCHIVES ]; then
+    while IFS= read -r package; do
+      case "$package" in ''|*/*) failed ;; esac
+      [ -r "/var/cache/pkg/$package" ] || failed
+      set -- "$@" "/var/cache/pkg/$package"
+    done < /brasa/BRASA_LIVE_PKG_ARCHIVES
+  fi
+  if [ "$#" -gt 0 ] && \
+    run_logged 'Instalando os componentes gráficos locais...' pkg add "$@"; then
+    :
+  else
+    say 'O cache local está incompleto; vou atualizar o catálogo e completar pela internet.'
+    run_logged 'Atualizando o catálogo de pacotes...' pkg update -f || failed
+    run_logged 'Completando os componentes gráficos pela internet...' pkg install -U -y \
+      xorg-minimal xinit jwm zenity dejavu xf86-video-vesa xf86-video-scfb || failed
+  fi
+else
+  say 'Baixando os componentes gráficos. É necessária uma conexão com a internet.'
+  run_logged 'Instalando a interface gráfica mínima...' pkg install -y \
+    xorg-minimal xinit jwm zenity dejavu xf86-video-vesa xf86-video-scfb || failed
+fi
+
+# Keep the live installer on the UEFI framebuffer. Loading a newly installed
+# KMS driver before validating the physical GPU can switch or blank its display;
+# the installed system can enable that driver after the first graphical boot.
+boot_method=$(sysctl -n machdep.bootmethod 2>/dev/null || true)
+display_devices=$(pciconf -l 2>/dev/null | grep 'class=0x03' || true)
+gpu_modules=''
+if printf '%s\n' "$display_devices" | grep -q 'vendor=0x1002'; then
+  gpu_modules="$gpu_modules amdgpu"
+fi
+if printf '%s\n' "$display_devices" | grep -q 'vendor=0x8086'; then
+  gpu_modules="$gpu_modules i915kms"
+fi
+loaded_gpu=no
+if [ "$boot_method" = UEFI ]; then
+  say 'Mantendo o framebuffer UEFI para abrir o instalador gráfico.'
+elif [ -n "$gpu_modules" ]; then
+  if pkg info -e drm-kmod >/dev/null 2>&1 || \
+    run_logged 'Baixando os drivers gráficos correspondentes ao computador...' pkg install -y drm-kmod; then
+    for module in $gpu_modules; do
+      say "Ativando o driver gráfico $module."
+      if kldload "$module" >> "$log" 2>&1; then
+        loaded_gpu=yes
+      else
+        printf 'brasa: não foi possível carregar %s; mantendo o framebuffer genérico.\n' \
+          "$module" >> "$log"
+      fi
+    done
+  else
+    say 'Driver gráfico específico indisponível; tentando o framebuffer genérico.'
+  fi
+fi
+if [ -c /dev/fb0 ] && [ -r /brasa/virtio_gpu_qemu_xorg.conf ]; then
+  install -d -m 0755 /usr/local/etc/X11/xorg.conf.d >> "$log" 2>&1 || failed
+  install -m 0644 /brasa/virtio_gpu_qemu_xorg.conf \
+    /usr/local/etc/X11/xorg.conf.d/20-virtio-gpu-qemu.conf >> "$log" 2>&1 || failed
+fi
+if [ "$boot_method" = UEFI ]; then
+  # Use the firmware framebuffer in the live environment on physical and
+  # virtual UEFI boots; do not let an unvalidated KMS driver hide the installer.
+  install -d -m 0755 /usr/local/etc/X11/xorg.conf.d >> "$log" 2>&1 || failed
+  cat > /usr/local/etc/X11/xorg.conf.d/20-brasa-uefi-scfb.conf <<'EOF'
+Section "Device"
+    Identifier "Brasa UEFI framebuffer"
+    Driver "scfb"
+EndSection
+EOF
+fi
+tar -xzf /brasa/BRASA_PROJECT_TAR_GZ -C /tmp/brasa-source >> "$log" 2>&1 || failed
+
+export HOME=/tmp/brasa-home
+export XAUTHORITY=/tmp/brasa-home/.Xauthority
+export PATH=/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin
+touch /var/run/brasa-live-environment
+cat > /tmp/brasa-xinitrc <<'EOF'
+#!/bin/sh
+jwm >/tmp/brasa-jwm.log 2>&1 &
+/bin/sh /tmp/brasa-source/scripts/brasa-install-assistant
+EOF
+chmod 700 /tmp/brasa-xinitrc
+say 'Abrindo o instalador gráfico Brasa.'
+# Pass the client and server arguments in xinit's documented order. The old
+# invocation treated -- as a server option, which made Xorg exit immediately.
+if xinit /bin/sh /tmp/brasa-xinitrc -- :0 -nolisten tcp >> "$log" 2>&1; then
+  rm -f /var/run/brasa-live-environment
+  exit 0
+fi
+rm -f /var/run/brasa-live-environment
+failed

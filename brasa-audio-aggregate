@@ -1,0 +1,313 @@
+#!/bin/sh
+# Configure a PipeWire virtual sink/source for multiple FreeBSD OSS devices.
+set -eu
+fail() { echo "brasa: $*" >&2; exit 1; }
+command -v zenity >/dev/null 2>&1 || fail "zenity e necessario."
+command -v pw-cli >/dev/null 2>&1 || { zenity --error --text="PipeWire nao esta instalado ou iniciado. Instale o backend OSS-ng e entre novamente."; exit 1; }
+command -v wpctl >/dev/null 2>&1 || { zenity --error --text="WirePlumber nao esta disponivel."; exit 1; }
+config_dir=${XDG_CONFIG_HOME:-"$HOME/.config"}/pipewire/pipewire.conf.d
+config=$config_dir/90-brasa-aggregate.conf
+wireplumber_dir=${XDG_CONFIG_HOME:-"$HOME/.config"}/wireplumber/wireplumber.conf.d
+master_rule=$wireplumber_dir/90-brasa-clock-master.conf
+if zenity --question --title="Áudio Brasa" --text="Remover a agregação atual? Se escolher Não, será aberta a configuração para criar ou substituir."; then
+  remove_config=$config.remove.$$
+  remove_rule=$master_rule.remove.$$
+  had_config=0
+  had_rule=0
+  if [ -e "$config" ]; then
+    mv "$config" "$remove_config" || { zenity --error --text="Nao foi possivel remover a agregacao atual."; exit 1; }
+    had_config=1
+  fi
+  if [ -e "$master_rule" ]; then
+    if ! mv "$master_rule" "$remove_rule"; then
+      [ "$had_config" -eq 0 ] || mv "$remove_config" "$config"
+      zenity --error --text="Nao foi possivel remover a regra do WirePlumber; a configuracao anterior foi restaurada."
+      exit 1
+    fi
+    had_rule=1
+  fi
+  [ "$had_config" -eq 0 ] || rm -f "$remove_config"
+  [ "$had_rule" -eq 0 ] || rm -f "$remove_rule"
+  zenity --info --text="Configuração removida. Encerre e abra a sessão para aplicar a alteração."
+  exit 0
+fi
+
+# Extract stable PipeWire node names from WirePlumber's current object view.
+# Shell parsing keeps this launcher dependency-light; names containing tabs are
+# not supported by PipeWire's node naming convention.
+pipewire_status=$(wpctl status -n 2>/dev/null || true)
+nodes=$(printf '%s\n' "$pipewire_status" | awk '
+  /Sinks:/ { section="sink"; next }
+  /Sources:/ { section="source"; next }
+  /Filters:/ { section="" }
+  section != "" && /pcm[0-9]+\.(play|rec)/ {
+    line=$0
+    if (match(line, /pcm[0-9]+\.(play|rec)/)) {
+      name=substr(line, RSTART, RLENGTH)
+      id=""
+      if (match($0, /[0-9]+[.]/)) { id=substr($0, RSTART, RLENGTH); sub(/[.]$/, "", id) }
+      print (name ~ /\.play$/ ? "sink" : "source") "\t" name "\t" id
+    }
+  }
+')
+# The OSS-ng port currently publishes PCM nodes named pcmN.play/pcmN.rec.
+# Query pw-cli as fallback for older monitor formatting.
+if [ -z "$nodes" ]; then
+  nodes=$(pw-cli ls Node 2>/dev/null | awk '
+    /node.name = "pcm[0-9]+\.(play|rec)"/ {
+      n=$0; sub(/^.*node.name = "/, "", n); sub(/".*$/, "", n)
+      direction=(n ~ /\.play$/ ? "sink" : "source"); print direction "\t" n
+    }
+  ')
+fi
+[ -n "$nodes" ] || { zenity --error --text="O PipeWire nao listou dispositivos OSS."; exit 1; }
+
+sink_rows=$(printf '%s\n' "$nodes" | awk -F '\t' '$1=="sink" {print $2 "\tSaida"}')
+source_rows=$(printf '%s\n' "$nodes" | awk -F '\t' '$1=="source" {print $2 "\tEntrada"}')
+if [ -z "$sink_rows" ] && [ -z "$source_rows" ]; then
+  zenity --error --text="Nao foi possivel identificar os dispositivos de entrada e saida."
+  exit 1
+fi
+
+sink_list=''
+source_list=''
+if [ -n "$sink_rows" ]; then
+  sink_list=$(printf '%s\n' "$sink_rows" | zenity --list --multiple --title="Saidas agregadas" --text="Selecione as saidas; deixe vazio para agregar apenas entradas." --column="No PipeWire" --column="Tipo" --print-column=1 --separator='|' --height=400 --width=680) || exit 0
+fi
+if [ -n "$source_rows" ]; then
+  source_list=$(printf '%s\n' "$source_rows" | zenity --list --multiple --title="Entradas agregadas" --text="Selecione as entradas; deixe vazio para nao agregar entradas." --column="No PipeWire" --column="Tipo" --print-column=1 --separator='|' --height=400 --width=680 2>/dev/null || true)
+fi
+members=$(printf '%s\n%s\n' "$sink_list" "$source_list" | tr '|' '\n' | sed '/^\s*$/d')
+[ -n "$members" ] || { zenity --error --text="Selecione pelo menos um dispositivo para agregar."; exit 1; }
+master=$(printf '%s\n' "$members" | zenity --list --title="Mestre de sincronismo" --text="Escolha o dispositivo que deve ser o driver preferido do grafo enquanto estiver em uso. O PipeWire só pode usá-lo como referência quando estiver ativo e conectado; se ele parar ou for removido, outro membro ativo poderá assumir. A outra direção da mesma interface recebe prioridade logo abaixo se também estiver agregada." --column="Dispositivo agregado" --print-column=1 --separator='' --height=400 --width=680) || exit 0
+[ -n "$master" ] || exit 0
+# OSS-ng's sink fill target is in eighths of a PipeWire graph period. Larger
+# targets absorb more scheduling jitter at the cost of output latency.
+oss_delay=16
+if [ -n "$sink_list" ]; then
+  oss_delay=$(printf '10\tPadrao: menor latencia\n16\tEstavel: equilibrio entre tolerancia e latencia\n24\tAlta tolerancia: maior latencia\n' | zenity --list --title="Tolerancia a variacoes" --text="Escolha o buffer das saidas fisicas. Mais tolerancia reduz falhas por atrasos de agendamento, mas aumenta a latencia." --column="Buffer OSS-ng (oitavos do periodo)" --column="Perfil" --print-column=1 --separator='' --height=300 --width=620) || exit 0
+fi
+case "$oss_delay" in 10|16|24) ;; *) fail "buffer OSS-ng inesperado: $oss_delay" ;; esac
+# OSS-ng clamps fragments to the hardware's supported range and reports the
+# granted size. Larger fragments reduce interrupt frequency at higher latency.
+oss_fragment=$(printf '0\tAutomatico: definido pelo dispositivo\n4096\tEstavel: fragmentos de ate 4 KiB\n8192\tAlta tolerancia: fragmentos de ate 8 KiB\n' | zenity --list --title="Fragmento do dispositivo" --text="Escolha a granularidade de entrega do dispositivo. O valor real pode ser limitado pelo hardware; fragmentos maiores reduzem interrupcoes e aumentam a latencia." --column="Tamanho (bytes; 0 = automatico)" --column="Perfil" --print-column=1 --separator='' --height=300 --width=620) || exit 0
+case "$oss_fragment" in 0|4096|8192) ;; *) fail "fragmento OSS-ng inesperado: $oss_fragment" ;; esac
+# PipeWire's module-combine-stream provides the virtual aggregate nodes. The
+# PipeWire's graph driver establishes the scheduling clock and follower
+# streams are adapted by PipeWire; this does not discipline independent
+# hardware clocks. Capture channels are concatenated into one source.
+mkdir -p "$config_dir" "$wireplumber_dir" || { zenity --error --text="Nao foi possivel preparar as pastas de audio do usuario."; exit 1; }
+tmp=$config_dir/90-brasa-aggregate.$$.conf
+rule_tmp=$wireplumber_dir/90-brasa-clock-master.$$.conf
+config_rollback=$config.rollback.$$
+rule_rollback=$master_rule.rollback.$$
+config_previous=$config.previous
+# A rejected channel map or interrupted dialog must not leave a partial .conf
+# that PipeWire would load at the next login.
+trap 'rm -f "$tmp" "$rule_tmp"' EXIT
+trap 'exit 1' HUP INT TERM
+
+quote_pipewire() {
+  case "$1" in *[!A-Za-z0-9_.:-]*) fail "nome de dispositivo inesperado: $1" ;; esac
+  printf '"%s"' "$1"
+}
+
+quote_pipewire_description() {
+  description_nl='
+'
+  case "$1" in *'"'*|*'\'*|*"$description_nl"*) return 1 ;; esac
+  printf '"%s"' "$1"
+}
+
+pipewire_match() {
+  match_target=$1
+  match_id=$(printf '%s\n' "$pipewire_status" | awk -v target="$match_target" 'index($0, target) && match($0, /[0-9]+[.]/) { id=substr($0, RSTART, RLENGTH); sub(/[.]$/, "", id); print id; exit }')
+  match_description=''
+  case "$match_target" in
+    *.play) match_class=Audio/Sink ;;
+    *.rec) match_class=Audio/Source ;;
+    *) fail "tipo de dispositivo inesperado: $match_target" ;;
+  esac
+  if [ -n "$match_id" ]; then
+    match_description=$(wpctl inspect "$match_id" 2>/dev/null | awk -F ' = "' '$1 ~ /node.description$/ { sub(/"$/, "", $2); print $2; exit }')
+  fi
+  case "$match_description" in
+    *' @ '*)
+      description_count=0
+      candidate_ids=$(printf '%s\n' "$nodes" | awk -F '\t' -v class="$match_class" '$1 == (class == "Audio/Sink" ? "sink" : "source") && $3 != "" { print $3 }' | tr '\n' ' ')
+      old_candidate_ifs=$IFS
+      IFS=' '
+      for candidate_id in $candidate_ids; do
+        [ -n "$candidate_id" ] || continue
+        candidate_props=$(wpctl inspect "$candidate_id" 2>/dev/null || true)
+        candidate_class=$(printf '%s\n' "$candidate_props" | awk -F ' = "' '$1 ~ /media.class$/ { sub(/"$/, "", $2); print $2; exit }')
+        [ "$candidate_class" = "$match_class" ] || continue
+        candidate_description=$(printf '%s\n' "$candidate_props" | awk -F ' = "' '$1 ~ /node.description$/ { sub(/"$/, "", $2); print $2; exit }')
+        [ "$candidate_description" = "$match_description" ] || continue
+        description_count=$((description_count + 1))
+      done
+      IFS=$old_candidate_ifs
+      if [ "$description_count" -eq 1 ]; then
+        if match_quoted=$(quote_pipewire_description "$match_description"); then
+          printf 'node.description = %s' "$match_quoted"
+          return 0
+        fi
+      fi
+      ;;
+  esac
+  printf 'node.name = %s' "$(quote_pipewire "$match_target")"
+}
+
+source_channel_map() {
+  channel_target=$1
+  channel_id=$(printf '%s\n' "$pipewire_status" | awk -v target="$channel_target" 'index($0, target) && match($0, /[0-9]+[.]/) { id=substr($0, RSTART, RLENGTH); sub(/[.]$/, "", id); print id; exit }')
+  channel_map=''
+  if [ -n "$channel_id" ]; then
+    channel_map=$(wpctl inspect "$channel_id" 2>/dev/null | awk -F ' = ' '
+      $1 ~ /audio\.position$/ {
+        map=$2; gsub(/"/, "", map); gsub(/\[/, "", map); gsub(/\]/, "", map); gsub(/,/, " ", map)
+        n=split(map, channels, / +/)
+        for (i=1; i<=n; i++) if (channels[i] ~ /^[A-Z][A-Z0-9]*$/) printf "%s%s", (valid++ ? " " : ""), channels[i]
+        if (valid) printf "\n"
+        exit
+      }
+    ')
+  fi
+  channel_count=$(printf '%s\n' "$channel_map" | awk '{ print NF }')
+  if [ "$channel_count" -ge 1 ]; then printf '%s\n' "$channel_map"; else printf 'FL FR\n'; fi
+}
+
+{
+  printf '# Generated by Brasa Audio. OSS-ng measures hardware cadence and adaptively resamples follower streams against the PipeWire graph driver; independent hardware clocks are not physically phase-locked.\n'
+  printf 'context.modules = [\n'
+  if [ -n "$sink_list" ]; then
+    printf '  { name = libpipewire-module-combine-stream args = {\n'
+    printf '      combine.mode = "sink"\n'
+    printf '      node.name = "brasa.aggregate.output"\n'
+    printf '      node.description = "Brasa — Saida agregada"\n'
+    printf '      combine.latency-compensate = true\n'
+    printf '      combine.props = { node.virtual = true audio.position = [ FL FR ] }\n'
+    printf '      stream.props = { node.dont-reconnect = false }\n'
+    printf '      stream.rules = [\n'
+    old_ifs=$IFS; IFS='|'
+    for name in $sink_list; do
+      [ -n "$name" ] || continue
+      match_property=$(pipewire_match "$name")
+      printf '        { matches = [ { %s media.class = "Audio/Sink" } ] actions = { create-stream = { } } }\n' "$match_property"
+    done
+    IFS=$old_ifs
+    printf '      ]\n    } }\n'
+  fi
+  if [ -n "$source_list" ]; then
+    source_positions=""
+    source_total=0
+    source_stereo_started=0
+    source_aux_next=0
+    old_ifs=$IFS; IFS='|'
+    for name in $source_list; do
+      [ -n "$name" ] || continue
+      channel_map=$(source_channel_map "$name")
+      channel_tokens=$(printf '%s' "$channel_map" | tr ' ' '|')
+      for channel in $channel_tokens; do
+        [ "$source_total" -lt 64 ] || fail "o agregado suporta ate 64 canais de captura. Reduza o numero de fontes ou canais."
+        if [ "$source_stereo_started" -eq 0 ] && [ "$channel" = FL ]; then target_channel=FL; source_stereo_started=1
+        elif [ "$source_stereo_started" -eq 1 ] && [ "$channel" = FR ]; then target_channel=FR; source_stereo_started=2
+        else target_channel=AUX$source_aux_next; source_aux_next=$((source_aux_next + 1)); fi
+        if [ -z "$source_positions" ]; then source_positions=$target_channel; else source_positions="$source_positions $target_channel"; fi
+        source_total=$((source_total + 1))
+      done
+    done
+    IFS=$old_ifs
+    printf '  { name = libpipewire-module-combine-stream args = {\n'
+    printf '      combine.mode = "source"\n'
+    printf '      node.name = "brasa.aggregate.input"\n'
+    printf '      node.description = "Brasa — Entrada agregada"\n'
+    printf '      combine.latency-compensate = true\n'
+    printf '      combine.props = { node.virtual = true audio.position = [ %s ] }\n' "$source_positions"
+    printf '      stream.props = { stream.dont-remix = true }\n'
+    printf '      stream.rules = [\n'
+    old_ifs=$IFS; IFS='|'
+    source_total=0
+    source_stereo_started=0
+    source_aux_next=0
+    for name in $source_list; do
+      [ -n "$name" ] || continue
+      channel_map=$(source_channel_map "$name")
+      target_map=""
+      channel_tokens=$(printf '%s' "$channel_map" | tr ' ' '|')
+      for channel in $channel_tokens; do
+        [ "$source_total" -lt 64 ] || fail "o agregado suporta ate 64 canais de captura. Reduza o numero de fontes ou canais."
+        if [ "$source_stereo_started" -eq 0 ] && [ "$channel" = FL ]; then target_channel=FL; source_stereo_started=1
+        elif [ "$source_stereo_started" -eq 1 ] && [ "$channel" = FR ]; then target_channel=FR; source_stereo_started=2
+        else target_channel=AUX$source_aux_next; source_aux_next=$((source_aux_next + 1)); fi
+        if [ -z "$target_map" ]; then target_map=$target_channel; else target_map="$target_map $target_channel"; fi
+        source_total=$((source_total + 1))
+      done
+      match_property=$(pipewire_match "$name")
+      printf '        { matches = [ { %s media.class = "Audio/Source" } ] actions = { create-stream = { audio.position = [ %s ] combine.audio.position = [ %s ] } } }\n' "$match_property" "$channel_map" "$target_map"
+    done
+    IFS=$old_ifs
+    printf '      ]\n    } }\n'
+  fi
+  printf ']\n'
+} > "$tmp"
+
+if command -v pw-config >/dev/null 2>&1; then
+  if ! pw-config -n pipewire.conf merge context.modules >/dev/null 2>&1; then
+    rm -f "$tmp" "$rule_tmp"
+    zenity --error --text="A configuração gerada não passou na verificação do PipeWire. Seus ajustes atuais foram preservados."
+    exit 1
+  fi
+fi
+{
+  printf 'monitor.oss.rules = [\n'
+  master_match_property=$(pipewire_match "$master")
+  case "$master" in
+    *.play) master_class=Audio/Sink; master_peer_name=${master%.play}.rec ;;
+    *.rec) master_class=Audio/Source; master_peer_name=${master%.rec}.play ;;
+    *) fail "tipo de mestre inesperado: $master" ;;
+  esac
+  old_ifs=$IFS; IFS='|'
+  for name in $sink_list $source_list; do
+    [ -n "$name" ] || continue
+    match_property=$(pipewire_match "$name")
+    case "$name" in
+      *.play) media_class=Audio/Sink ;;
+      *.rec) media_class=Audio/Source ;;
+      *) fail "tipo de dispositivo inesperado: $name" ;;
+    esac
+    if [ "$name" = "$master" ]; then
+      priority=1000000
+    elif { [ "$match_property" = "$master_match_property" ] && [ "$media_class" != "$master_class" ]; } || [ "$name" = "$master_peer_name" ]; then
+      # Keep the opposite direction of the same duplex interface as a near-
+      # priority driver so playback and capture aggregates share its clock.
+      priority=999999
+    else
+      priority=100
+    fi
+    if [ "$media_class" = Audio/Sink ]; then
+      printf '  { matches = [ { %s media.class = "%s" } ] actions = { update-props = { priority.driver = %s oss.delay = %s oss.fragment = %s } } }\n' "$match_property" "$media_class" "$priority" "$oss_delay" "$oss_fragment"
+    else
+      printf '  { matches = [ { %s media.class = "%s" } ] actions = { update-props = { priority.driver = %s oss.fragment = %s } } }\n' "$match_property" "$media_class" "$priority" "$oss_fragment"
+    fi
+  done
+  IFS=$old_ifs
+  printf ']\n'
+} > "$rule_tmp"
+had_config=0
+had_rule=0
+if [ -e "$config" ]; then cp -p "$config" "$config_rollback" || { rm -f "$tmp" "$rule_tmp"; zenity --error --text="Nao foi possivel preservar a agregacao atual."; exit 1; }; had_config=1; fi
+if [ -e "$master_rule" ]; then cp -p "$master_rule" "$rule_rollback" || { rm -f "$tmp" "$rule_tmp" "$config_rollback"; zenity --error --text="Nao foi possivel preservar a regra atual do WirePlumber."; exit 1; }; had_rule=1; fi
+if mv "$tmp" "$config" && mv "$rule_tmp" "$master_rule"; then
+  if [ "$had_config" -eq 1 ]; then cp -p "$config_rollback" "$config_previous"; fi
+  rm -f "$config_rollback" "$rule_rollback"
+else
+  if [ "$had_config" -eq 1 ]; then mv "$config_rollback" "$config"; else rm -f "$config"; fi
+  if [ "$had_rule" -eq 1 ]; then mv "$rule_rollback" "$master_rule"; else rm -f "$master_rule"; fi
+  rm -f "$tmp" "$rule_tmp" "$config_rollback" "$rule_rollback"
+  zenity --error --text="Nao foi possivel aplicar as duas configuracoes. A agregacao anterior foi restaurada."
+  exit 1
+fi
+buffer_note=''
+if [ -n "$sink_list" ]; then buffer_note="Buffer de reprodução OSS-ng: $oss_delay/8 do período (maior tolerância e latência)."; fi
+zenity --info --text="Configuração salva. Encerre e abra a sessão para carregar a saída/entrada agregada. $master terá prioridade como referência de agendamento do grafo enquanto estiver ativo; o PipeWire adapta as streams seguidoras por reamostragem. Isso não disciplina nem alinha fisicamente clocks independentes. $buffer_note Para coerência de fase em gravação multicanal, use dispositivos ligados por word clock/sync compatível."

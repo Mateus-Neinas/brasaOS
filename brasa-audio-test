@@ -1,0 +1,43 @@
+#!/bin/sh
+# Play a short tone through the Brasa aggregate when available, otherwise
+# through the active PipeWire default or FreeBSD OSS fallback. Report the
+# result in a desktop dialog so this launcher never opens a terminal window.
+set -eu
+notify_error() {
+  if command -v zenity >/dev/null 2>&1; then
+    zenity --error --title='Teste de áudio Brasa' --text="$*"
+  else
+    echo "brasa: $*" >&2
+  fi
+  exit 1
+}
+notify_success() {
+  if command -v zenity >/dev/null 2>&1; then
+    zenity --info --title='Teste de áudio Brasa' --text="$*"
+  fi
+}
+
+if command -v pw-play >/dev/null 2>&1 && command -v sox >/dev/null 2>&1; then
+  tmpdir=$(mktemp -d "${TMPDIR:-/tmp}/brasa-tone.XXXXXX")
+  trap 'rm -rf "$tmpdir"' EXIT HUP INT TERM
+  tone=$tmpdir/tone.wav
+  sox -n -r 48000 -c 2 "$tone" synth 0.6 sine 660 >/dev/null 2>&1 || notify_error 'Não consegui gerar o tom de teste.'
+  target=auto
+  if command -v wpctl >/dev/null 2>&1 && wpctl status -n 2>/dev/null | grep -q 'brasa.aggregate.output'; then
+    target=brasa.aggregate.output
+  fi
+  if ! pw-play --target "$target" "$tone" >/dev/null 2>&1; then
+    if command -v play >/dev/null 2>&1 && play -q "$tone" >/dev/null 2>&1; then
+      notify_success 'Tom reproduzido pelo áudio FreeBSD. Se não ouviu, selecione outra saída em Configurações do Sistema → Áudio.'
+      exit 0
+    fi
+    notify_error 'A reprodução falhou. Abra Configurações do Sistema → Áudio, selecione uma saída e tente de novo.'
+  fi
+elif command -v play >/dev/null 2>&1; then
+  if ! play -q -n synth 0.6 sine 660 >/dev/null 2>&1; then
+    notify_error 'A reprodução direta pelo dispositivo de áudio falhou.'
+  fi
+else
+  notify_error 'O pacote de extras ainda não foi aplicado. Abra Aplicar extras do Brasa e tente novamente.'
+fi
+notify_success 'Tom enviado à saída padrão. Se não ouviu, selecione a saída desejada em Configurações do Sistema → Áudio e repita o teste.'

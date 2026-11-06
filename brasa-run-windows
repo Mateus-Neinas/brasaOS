@@ -1,0 +1,28 @@
+#!/bin/sh
+# Run a Windows EXE in a named, separate Wine prefix.
+set -eu
+usage() { echo "Usage: brasa-run-windows EXE --name APP-ID" >&2; exit 2; }
+[ "$#" -ge 1 ] || usage
+command -v wine >/dev/null 2>&1 || { echo "Wine is not installed." >&2; exit 127; }
+exe=$1; shift
+[ -f "$exe" ] || { echo "EXE file not found: $exe" >&2; exit 1; }
+app_id=
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --name) [ "$#" -ge 2 ] || usage; app_id=$2; shift 2 ;;
+    *) usage ;;
+  esac
+done
+[ -n "$app_id" ] || { echo "Choose an app name with --name." >&2; exit 2; }
+slug=$(printf '%s' "$app_id" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9._-' '-')
+slug=$(printf '%s' "$slug" | sed 's/^-*//;s/-*$//')
+case "$slug" in .|..) echo "Invalid app name." >&2; exit 2 ;; esac
+[ -n "$slug" ] || { echo "Invalid app name." >&2; exit 2; }
+prefix="$HOME/.local/share/brasa/wineprefixes/$slug"
+mkdir -p "$(dirname "$prefix")" "$prefix"
+export WINEPREFIX="$prefix"
+if [ ! -f "$prefix/.brasa-prefix-ready" ]; then
+  wineboot -u || exit 1
+  : > "$prefix/.brasa-prefix-ready"
+fi
+exec wine "$exe"

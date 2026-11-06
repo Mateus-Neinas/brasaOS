@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Instalador Brasa — Prévia interativa</title>
+<style>
+:root{font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;color:#f8f8fb;background:#11121a;font-synthesis:none}*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(ellipse at 48% 20%,#48406b 0,#27243e 31%,#151620 69%,#0d0e14 100%);overflow:hidden}.bar{height:38px;display:flex;justify-content:space-between;align-items:center;padding:0 22px;background:#11121ad9;backdrop-filter:blur(24px);font-size:13px}.brand{font-weight:750;letter-spacing:.01em}.status{display:flex;gap:17px;align-items:center;color:#eeeef3}.desktop{min-height:calc(100vh - 38px);padding:28px 34px 96px;display:grid;grid-template-columns:1fr minmax(310px,390px);gap:20px;align-items:start}.intro{align-self:center;max-width:650px;padding:5vh 0 10vh 4vw}.eyebrow{font-size:12px;text-transform:uppercase;letter-spacing:.18em;color:#d0b6ff;font-weight:700}.intro h1{font-size:clamp(42px,7vw,86px);line-height:.99;letter-spacing:-.065em;margin:16px 0 18px}.intro p{font-size:18px;line-height:1.6;color:#d6d3e1;max-width:550px}.window{background:#f6f5f8;color:#282630;border-radius:18px;overflow:hidden;box-shadow:0 30px 90px #08081288;border:1px solid #ffffff55}.titlebar{height:48px;display:flex;align-items:center;padding:0 16px;gap:8px;background:#eeedf1;border-bottom:1px solid #dedce4}.dots{display:flex;gap:6px}.dot{width:11px;height:11px;border-radius:50%;background:#fb6a62}.dot:nth-child(2){background:#f6c453}.dot:nth-child(3){background:#4fc56c}.windowtitle{font-size:13px;font-weight:650;margin-left:8px}.settings{display:grid;grid-template-columns:126px 1fr;min-height:430px}.side{background:#eeedf1;padding:17px 10px;display:flex;flex-direction:column;gap:5px}.nav{padding:9px 10px;border-radius:9px;color:#575460;font-size:12px}.nav.active{background:#ded9ee;color:#442e75;font-weight:700}.main{padding:22px 20px}.main h2{font-size:20px;margin:0 0 4px;letter-spacing:-.025em}.muted{font-size:12px;color:#77737f;margin-bottom:18px}.card{background:white;border:1px solid #e4e2e9;border-radius:13px;padding:14px;margin-bottom:12px}.row{display:flex;justify-content:space-between;align-items:center;gap:12px}.row strong{font-size:13px}.small{font-size:11px;color:#797582;margin-top:5px}.badge{font-size:10px;color:#2f6841;background:#e0f4e6;border-radius:99px;padding:5px 8px;white-space:nowrap}.device{display:flex;align-items:center;gap:11px}.icon{width:34px;height:34px;border-radius:10px;background:#eee9fa;display:grid;place-items:center;font-size:17px}.meter{height:7px;border-radius:8px;background:#e9e7ed;margin-top:13px;overflow:hidden}.meter span{display:block;width:69%;height:100%;background:linear-gradient(90deg,#916ee0,#b189f2);border-radius:8px}.button{border:0;border-radius:9px;background:#6647a5;color:#fff;font-weight:650;padding:9px 12px;font-size:11px;cursor:pointer}.button.secondary{background:#eeebf5;color:#493b69}.app{display:flex;align-items:center;gap:12px}.winicon{width:36px;height:36px;border-radius:10px;background:#e7f2fb;color:#2776b3;display:grid;place-items:center;font-weight:800}.dock{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);display:flex;gap:9px;padding:10px 13px;border-radius:20px;background:#f3f1f8bd;border:1px solid #ffffff85;backdrop-filter:blur(24px);box-shadow:0 9px 40px #08081266}.dockitem{width:45px;height:45px;border-radius:14px;display:grid;place-items:center;font-size:22px;background:linear-gradient(145deg,#fff,#e6e2ee);box-shadow:0 2px 4px #201b2d22;cursor:pointer;transition:transform .15s}.dockitem:hover{transform:translateY(-7px) scale(1.08)}.hint{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);font-size:11px;color:#ffffff9a;white-space:nowrap}@media(max-width:850px){.desktop{grid-template-columns:1fr;padding:24px 16px 115px}.intro{padding:15px 5px 12px}.intro p{font-size:15px}.window{max-width:530px;width:100%;margin:auto}.settings{grid-template-columns:105px 1fr}.side{padding:12px 6px}.main{padding:17px 12px}.status{gap:8px}.status span:nth-child(2){display:none}.hint{bottom:89px}}
+</style>
+</head>
+<body>
+<header class="bar"><div class="brand">◈ Brasa</div><div class="status"><span>Seg, 26 out</span><span>◖ Wi-Fi</span><span>◖ Áudio</span><span>92% ▰</span></div></header>
+<main class="desktop">
+<section class="intro"><div class="eyebrow">Unix com personalidade</div><h1>Seu espaço.<br>Sua música.</h1><p>Brasa OS está sendo criado para um desktop fluido, áudio USB que simplesmente aparece e seus aplicativos favoritos sempre à mão.</p></section>
+<section class="window" aria-label="Prévia das configurações de áudio"><div class="titlebar"><div class="dots"><i class="dot"></i><i class="dot"></i><i class="dot"></i></div><div class="windowtitle">Central de Ajustes</div></div><div class="settings"><nav class="side"><div class="nav">Aparência</div><div class="nav">Rede</div><div class="nav active">Som</div><div class="nav">Aplicativos</div><div class="nav">Sistema</div></nav><div class="main"><h2>Som</h2><div class="muted">Seus dispositivos, sem complicação.</div><div class="card"><div class="row"><div class="device"><div class="icon">🎧</div><div><strong id="audioDevice">Interface USB</strong><div class="small">USB Audio Class · 2 canais</div></div></div><span class="badge">Conectada</span></div><div class="meter"><span></span></div><div class="row" style="margin-top:12px"><span class="small">Saída principal</span><button id="audioTest" class="button secondary">Testar som</button></div></div><div class="card"><div class="row"><div><strong>Entrada</strong><div class="small">Microfone da interface USB</div></div><button id="audioChoose" class="button secondary">Escolher</button></div></div><h2 style="font-size:16px;margin:19px 0 10px">Apps Windows</h2><div class="card"><div class="row"><div class="app"><div class="winicon">W</div><div><strong>Meu aplicativo</strong><div class="small">Executado via Wine</div></div></div><button id="openWindowsApp" class="button">Abrir</button></div></div></div></div></section>
+</main>
+<div class="hint">Prévia interativa — a saída e o tom são simulados no navegador</div>
+<nav class="dock" aria-label="Aplicativos"><div class="dockitem" title="Arquivos">📁</div><div class="dockitem" title="Navegador">🌐</div><div class="dockitem" title="Áudio">🎚️</div><div class="dockitem" title="Apps Windows">🪟</div><div class="dockitem" title="Ajustes">⚙️</div></nav>
+<script>
+const demoOutputs = ["Interface USB", "Alto-falantes internos", "Áudio HDMI"];
+let outputIndex = 0;
+document.querySelector("#audioChoose").addEventListener("click", () => {
+  outputIndex = (outputIndex + 1) % demoOutputs.length;
+  document.querySelector("#audioDevice").textContent = demoOutputs[outputIndex];
+  document.querySelector(".badge").textContent = "Selecionada";
+});
+document.querySelector("#audioTest").addEventListener("click", async () => {
+  try {
+    const context = new AudioContext();
+    const oscillator = context.createOscillator();
+    const gain = context.createGain();
+    oscillator.frequency.value = 660;
+    gain.gain.setValueAtTime(0.08, context.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, context.currentTime + 0.45);
+    oscillator.connect(gain).connect(context.destination);
+    oscillator.start(); oscillator.stop(context.currentTime + 0.45);
+    oscillator.onended = () => context.close();
+  } catch (_) { alert("A prévia de áudio não está disponível neste navegador."); }
+});
+document.querySelector("#openWindowsApp").addEventListener("click", () => {
+  alert("Prévia do Brasa OS. No FreeBSD, o launcher real chama este app pelo Wine.");
+});
+</script>
+</body>
+</html>
+
+
